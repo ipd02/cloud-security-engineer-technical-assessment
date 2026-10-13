@@ -1,0 +1,41 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+# Keep the lock file and the example variable files
+!.terraform.lock.hcl
+!*.tfvars.example
+
+# Secrets and keys
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+*.p12
+credentials.json
+
+# Build output and caches
+bin/
+dist/
+coverage.out
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
