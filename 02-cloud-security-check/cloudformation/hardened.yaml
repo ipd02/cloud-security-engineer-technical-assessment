@@ -1,0 +1,253 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Hardened replacement for the assessment template. One encrypted, private,
+  versioned data bucket with access logs, and an assumable role with a
+  least-privilege policy in place of the all-access IAM user.
+
+Parameters:
+  TrustedPrincipalArn:
+    Type: String
+    Description: >-
+      ARN of the IAM role or user allowed to assume the data access role.
+      Use a role ARN from the identity account, not an account root.
+    AllowedPattern: "^arn:aws[a-z-]*:iam::[0-9]{12}:(role|user)/[A-Za-z0-9+=,.@_/-]{1,512}$"
+    ConstraintDescription: Must be an IAM role or user ARN.
+  ExternalId:
+    Type: String
+    Description: >-
+      Value the caller must pass as sts:ExternalId when assuming the role.
+      Share it out of band. It is a confused-deputy guard, not a secret.
+    MinLength: 16
+    MaxLength: 128
+    AllowedPattern: "^[A-Za-z0-9+=,.@:/_-]+$"
+    ConstraintDescription: "16 to 128 characters from A-Z a-z 0-9 and the symbols + = , . @ : / _ -"
+  RequireMfa:
+    Type: String
+    Description: Require MFA in the session that assumes the role (human callers).
+    AllowedValues: ["true", "false"]
+    Default: "true"
+  DataRetentionDays:
+    Type: Number
+    Description: Days to keep noncurrent object versions before they expire.
+    MinValue: 7
+    MaxValue: 3650
+    Default: 90
+  LogRetentionDays:
+    Type: Number
+    Description: Days to keep S3 server access logs.
+    MinValue: 30
+    MaxValue: 3650
+    Default: 365
+
+Conditions:
+  UseMfa: !Equals [!Ref RequireMfa, "true"]
+
+Resources:
+  DataKey:
+    Type: AWS::KMS::Key
+    # Retain so that a stack delete or replacement cannot orphan the data
+    # that the key encrypts.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Encrypts objects in the data bucket
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          # Delegates access control to IAM in this account. Without this
+          # statement the key would become unmanageable.
+          - Sid: EnableAccountIamPolicies
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+
+  DataKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${AWS::StackName}-data"
+      TargetKeyId: !Ref DataKey
+
+  LogBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_18
+            comment: This is the log sink. Logging it again would chain forever.
+    Properties:
+      # SSE-S3 on purpose: S3 server access log delivery cannot write to a
+      # bucket that uses SSE-KMS.
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-logs
+            Status: Enabled
+            ExpirationInDays: !Ref LogRetentionDays
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+
+  LogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref LogBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt LogBucket.Arn
+              - !Sub "${LogBucket.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+          - Sid: AllowServerAccessLogDelivery
+            Effect: Allow
+            Principal:
+              Service: logging.s3.amazonaws.com
+            Action: "s3:PutObject"
+            Resource: !Sub "${LogBucket.Arn}/data-bucket/*"
+            Condition:
+              StringEquals:
+                "aws:SourceAccount": !Ref "AWS::AccountId"
+              ArnLike:
+                "aws:SourceArn": !GetAtt DataBucket.Arn
+
+  DataBucket:
+    Type: AWS::S3::Bucket
+    # Retain so that a stack delete does not destroy data. Remove the bucket
+    # on purpose, after it is emptied and reviewed.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !GetAtt DataKey.Arn
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LogBucket
+        LogFilePrefix: data-bucket/
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-old-versions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: !Ref DataRetentionDays
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+
+  DataBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DataBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt DataBucket.Arn
+              - !Sub "${DataBucket.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+
+  DataAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Short-lived read and write access to the data bucket
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref TrustedPrincipalArn
+            Action: "sts:AssumeRole"
+            Condition: !If
+              - UseMfa
+              - StringEquals:
+                  "sts:ExternalId": !Ref ExternalId
+                Bool:
+                  "aws:MultiFactorAuthPresent": "true"
+              - StringEquals:
+                  "sts:ExternalId": !Ref ExternalId
+
+  DataAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Named S3 and KMS actions on the data bucket and its key only
+      Roles:
+        - !Ref DataAccessRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: ListDataBucket
+            Effect: Allow
+            Action:
+              - "s3:ListBucket"
+              - "s3:GetBucketLocation"
+            Resource: !GetAtt DataBucket.Arn
+          - Sid: ReadWriteObjects
+            Effect: Allow
+            Action:
+              - "s3:GetObject"
+              - "s3:GetObjectVersion"
+              - "s3:PutObject"
+            Resource: !Sub "${DataBucket.Arn}/*"
+          - Sid: UseDataKey
+            Effect: Allow
+            Action:
+              - "kms:Decrypt"
+              - "kms:GenerateDataKey"
+            Resource: !GetAtt DataKey.Arn
+
+Outputs:
+  DataBucketArn:
+    Description: ARN of the data bucket
+    Value: !GetAtt DataBucket.Arn
+  LogBucketName:
+    Description: Bucket that receives the data bucket access logs
+    Value: !Ref LogBucket
+  DataKeyArn:
+    Description: ARN of the KMS key that encrypts the data bucket
+    Value: !GetAtt DataKey.Arn
+  DataAccessRoleArn:
+    Description: Role that callers assume to use the data bucket
+    Value: !GetAtt DataAccessRole.Arn
