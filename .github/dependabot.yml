@@ -1,0 +1,20 @@
+version: 2
+# Dependabot does not cover 04-dependency-audit/vulnerable-input on purpose.
+# That folder holds deliberately outdated packages and would open endless PRs.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: gomod
+    directory: /03-firewall-scanner
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /04-dependency-audit
+    schedule:
+      interval: weekly
+  - package-ecosystem: terraform
+    directory: /01-gcp-terraform
+    schedule:
+      interval: weekly
