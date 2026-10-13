@@ -23,4 +23,4 @@ tf-test: tf-init ## Part 1: terraform test with a mocked provider
 	terraform -chdir=$(TF_DIR) test
 
 tf-scan: ## Part 1: checkov on the Terraform module
-	checkov -d $(TF_DIR)
+	checkov -d $(TF_DIR) --external-checks-dir $(TF_DIR)/policy/checkov
