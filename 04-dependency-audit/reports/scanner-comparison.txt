@@ -1,0 +1,7 @@
+npm audit advisories: 46
+trivy findings with a GHSA id: 45
+in both: 45
+severity differs (npm vs trivy):
+only in npm audit:
+  ghsa-h8hf-x3f4-xwgp mongoose critical
+only in trivy:

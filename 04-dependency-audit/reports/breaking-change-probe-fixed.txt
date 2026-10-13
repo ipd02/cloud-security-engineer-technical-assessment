@@ -1,0 +1,18 @@
+# date_utc: 2026-10-13T18:29:55Z
+# node: v26.10.0
+# cmd: node breaking-change-probe.js (jsonwebtoken 9.0.3, mongoose 9.11.2 from fixed/package-lock.json)
+verify HS256 default => OK number
+verify with alg none token => THROWS JsonWebTokenError: jwt signature is required
+sign RSA 1024 key => THROWS Error: secretOrPrivateKey has a minimum key size of 2048 bits for RS256
+sign RSA 2048 key => OK eyJhbGciOiJSUzI1NiIsInR5cCI6Ik
+verify with public key but HS256 token (alg confusion) => THROWS JsonWebTokenError: invalid algorithm
+sign with no secret => THROWS Error: secretOrPrivateKey must have a value
+sign expiresIn "1x" => THROWS Error: "expiresIn" should be a number of seconds or string representing a timespan eg: "1d", "20h", 60
+sign payload string + expiresIn => THROWS Error: invalid expiresIn option for string payload
+mongoose 9.11.2
+Model.find with callback => THROWS MongooseError: Model.find() no longer accepts a callback
+Model.findOne with callback => THROWS MongooseError: Model.findOne() no longer accepts a callback
+Model.count() => THROWS TypeError: M.count is not a function
+Model.update() => THROWS TypeError: M.update is not a function
+Model.remove() => THROWS TypeError: M.remove is not a function
+doc.save with callback => REJECTS MongooseError: Model.prototype.save() no longer accepts a callback

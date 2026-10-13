@@ -1,0 +1,6 @@
+# date_utc: 2026-10-13T18:28:45Z
+# npm: 11.19.1
+# node: v26.10.0
+# cmd: npm audit (fixed/)
+found 0 vulnerabilities
+# exit: 0

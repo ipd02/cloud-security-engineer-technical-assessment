@@ -1,0 +1,9 @@
+# date_utc: 2026-10-13T18:33:44Z
+# node: v26.10.0
+# cmd: node breaking-change-probe.js (mongoose 6.13.11 with jsonwebtoken 9.0.3, scratch install)
+mongoose 6.13.11
+Model.find with callback => OK object
+Model.findOne with callback => OK object
+Model.count() => OK object
+Model.update() => OK object
+Model.remove() => OK object

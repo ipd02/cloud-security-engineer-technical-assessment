@@ -1,0 +1,186 @@
+# date_utc: 2026-10-13T18:27:31Z
+# npm: 11.19.1
+# node: v26.10.0
+# cmd: npm audit
+# npm audit report
+
+async  2.0.0 - 2.6.3
+Severity: high
+Prototype Pollution in async - https://github.com/advisories/GHSA-fwr7-v2mv-hh25
+fix available via `npm audit fix --force`
+Will install mongoose@9.11.2, which is a breaking change
+node_modules/async
+  mongoose  <=6.13.9
+  Depends on vulnerable versions of async
+  Depends on vulnerable versions of bson
+  Depends on vulnerable versions of mongodb
+  Depends on vulnerable versions of mpath
+  Depends on vulnerable versions of mquery
+  node_modules/mongoose
+
+bson  <=1.1.3
+Severity: critical
+Deserialization of Untrusted Data in bson - https://github.com/advisories/GHSA-4jwp-vfvf-657p
+Deserialization of Untrusted Data in bson - https://github.com/advisories/GHSA-v8w9-2789-6hhr
+fix available via `npm audit fix --force`
+Will install mongoose@9.11.2, which is a breaking change
+node_modules/bson
+  mongodb-core  <=3.1.1
+  Depends on vulnerable versions of bson
+  node_modules/mongodb-core
+    mongodb  <=3.1.12
+    Depends on vulnerable versions of mongodb-core
+    node_modules/mongodb
+
+cookie  <0.7.0
+cookie accepts cookie name, path, and domain with out of bounds characters - https://github.com/advisories/GHSA-pxg6-pf52-xh8x
+fix available via `npm audit fix --force`
+Will install express@4.22.3, which is outside the stated dependency range
+node_modules/cookie
+  express  <=4.21.0 || 5.0.0-alpha.1 - 5.0.0
+  Depends on vulnerable versions of cookie
+  Depends on vulnerable versions of debug
+  Depends on vulnerable versions of fresh
+  Depends on vulnerable versions of path-to-regexp
+  Depends on vulnerable versions of proxy-addr
+  Depends on vulnerable versions of qs
+  Depends on vulnerable versions of send
+  Depends on vulnerable versions of serve-static
+  node_modules/express
+
+debug  <=2.6.8
+Severity: high
+debug Inefficient Regular Expression Complexity vulnerability - https://github.com/advisories/GHSA-9vvw-cc9w-f27h
+Regular Expression Denial of Service in debug - https://github.com/advisories/GHSA-gxpj-cx7g-858c
+Depends on vulnerable versions of ms
+fix available via `npm audit fix --force`
+Will install express@4.22.3, which is outside the stated dependency range
+node_modules/express/node_modules/debug
+node_modules/send/node_modules/debug
+  send  <=0.18.0
+  Depends on vulnerable versions of debug
+  Depends on vulnerable versions of fresh
+  Depends on vulnerable versions of mime
+  Depends on vulnerable versions of ms
+  node_modules/send
+    serve-static  <=1.16.0
+    Depends on vulnerable versions of send
+    node_modules/serve-static
+
+diff  <3.5.1
+jsdiff has a Denial of Service vulnerability in parsePatch and applyPatch - https://github.com/advisories/GHSA-73rr-hh4g-fpgx
+fix available via `npm audit fix --force`
+Will install mocha@12.0.3, which is a breaking change
+node_modules/diff
+  mocha  0.14.0 - 7.2.0
+  Depends on vulnerable versions of diff
+  Depends on vulnerable versions of mkdirp
+  node_modules/mocha
+
+
+fresh  <0.5.2
+Severity: high
+Regular Expression Denial of Service in fresh - https://github.com/advisories/GHSA-9qj9-36jm-prpv
+fix available via `npm audit fix --force`
+Will install express@4.22.3, which is outside the stated dependency range
+node_modules/fresh
+
+jsonwebtoken  <=8.5.1
+Severity: high
+jsonwebtoken unrestricted key type could lead to legacy keys usage  - https://github.com/advisories/GHSA-8cf7-32gw-wr33
+jsonwebtoken's insecure implementation of key retrieval function could lead to Forgeable Public/Private Tokens from RSA to HMAC - https://github.com/advisories/GHSA-hjrf-2m68-5959
+jsonwebtoken vulnerable to signature validation bypass due to insecure default algorithm in jwt.verify() - https://github.com/advisories/GHSA-qwph-4952-7xr6
+fix available via `npm audit fix --force`
+Will install jsonwebtoken@9.0.3, which is a breaking change
+node_modules/jsonwebtoken
+
+lodash  <=4.17.23
+Severity: critical
+Command Injection in lodash - https://github.com/advisories/GHSA-35jh-r3h4-6jhm
+Prototype Pollution in lodash - https://github.com/advisories/GHSA-4xc9-xhrj-v574
+Prototype Pollution in lodash - https://github.com/advisories/GHSA-jf85-cpcp-j695
+Prototype Pollution in lodash - https://github.com/advisories/GHSA-p6mc-m468-83gw
+Regular Expression Denial of Service (ReDoS) in lodash - https://github.com/advisories/GHSA-29mw-wpgm-hmr9
+Regular Expression Denial of Service (ReDoS) in lodash - https://github.com/advisories/GHSA-x5rq-j2xg-h7qm
+lodash vulnerable to Code Injection via `_.template` imports key names - https://github.com/advisories/GHSA-r5fr-rjxr-66jc
+lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit` - https://github.com/advisories/GHSA-f23m-r3pf-42rh
+Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions - https://github.com/advisories/GHSA-xxjr-mmjv-4gpg
+fix available via `npm audit fix --force`
+Will install lodash@4.18.1, which is outside the stated dependency range
+node_modules/lodash
+
+mime  <1.4.1
+Severity: high
+mime Regular Expression Denial of Service when MIME lookup performed on untrusted user input - https://github.com/advisories/GHSA-wrvr-8mpx-r7pp
+fix available via `npm audit fix --force`
+Will install express@4.22.3, which is outside the stated dependency range
+node_modules/mime
+
+minimist  <=0.2.3
+Severity: critical
+Prototype Pollution in minimist - https://github.com/advisories/GHSA-vh95-rmgr-6w4m
+Prototype Pollution in minimist - https://github.com/advisories/GHSA-xvch-5gv4-984h
+fix available via `npm audit fix --force`
+Will install mocha@12.0.3, which is a breaking change
+node_modules/minimist
+  mkdirp  0.4.1 - 0.5.1
+  Depends on vulnerable versions of minimist
+  node_modules/mkdirp
+
+
+
+mpath  <0.8.4
+Severity: moderate
+Type confusion in mpath - https://github.com/advisories/GHSA-p92x-r36w-9395
+fix available via `npm audit fix --force`
+Will install mongoose@9.11.2, which is a breaking change
+node_modules/mpath
+
+mquery  <3.2.3
+Severity: moderate
+Code Injection in mquery - https://github.com/advisories/GHSA-45q2-34rf-mr94
+fix available via `npm audit fix --force`
+Will install mongoose@9.11.2, which is a breaking change
+node_modules/mquery
+
+ms  <2.0.0
+Severity: moderate
+Vercel ms Inefficient Regular Expression Complexity vulnerability - https://github.com/advisories/GHSA-w9mr-4mfr-499f
+fix available via `npm audit fix --force`
+Will install express@4.22.3, which is outside the stated dependency range
+node_modules/express/node_modules/ms
+node_modules/send/node_modules/ms
+
+path-to-regexp  <=0.1.12
+Severity: high
+path-to-regexp outputs backtracking regular expressions - https://github.com/advisories/GHSA-9wv6-86v2-598j
+path-to-regexp contains a ReDoS - https://github.com/advisories/GHSA-rhx6-c78j-4q9w
+path-to-regexp vulnerable to Regular Expression Denial of Service via multiple route parameters - https://github.com/advisories/GHSA-37ch-88jc-xwx2
+fix available via `npm audit fix --force`
+Will install express@4.22.3, which is outside the stated dependency range
+node_modules/path-to-regexp
+
+proxy-addr  1.1.0 - 2.0.7
+Severity: critical
+proxy-addr vulnerable to IP spoofing via IPv4-mapped IPv6 trust subnet - https://github.com/advisories/GHSA-jqcg-44mw-7w3h
+fix available via `npm audit fix --force`
+Will install express@4.22.3, which is outside the stated dependency range
+node_modules/proxy-addr
+
+qs  <=6.15.3
+Severity: high
+Prototype Pollution Protection Bypass in qs - https://github.com/advisories/GHSA-gqgv-6jq5-jjj9
+qs vulnerable to Prototype Pollution - https://github.com/advisories/GHSA-hrpp-h998-j3pp
+qs's arrayLimit bypass in its bracket notation allows DoS via memory exhaustion - https://github.com/advisories/GHSA-6rw7-vpxm-498p
+qs: Denial of Service via Attacker Controlled isBuffer - https://github.com/advisories/GHSA-4mjr-xmp4-gh2g
+fix available via `npm audit fix --force`
+Will install express@4.22.3, which is outside the stated dependency range
+node_modules/express/node_modules/qs
+
+
+
+24 vulnerabilities (3 low, 3 moderate, 8 high, 10 critical)
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+# exit: 1

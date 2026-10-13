@@ -1,0 +1,10 @@
+# date_utc: 2026-10-13T18:33:55Z
+# node: v26.10.0
+# cmd: node breaking-change-probe.js (mongoose 7.8.12 with jsonwebtoken 9.0.3, scratch install)
+mongoose 7.8.12
+Model.find with callback => THROWS MongooseError: Model.find() no longer accepts a callback
+Model.findOne with callback => THROWS MongooseError: Model.findOne() no longer accepts a callback
+Model.count() => OK object
+Model.update() => THROWS TypeError: M.update is not a function
+Model.remove() => THROWS TypeError: M.remove is not a function
+doc.save with callback => REJECTS MongooseError: Model.prototype.save() no longer accepts a callback

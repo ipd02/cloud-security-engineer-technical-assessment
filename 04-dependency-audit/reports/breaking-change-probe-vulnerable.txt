@@ -1,0 +1,19 @@
+# date_utc: 2026-10-13T18:29:56Z
+# node: v26.10.0
+# cmd: node breaking-change-probe.js (jsonwebtoken 8.1.0, mongoose 4.13.21 (the versions in vulnerable-input/package-lock.json), installed with --ignore-scripts in a scratch dir)
+verify HS256 default => OK number
+verify with alg none token => THROWS JsonWebTokenError: jwt signature is required
+sign RSA 1024 key => OK eyJhbGciOiJSUzI1NiIsInR5cCI6Ik
+sign RSA 2048 key => OK eyJhbGciOiJSUzI1NiIsInR5cCI6Ik
+verify with public key but HS256 token (alg confusion) => THROWS JsonWebTokenError: invalid algorithm
+sign with no secret => THROWS Error: secretOrPrivateKey must have a value
+sign expiresIn "1x" => THROWS Error: "expiresIn" should be a number of seconds or string representing a timespan eg: "1d", "20h", 60
+sign payload string + expiresIn => THROWS Error: invalid expiresIn option for string payload
+mongoose 4.13.21
+Model.find with callback => OK object
+Model.findOne with callback => OK object
+Model.count() => OK object
+Model.update() => OK object
+Model.remove() => OK object
+(node:12134) DeprecationWarning: Mongoose: mpromise (mongoose's default promise library) is deprecated, plug in your own promise library instead: http://mongoosejs.com/docs/promises.html
+(Use `node --trace-deprecation ...` to show where the warning was created)
