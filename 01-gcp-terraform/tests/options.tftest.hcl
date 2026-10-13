@@ -77,3 +77,17 @@ run "bastion_is_optional" {
     error_message = "Without a bastion, egress is allowed for the web instance only."
   }
 }
+
+run "iap_login_is_bound_to_the_web_instance_only" {
+  command = apply
+
+  variables {
+    enable_iap_ssh    = true
+    ssh_login_members = ["user:alice@example.com"]
+  }
+
+  assert {
+    condition     = google_iap_tunnel_instance_iam_member.iap_web["user:alice@example.com"].role == "roles/iap.tunnelResourceAccessor" && google_iap_tunnel_instance_iam_member.iap_web["user:alice@example.com"].instance == google_compute_instance.web.name
+    error_message = "IAP tunnel access is bound to the web instance."
+  }
+}

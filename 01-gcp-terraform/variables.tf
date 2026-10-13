@@ -113,6 +113,23 @@ variable "bastion_machine_type" {
   default     = "e2-micro"
 }
 
+variable "ssh_login_members" {
+  description = <<-EOT
+    IAM members allowed to log in over SSH, for example ["user:alice@example.com"].
+    Each gets roles/compute.osLogin (no sudo) on the web instance and the bastion
+    only, never project-wide. Add roles/compute.osAdminLogin yourself if someone
+    needs sudo. With enable_iap_ssh they also get roles/iap.tunnelResourceAccessor
+    on the web instance. Default empty: grant access yourself.
+  EOT
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for m in var.ssh_login_members : can(regex("^(user|group|serviceAccount):[^ ]+$", m))])
+    error_message = "ssh_login_members entries must look like user:name@example.com, group:... or serviceAccount:... (no allUsers, no domains)."
+  }
+}
+
 variable "enable_iap_ssh" {
   description = "Also allow SSH from the Identity-Aware Proxy range 35.235.240.0/20 so admins can use IAP TCP forwarding. Default off."
   type        = bool

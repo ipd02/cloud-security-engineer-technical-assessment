@@ -214,3 +214,19 @@ run "ssh_single_host_and_small_ranges_are_accepted" {
     trusted_ssh_cidrs = ["203.0.113.0/24", "198.51.100.7/32", "192.0.2.0/25"]
   }
 }
+
+run "login_members_reject_public_principals" {
+  command = plan
+  variables {
+    ssh_login_members = ["allUsers"]
+  }
+  expect_failures = [var.ssh_login_members]
+}
+
+run "login_members_reject_domains" {
+  command = plan
+  variables {
+    ssh_login_members = ["domain:example.com"]
+  }
+  expect_failures = [var.ssh_login_members]
+}

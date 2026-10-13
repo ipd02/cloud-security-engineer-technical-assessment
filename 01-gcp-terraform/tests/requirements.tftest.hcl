@@ -262,3 +262,33 @@ run "iam_has_no_basic_roles" {
     error_message = "The bastion service account holds no project roles."
   }
 }
+
+# Bonus, resource-level IAM: SSH logins are granted on the two instances only,
+# with the no-sudo OS Login role, never at project level.
+run "ssh_logins_are_granted_per_instance_without_sudo" {
+  command = apply
+
+  variables {
+    ssh_login_members = ["user:alice@example.com"]
+  }
+
+  assert {
+    condition     = google_compute_instance_iam_member.os_login_web["user:alice@example.com"].role == "roles/compute.osLogin" && google_compute_instance_iam_member.os_login_web["user:alice@example.com"].instance_name == google_compute_instance.web.name
+    error_message = "OS Login is granted on the web instance with the no-sudo role."
+  }
+
+  assert {
+    condition     = google_compute_instance_iam_member.os_login_bastion["user:alice@example.com"].role == "roles/compute.osLogin" && google_compute_instance_iam_member.os_login_bastion["user:alice@example.com"].instance_name == google_compute_instance.bastion[0].name
+    error_message = "OS Login is granted on the bastion with the no-sudo role."
+  }
+
+  assert {
+    condition     = length(google_iap_tunnel_instance_iam_member.iap_web) == 0
+    error_message = "No IAP binding unless the IAP rule is enabled."
+  }
+
+  assert {
+    condition     = toset([for m in google_project_iam_member.web : m.role]) == toset(["roles/logging.logWriter", "roles/monitoring.metricWriter"])
+    error_message = "Project-level roles stay the two writer roles."
+  }
+}
