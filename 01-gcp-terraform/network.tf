@@ -15,10 +15,10 @@ resource "google_compute_network" "vpc" {
 }
 
 # The public subnet is kept because the brief asks for it. A global external
-# Application Load Balancer does not live in any subnet, so nothing runs here.
-# It is reserved for resources that must be reachable from the internet
-# through their own addresses, for example a bastion or a proxy-only subnet
-# for a regional load balancer later.
+# Application Load Balancer does not live in any subnet.
+# It holds the SSH bastion (bastion.tf), the one host with its own
+# internet-reachable address. A proxy-only subnet for a regional load balancer
+# would be a separate subnet with its own purpose, not this one.
 resource "google_compute_subnetwork" "public" {
   project                  = var.project_id
   name                     = "${var.name}-public"

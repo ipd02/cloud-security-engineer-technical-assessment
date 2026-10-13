@@ -54,3 +54,26 @@ run "cloud_armor_has_owasp_and_rate_limit" {
     error_message = "Exactly one rate limit rule expected."
   }
 }
+
+run "bastion_is_optional" {
+  command = apply
+
+  variables {
+    enable_bastion = false
+  }
+
+  assert {
+    condition     = length(google_compute_instance.bastion) == 0 && length(google_service_account.bastion) == 0 && length(google_compute_firewall.allow_ssh_trusted_bastion) == 0 && length(google_compute_firewall.allow_ssh_bastion_to_web) == 0 && length(google_compute_firewall.allow_egress_bastion_ssh) == 0
+    error_message = "enable_bastion = false must remove every bastion resource."
+  }
+
+  assert {
+    condition     = google_compute_firewall.allow_ssh_trusted.source_ranges == toset(["203.0.113.0/24"]) && length(google_compute_instance.web.network_interface[0].access_config) == 0
+    error_message = "The direct trusted-range rule and the private web instance remain."
+  }
+
+  assert {
+    condition     = google_compute_firewall.allow_egress_web.target_service_accounts == toset([google_service_account.web.email])
+    error_message = "Without a bastion, egress is allowed for the web instance only."
+  }
+}

@@ -60,9 +60,10 @@ variable "private_subnet_cidr" {
 
 variable "trusted_ssh_cidrs" {
   description = <<-EOT
-    IPv4 source ranges allowed to reach tcp/22 on the instance. Required, no default.
-    The instance has no external IP, so these ranges must reach the VPC over private
-    connectivity (VPN, Interconnect, peering) or sit inside it. See the README.
+    IPv4 source ranges allowed to reach tcp/22 on the bastion (and on the web
+    instance, for ranges that reach the VPC privately). Required, no default.
+    The web instance has no external IP, so public ranges get in through the
+    bastion. See the README.
     Rejected: null, an empty list, anything that is not a canonical IPv4 CIDR (IPv6,
     host bits set, whitespace), 0.0.0.0/0, any prefix shorter than /8, and a list
     that adds up to more than 16,777,216 addresses (one /8) in total, so a long list
@@ -98,6 +99,18 @@ variable "trusted_ssh_cidrs" {
     condition     = try(sum([for c in distinct(var.trusted_ssh_cidrs) : pow(2, 32 - tonumber(split("/", c)[1]))]) <= 16777216, false)
     error_message = "trusted_ssh_cidrs may cover at most 16,777,216 addresses in total (one /8)."
   }
+}
+
+variable "enable_bastion" {
+  description = "Create an SSH bastion in the public subnet. It takes SSH from trusted_ssh_cidrs and is the only host allowed to SSH to the private web instance. Turn off only if trusted_ssh_cidrs reaches the VPC privately (VPN, Interconnect, peering)."
+  type        = bool
+  default     = true
+}
+
+variable "bastion_machine_type" {
+  description = "Machine type of the bastion."
+  type        = string
+  default     = "e2-micro"
 }
 
 variable "enable_iap_ssh" {

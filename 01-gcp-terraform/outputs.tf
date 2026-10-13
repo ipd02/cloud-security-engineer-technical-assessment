@@ -37,3 +37,13 @@ output "security_policy_id" {
   description = "Id of the Cloud Armor policy."
   value       = google_compute_security_policy.edge.id
 }
+
+output "bastion_external_ip" {
+  description = "External IP of the SSH bastion, or null when enable_bastion is false."
+  value       = one(google_compute_instance.bastion[*].network_interface[0].access_config[0].nat_ip)
+}
+
+output "bastion_service_account" {
+  description = "Email of the bastion service account, or null when enable_bastion is false."
+  value       = one(google_service_account.bastion[*].email)
+}

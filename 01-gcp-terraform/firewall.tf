@@ -40,11 +40,77 @@ resource "google_compute_firewall" "allow_ssh_trusted" {
   project                 = var.project_id
   name                    = "${var.name}-allow-ssh-trusted"
   network                 = google_compute_network.vpc.name
-  description             = "tcp/22 from the trusted ranges to the web instance only."
+  description             = "tcp/22 from the trusted ranges to the web instance only. Useful when those ranges reach the VPC privately."
   direction               = "INGRESS"
   priority                = 1000
   source_ranges           = var.trusted_ssh_cidrs
   target_service_accounts = [google_service_account.web.email]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  log_config {
+    metadata = "INCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_ssh_trusted_bastion" {
+  count = var.enable_bastion ? 1 : 0
+
+  project                 = var.project_id
+  name                    = "${var.name}-allow-ssh-bastion-in"
+  network                 = google_compute_network.vpc.name
+  description             = "tcp/22 from the trusted ranges to the bastion only."
+  direction               = "INGRESS"
+  priority                = 1000
+  source_ranges           = var.trusted_ssh_cidrs
+  target_service_accounts = [google_service_account.bastion[0].email]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  log_config {
+    metadata = "INCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_ssh_bastion_to_web" {
+  count = var.enable_bastion ? 1 : 0
+
+  project                 = var.project_id
+  name                    = "${var.name}-allow-ssh-bastion-to-web"
+  network                 = google_compute_network.vpc.name
+  description             = "tcp/22 from the bastion to the web instance only."
+  direction               = "INGRESS"
+  priority                = 1000
+  source_service_accounts = [google_service_account.bastion[0].email]
+  target_service_accounts = [google_service_account.web.email]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  log_config {
+    metadata = "INCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_egress_bastion_ssh" {
+  count = var.enable_bastion ? 1 : 0
+
+  project                 = var.project_id
+  name                    = "${var.name}-allow-egress-bastion-ssh"
+  network                 = google_compute_network.vpc.name
+  description             = "Outbound tcp/22 from the bastion to the private subnet only."
+  direction               = "EGRESS"
+  priority                = 1000
+  destination_ranges      = [var.private_subnet_cidr]
+  target_service_accounts = [google_service_account.bastion[0].email]
 
   allow {
     protocol = "tcp"
@@ -114,7 +180,7 @@ resource "google_compute_firewall" "deny_all_ingress_ipv6" {
   }
 }
 
-# Egress posture: the instance may open tcp/80 and tcp/443 (package
+# Egress posture: the instances may open tcp/80 and tcp/443 (package
 # repositories through Cloud NAT, Google APIs through private access).
 # Everything else is denied. DNS to the metadata server (169.254.169.254) is
 # always allowed by GCP and needs no rule.
@@ -122,11 +188,11 @@ resource "google_compute_firewall" "allow_egress_web" {
   project                 = var.project_id
   name                    = "${var.name}-allow-egress-web"
   network                 = google_compute_network.vpc.name
-  description             = "Outbound tcp/80 and tcp/443 for updates and Google APIs."
+  description             = "Outbound tcp/80 and tcp/443 for updates and Google APIs (web instance and bastion)."
   direction               = "EGRESS"
   priority                = 1000
   destination_ranges      = ["0.0.0.0/0"]
-  target_service_accounts = [google_service_account.web.email]
+  target_service_accounts = concat([google_service_account.web.email], google_service_account.bastion[*].email)
 
   allow {
     protocol = "tcp"

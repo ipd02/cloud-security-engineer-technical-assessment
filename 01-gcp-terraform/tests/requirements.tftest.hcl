@@ -38,6 +38,11 @@ run "instance_is_in_the_private_subnet" {
   }
 
   assert {
+    condition     = google_compute_instance.web.metadata["startup-script"] == file("${path.module}/scripts/startup.sh") && google_compute_instance.web.metadata_startup_script == null
+    error_message = "The startup script must live in metadata so editing it does not replace the instance."
+  }
+
+  assert {
     condition     = length(google_compute_instance.web.network_interface) == 1 && length(google_compute_instance.web.network_interface[0].access_config) == 0
     error_message = "One network interface and no external IP."
   }
@@ -50,11 +55,6 @@ run "instance_is_in_the_private_subnet" {
   assert {
     condition     = google_compute_instance.web.service_account[0].scopes == toset(["https://www.googleapis.com/auth/logging.write", "https://www.googleapis.com/auth/monitoring.write"]) && !contains(google_compute_instance.web.service_account[0].scopes, "https://www.googleapis.com/auth/cloud-platform")
     error_message = "Scopes must match the two IAM roles, never cloud-platform."
-  }
-
-  assert {
-    condition     = google_compute_instance.web.metadata["startup-script"] == file("${path.module}/scripts/startup.sh") && google_compute_instance.web.metadata_startup_script == null
-    error_message = "The startup script must live in metadata so editing it does not replace the instance."
   }
 }
 
@@ -111,7 +111,7 @@ run "internet_reaches_only_port_443_on_the_load_balancer" {
 
   assert {
     condition = alltrue([
-      for r in [google_compute_firewall.allow_lb_http, google_compute_firewall.allow_ssh_trusted] :
+      for r in [google_compute_firewall.allow_lb_http, google_compute_firewall.allow_ssh_trusted, google_compute_firewall.allow_ssh_trusted_bastion[0]] :
       !contains(r.source_ranges, "0.0.0.0/0") && !contains(r.source_ranges, "::/0")
     ])
     error_message = "No allow rule may take traffic from the whole internet."
@@ -140,6 +140,62 @@ run "ssh_only_from_the_trusted_range_to_the_instance" {
   assert {
     condition     = length(google_compute_firewall.allow_ssh_iap) == 0
     error_message = "The IAP rule is opt-in."
+  }
+}
+
+# Bullet 4b, public path: the trusted range reaches the private instance through
+# a bastion in the public subnet. Trusted range -> bastion -> web instance.
+run "ssh_reaches_the_private_instance_through_a_bastion" {
+  command = apply
+
+  assert {
+    condition     = google_compute_instance.bastion[0].network_interface[0].subnetwork == google_compute_subnetwork.public.id
+    error_message = "The bastion must sit in the public subnet."
+  }
+
+  assert {
+    condition     = length(google_compute_instance.bastion[0].network_interface[0].access_config) == 1 && length(google_compute_instance.web.network_interface[0].access_config) == 0
+    error_message = "Only the bastion has an external IP. The web instance has none."
+  }
+
+  assert {
+    condition     = google_compute_firewall.allow_ssh_trusted_bastion[0].source_ranges == toset(["203.0.113.0/24"]) && google_compute_firewall.allow_ssh_trusted_bastion[0].direction == "INGRESS"
+    error_message = "The bastion takes SSH only from the trusted range."
+  }
+
+  assert {
+    condition     = [for a in google_compute_firewall.allow_ssh_trusted_bastion[0].allow : a.protocol] == ["tcp"] && flatten([for a in google_compute_firewall.allow_ssh_trusted_bastion[0].allow : tolist(a.ports)]) == ["22"]
+    error_message = "The bastion rule must allow exactly tcp/22."
+  }
+
+  assert {
+    condition     = google_compute_firewall.allow_ssh_trusted_bastion[0].target_service_accounts == toset([google_service_account.bastion[0].email])
+    error_message = "The trusted-range rule must target the bastion only."
+  }
+
+  assert {
+    condition     = google_compute_firewall.allow_ssh_bastion_to_web[0].source_service_accounts == toset([google_service_account.bastion[0].email]) && google_compute_firewall.allow_ssh_bastion_to_web[0].target_service_accounts == toset([google_service_account.web.email]) && try(length(google_compute_firewall.allow_ssh_bastion_to_web[0].source_ranges) == 0, true)
+    error_message = "Only the bastion may SSH to the web instance, and the rule must not take any source range."
+  }
+
+  assert {
+    condition     = [for a in google_compute_firewall.allow_ssh_bastion_to_web[0].allow : a.protocol] == ["tcp"] && flatten([for a in google_compute_firewall.allow_ssh_bastion_to_web[0].allow : tolist(a.ports)]) == ["22"]
+    error_message = "The bastion-to-web rule must allow exactly tcp/22."
+  }
+
+  assert {
+    condition     = google_compute_firewall.allow_egress_bastion_ssh[0].destination_ranges == toset(["10.10.1.0/24"]) && google_compute_firewall.allow_egress_bastion_ssh[0].direction == "EGRESS"
+    error_message = "The bastion may open SSH only to the private subnet."
+  }
+
+  assert {
+    condition     = google_compute_instance.bastion[0].service_account[0].email == google_service_account.bastion[0].email && google_compute_instance.bastion[0].service_account[0].email != google_service_account.web.email
+    error_message = "The bastion has its own service account."
+  }
+
+  assert {
+    condition     = google_compute_instance.bastion[0].shielded_instance_config[0].enable_secure_boot && google_compute_instance.bastion[0].shielded_instance_config[0].enable_vtpm && google_compute_instance.bastion[0].shielded_instance_config[0].enable_integrity_monitoring && google_compute_instance.bastion[0].metadata["enable-oslogin"] == "TRUE" && google_compute_instance.bastion[0].metadata["block-project-ssh-keys"] == "TRUE" && google_compute_instance.bastion[0].metadata["serial-port-enable"] == "FALSE"
+    error_message = "The bastion is hardened like the web instance."
   }
 }
 
@@ -175,7 +231,7 @@ run "allow_rules_outrank_the_deny_rules" {
 
   assert {
     condition = alltrue([
-      for r in [google_compute_firewall.allow_lb_http, google_compute_firewall.allow_ssh_trusted, google_compute_firewall.allow_egress_web] :
+      for r in [google_compute_firewall.allow_lb_http, google_compute_firewall.allow_ssh_trusted, google_compute_firewall.allow_ssh_trusted_bastion[0], google_compute_firewall.allow_ssh_bastion_to_web[0], google_compute_firewall.allow_egress_web, google_compute_firewall.allow_egress_bastion_ssh[0]] :
       r.priority < min(google_compute_firewall.deny_all_ingress.priority, google_compute_firewall.deny_all_ingress_ipv6.priority, google_compute_firewall.deny_all_egress.priority)
     ])
     error_message = "Every allow rule must have a lower priority number than every deny rule."
@@ -201,4 +257,8 @@ run "iam_has_no_basic_roles" {
     error_message = "Roles go to the dedicated service account only."
   }
 
+  assert {
+    condition     = length([for m in google_project_iam_member.web : m if m.member == "serviceAccount:${google_service_account.bastion[0].email}"]) == 0
+    error_message = "The bastion service account holds no project roles."
+  }
 }
