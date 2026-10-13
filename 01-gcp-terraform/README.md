@@ -6,6 +6,7 @@ A Terraform module that builds a small web stack in one GCP project:
 
 - A custom-mode VPC with a public and a private subnet, both with flow logs.
 - One Compute Engine instance in the private subnet. It has no external IP.
+- A small SSH bastion in the public subnet, the only way in for a trusted public range (on by default, `enable_bastion`).
 - A global external Application Load Balancer that accepts HTTPS (443) only and sends traffic to the instance on port 80.
 - Firewall rules for 443 from the internet (at the load balancer), 22 from trusted ranges, and 80 from the load balancer, plus explicit deny-all rules.
 - Cloud Router and Cloud NAT so the private instance can fetch updates.
@@ -33,8 +34,9 @@ To use the module, see `examples/basic/main.tf`. The inputs you must set are `pr
 | `validations.tf` | Cross-variable checks (precondition and a `check` block) |
 | `network.tf` | VPC, subnets, Cloud Router, Cloud NAT |
 | `firewall.tf` | Allow rules, deny-all rules, egress posture |
-| `iam.tf` | Instance service account and role bindings |
-| `compute.tf` | Instance and unmanaged instance group |
+| `iam.tf` | Instance service account, project roles, per-instance login bindings |
+| `compute.tf` | Web instance and unmanaged instance group |
+| `bastion.tf` | SSH bastion in the public subnet and its service account |
 | `loadbalancer.tf` | Address, certificate, TLS policy, health check, backend, URL map, proxy, forwarding rule |
 | `armor.tf` | Cloud Armor policy |
 | `scripts/startup.sh` | Serves a test page on port 80 |
@@ -51,23 +53,43 @@ All of these ran on my machine with Terraform 1.16.5 and provider `hashicorp/goo
 | `terraform init -backend=false` | ok |
 | `terraform validate` | valid |
 | `tflint` (recommended preset, recursive) | no issues |
-| `terraform test` | 17 passed, 0 failed |
-| `checkov -d 01-gcp-terraform` | 61 passed, 0 failed, 0 skipped |
+| `terraform test` | 48 passed, 0 failed |
+| `checkov -d 01-gcp-terraform` (built-in plus three custom policies) | 98 passed, 0 failed, 1 skipped |
 | `make lint test scan` | green |
 
-The tests use `mock_provider "google"` and `command = plan`. They check the rendered configuration, not real GCP behaviour. They cover: forwarding rule on 443 only, TLS policy MODERN with minimum TLS 1.2, backend and health check logging, firewall ranges and ports, no external IP, Shielded VM, OS Login metadata, exactly two IAM roles with no `roles/editor` or `roles/owner`, the opt-in IAP rule, existing-certificate mode, CMEK pass-through, and rejection of bad input (`0.0.0.0/0`, `::/0`, empty list, prefix too short, malformed CIDR, missing or doubled certificate input, overlapping subnets, zone outside region).
+`tests/requirements.tftest.hcl` has one run per bullet of the brief (subnets, private instance, global load balancer chain, 443-only forwarding rule, SSH through the bastion, HTTP from the load balancer, allow rules ranked above the deny rules, IAM). The tests use `mock_provider "google"`, with `command = plan` or `apply` against the mock. They check the rendered configuration, not real GCP behaviour. They cover: forwarding rule on 443 only, TLS policy MODERN with minimum TLS 1.2, backend and health check logging, firewall ranges and ports, no external IP, Shielded VM, OS Login metadata, exactly two IAM roles on the dedicated service account, the opt-in IAP rule, existing-certificate mode, CMEK pass-through, and rejection of bad SSH input (`0.0.0.0/0`, IPv6 and IPv4-mapped IPv6, mixed lists, empty list, prefixes shorter than /8, 256 /8s that add up to the internet, host bits, whitespace, malformed CIDRs) and of a missing or doubled certificate input, overlapping subnets and a zone outside the region.
 
-Not verified:
+`terraform test` can only look at resources the module declares, so it cannot notice a new, unrelated resource. Three custom Checkov policies in `policy/checkov/` cover that gap across the whole directory: no `roles/editor` or `roles/owner` bindings, every global forwarding rule on port 443 only, and no ingress allow rule from `0.0.0.0/0` or `::/0`. Checkov's built-in `CKV_GCP_2` and `CKV_GCP_117` overlap with the first and third.
 
-- I did not run `terraform plan` or `terraform apply` against real GCP. No resource exists because of this work.
-- Whether the load balancer serves traffic, whether the managed certificate provisions, whether the startup script works on the image, and whether the deployer roles below are enough have not been tested.
-- Cloud Armor rule behaviour (false positives on the OWASP rules, the rate limit threshold) has not been observed.
+### Live verification
 
-**Live verification: pending.** The author will run a live apply in a throwaway project and update this line with the date and result.
+On 2026-10-13 I applied the module in a throwaway project (35 resources, Terraform 1.16.5, provider 7.46.1), tested it, and destroyed it. A final listing showed only the project's own default network and firewall rules left. The certificate was a self-signed one passed in as `existing_ssl_certificate_id`.
+
+Observed:
+
+- Backend service `HEALTHY`. `https://<lb ip>/` returned 200 with the instance's page. It took a few minutes after apply, with 502 or 503 until the backend registered.
+- TLS 1.2 and TLS 1.3 negotiate. Port 80 on the load balancer address gets no answer (connection error).
+- Cloud Armor returned 403 for a SQL injection string, an XSS string, a path traversal string, a shell command string and a `${jndi:...}` header.
+- Boot image `debian-13-trixie`. The web instance has no external IP, Shielded VM on, OS Login on, scopes limited to `logging.write` and `monitoring.write`. The bastion is the only instance with an external IP.
+- SSH: from the trusted `/32` to the bastion works, and from there to the web instance works (tested with `ssh -J`-style proxying through the bastion). A direct connection to the web instance's internal address from outside times out. After changing `trusted_ssh_cidrs` to a different range, the bastion no longer answers.
+- Bastion to web instance on 22 is open, on 80 is closed. Web instance egress: 443 and 80 reach the internet through Cloud NAT (the source address was the NAT address), 8080 is refused. The bastion's egress on 8080 is refused too.
+- OS Login bindings exist on the two instances only. The only project-level roles held by the module's service accounts are the two writer roles on the web account. The bastion account has none.
+- Logs appeared in Cloud Logging for VPC flow, firewall (allow and deny rules), Cloud NAT, load balancer requests and health checks.
+- Cloud Armor rate limit (300 requests per 60 seconds): in one run, 637 requests were allowed and 1,613 got HTTP 429 over about 70 seconds. In an earlier run on a freshly created policy, more than 8,000 requests over roughly half an hour got no 429 at all. After I changed the rule once with `gcloud`, it enforced. I do not know why the first policy did not. Google documents the enforcement as approximate. Treat the rate limit as configured and observed once, not as a guarantee.
+
+Defects found only by the live runs, and fixed:
+
+- Editing the startup script replaced the instance (the `metadata_startup_script` argument forces a new instance), and GCP then dropped the replacement from the unmanaged instance group, so the load balancer had no backend. The script now lives in `metadata["startup-script"]`, so edits update in place. A real replacement (new image, disk or network) still leaves the group empty until a second `terraform apply`, which adds the instance back. I confirmed that second apply works. The per-instance login bindings are replaced together with the instance.
+- The group needs the instance's full URL (`self_link`), not its short id, or the second apply fails.
+- On Debian 13, systemd warned that `User=nobody` is "not safe". The unit now uses `DynamicUser=yes`.
+
+Not verified live: TLS 1.1 refusal (my client cannot speak it), the IAP option, CMEK, the Google-managed certificate, the `python3-minimal` fallback in the startup script (Debian 13 already has Python 3.13, so it never ran), and the no-sudo behaviour of `roles/compute.osLogin` (the account I tested with is a project owner and had sudo). The deployer role table below comes from role descriptions. The account that applied was a project owner, so the table is not proven.
+
+Not verified at all: whether the OWASP rules give false positives on a real application.
 
 ## Checkov skips
 
-None. Checkov reports 61 passed, 0 failed, 0 skipped, so there are no `checkov:skip` comments in the code. If a later change adds one, list it here with the reason.
+One. `CKV_GCP_40` (no public IP on a Compute instance) is skipped inline on `google_compute_instance.bastion` in `bastion.tf`. The bastion is the one host with an external IP, SSH reaches it only from `trusted_ssh_cidrs`, and its service account has no roles. The web instance passes the check. Checkov reports 98 passed, 0 failed, 1 skipped.
 
 ## Design decisions
 
@@ -75,7 +97,7 @@ None. Checkov reports 61 passed, 0 failed, 0 skipped, so there are no `checkov:s
 
 A global external Application Load Balancer is a Google edge service. Its proxies run in Google's network, not in your VPC subnets, so no subnet can contain it. The task text says "in the public subnet". The module cannot do that literally, and I did not fake it.
 
-The public subnet is still created, as the brief asks. In this design it holds nothing. It exists as the place for resources that need their own internet-reachable addresses later, such as a bastion host, or for a proxy-only subnet if you switch to a regional load balancer. It has flow logs on, so any future use is observable. Do not read it as part of the request path.
+The public subnet is still created, as the brief asks. In this design it holds the SSH bastion and nothing else. It is not part of the request path for web traffic, and a proxy-only subnet for a regional load balancer would be a separate subnet with its own purpose, so this one cannot be reused for that. Apart from the bastion's external IP, the only difference from the private subnet is that Cloud NAT covers the private one. Flow logs are on.
 
 The request path is: internet, forwarding rule on the global address (443), HTTPS proxy, URL map, backend service (with Cloud Armor), then the instance in the private subnet on port 80.
 
@@ -94,10 +116,13 @@ VPC firewall rules apply to instances, not to the load balancer, so "443 from th
 | Rule | Direction | Source or destination | Port | Target |
 | --- | --- | --- | --- | --- |
 | allow-lb-http | ingress | `130.211.0.0/22`, `35.191.0.0/16` | tcp/80 | instance service account |
-| allow-ssh-trusted | ingress | `var.trusted_ssh_cidrs` | tcp/22 | instance service account |
+| allow-ssh-trusted | ingress | `var.trusted_ssh_cidrs` | tcp/22 | web instance service account |
+| allow-ssh-bastion-in | ingress | `var.trusted_ssh_cidrs` | tcp/22 | bastion service account |
+| allow-ssh-bastion-to-web | ingress | source: bastion service account | tcp/22 | web instance service account |
+| allow-egress-bastion-ssh | egress | private subnet range | tcp/22 | bastion service account |
 | allow-ssh-iap (opt-in) | ingress | `35.235.240.0/20` | tcp/22 | instance service account |
 | deny-all-ingress, deny-all-ingress-v6 | ingress | `0.0.0.0/0`, `::/0` | all | all |
-| allow-egress-web | egress | `0.0.0.0/0` | tcp/80, tcp/443 | instance service account |
+| allow-egress-web | egress | `0.0.0.0/0` | tcp/80, tcp/443 | web instance and bastion service accounts |
 | deny-all-egress | egress | `0.0.0.0/0` | all | all |
 
 Allow rules use priority 1000 and deny rules 65000. Every rule has logging on. Rules target the instance service account instead of a network tag, because anyone who can edit an instance can add a tag, while a service account needs `iam.serviceAccounts.actAs`.
@@ -108,17 +133,27 @@ The egress posture allows only tcp/80 and tcp/443, for package repositories thro
 
 ### SSH
 
-SSH is allowed only from `trusted_ssh_cidrs`. It is a required input with no default. Validation rejects an empty list, malformed CIDRs, `0.0.0.0/0`, `::/0`, IPv4 prefixes shorter than /8 and IPv6 prefixes shorter than /32. A /8 is 16 million addresses. A looser floor would let someone paste a "mostly the internet" range, and a tighter one would block legitimate large corporate ranges. A `check` block warns on anything wider than /16.
+SSH is allowed only from `trusted_ssh_cidrs`. It is a required input with no default and a `null` value is an error. Validation accepts only canonical IPv4 CIDRs (no IPv6, no host bits, no whitespace) and rejects an empty list, `0.0.0.0/0`, any prefix shorter than /8, and a list whose entries add up to more than one /8 (16,777,216 addresses) in total, so a long list of /8s cannot rebuild the internet. IPv6 is rejected because the VPC is IPv4-only and a GCP firewall rule cannot mix IPv4 and IPv6 ranges. A looser floor would let someone paste a "mostly the internet" range, and a tighter one would block legitimate large corporate ranges. A `check` block warns on anything wider than /16.
+
+**Reachability and the bastion.** The web instance has no external IP, as the brief's "private subnet" implies. A trusted public address such as an office IP can never open a TCP connection to it directly, whatever the firewall says. The load balancer does not help: it carries only HTTP(S) and is not in a subnet. To make the SSH requirement work end to end, the module adds a small bastion VM in the public subnet (`bastion.tf`, `enable_bastion`, on by default):
+
+1. The trusted range reaches the bastion on tcp/22 (`allow-ssh-bastion-in`). The bastion has the only external IP in the module.
+2. The bastion reaches the web instance on tcp/22 (`allow-ssh-bastion-to-web`). The source is the bastion's service account, so no other host in the VPC can use that path.
+3. The bastion's egress is limited to tcp/22 into the private subnet, plus tcp/80 and tcp/443 for updates.
+
+`allow-ssh-trusted` (trusted range straight to the web instance) stays. It is the literal rule from the brief and it is what makes the module work with `enable_bastion = false` when the trusted ranges reach the VPC over VPN, Interconnect or peering.
+
+The bastion is hardened like the web instance: dedicated service account with no project roles, Shielded VM, OS Login, project SSH keys blocked, serial port off, no IP forwarding. The one Checkov skip in the module is `CKV_GCP_40` on the bastion, because the external IP is its purpose. Cost: one e2-micro and one external IP. Users need an OS Login role on both instances, for example `roles/compute.osAdminLogin`. A connection looks like `ssh -J <os-login-user>@<bastion_external_ip> <os-login-user>@<instance_internal_ip>`, with both addresses from the module outputs. This path has not been tested live.
 
 IAP TCP forwarding is the better option because it needs no public SSH exposure and ties access to IAM. It is available with `enable_iap_ssh = true` and is off by default, so the default meets the task's literal requirement. Users of IAP need `roles/iap.tunnelResourceAccessor`. With OS Login on, SSH users also need `roles/compute.osLogin` (or `roles/compute.osAdminLogin`) on the instance or project.
 
 ### Instance hardening
 
-Private subnet only, no external IP. Dedicated service account, never the default compute account. Shielded VM with secure boot, vTPM and integrity monitoring. OS Login on, project SSH keys blocked, serial port off, IP forwarding off. Boot disk uses Google-managed encryption, or your key if you set `kms_key_self_link` (CMEK). The image is the Debian 12 family. The startup script runs a Python static file server as `nobody` under a hardened systemd unit.
+Private subnet only, no external IP. Dedicated service account, never the default compute account. Shielded VM with secure boot, vTPM and integrity monitoring. OS Login on, project SSH keys blocked, serial port off, IP forwarding off. Boot disk uses Google-managed encryption, or your key if you set `kms_key_self_link` (CMEK). The image is the Debian 13 family. Debian 12 left regular security support in July 2026, so the module no longer defaults to it; set `boot_image` to pin another family. The startup script runs a Python static file server as `nobody` under a hardened systemd unit.
 
 ### IAM
 
-The instance service account has `roles/logging.logWriter` and `roles/monitoring.metricWriter`, nothing else. Bindings use `google_project_iam_member`, which is non-authoritative and leaves other bindings alone. A test fails if `roles/editor` or `roles/owner` appears.
+The web instance's service account has `roles/logging.logWriter` and `roles/monitoring.metricWriter`, nothing else. The bastion's account has no roles. Instance OAuth scopes match the two roles (`logging.write`, `monitoring.write`), never `cloud-platform`. SSH logins are granted per instance, not per project: `ssh_login_members` gets `roles/compute.osLogin` (no sudo) on the web instance and the bastion only, and `roles/iap.tunnelResourceAccessor` on the web instance when `enable_iap_ssh` is on. Nobody is granted login by default. Bindings use `google_project_iam_member`, which is non-authoritative and leaves other bindings alone. A test fails if `roles/editor` or `roles/owner` appears.
 
 Roles the deployer identity needs (chosen from role descriptions, not proven by a live apply, so expect to adjust after the first real run):
 
@@ -127,7 +162,8 @@ Roles the deployer identity needs (chosen from role descriptions, not proven by 
 | `roles/compute.networkAdmin` | VPC, subnets, router, NAT, global address |
 | `roles/compute.securityAdmin` | Firewall rules, SSL policy, Cloud Armor policy |
 | `roles/compute.loadBalancerAdmin` | Backend service, URL map, proxy, forwarding rule, certificate |
-| `roles/compute.instanceAdmin.v1` | Instance and instance group |
+| `roles/compute.instanceAdmin.v1` | Instances, instance group, and the per-instance login bindings |
+| `roles/iap.admin` (only with `enable_iap_ssh` and `ssh_login_members`) | IAP tunnel bindings on the web instance |
 | `roles/iam.serviceAccountAdmin` | Create the instance service account |
 | `roles/iam.serviceAccountUser` | Attach that service account to the instance |
 | `roles/resourcemanager.projectIamAdmin` | Grant the two writer roles on the project |
@@ -152,6 +188,10 @@ The module takes `project_id` and `name`. To separate environments, call it once
 
 - Single instance, single zone, unmanaged instance group. No autoscaling or high availability.
 - Port 80 between load balancer and instance is unencrypted.
+- The log and metric writer roles are granted but nothing on the instance uses them yet: no Ops Agent is installed. They are there so an agent can be added without touching IAM.
+- The bastion is a single host with an external IP and an SSH daemon. It is limited by the firewall and OS Login, but it is more attack surface than IAP alone.
 - No organisation policy constraints, no VPC Service Controls, no log sink.
-- The mock-provider tests cannot detect an argument that the real API rejects. A live apply is the only check for that, and it is pending.
+- The mock-provider tests cannot detect an argument that the real API rejects or a lifecycle problem. Both defects listed under live verification were found only by applying.
+- After a real instance replacement the instance group stays empty until a second `terraform apply`.
+- The startup script runs at boot only. After editing it, reset the instance.
 - The load balancer needs DNS and certificate provisioning (often tens of minutes) before HTTPS works.
