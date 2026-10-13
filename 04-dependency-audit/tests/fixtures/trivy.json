@@ -1,0 +1,13 @@
+{
+  "Results": [
+    {
+      "Vulnerabilities": [
+        {"VulnerabilityID": "CVE-2099-0001", "VendorIDs": ["GHSA-aaaa-bbbb-cccc"]},
+        {
+          "VulnerabilityID": "CVE-2099-0002",
+          "References": ["https://github.com/advisories/GHSA-gggg-hhhh-iiii"]
+        }
+      ]
+    }
+  ]
+}

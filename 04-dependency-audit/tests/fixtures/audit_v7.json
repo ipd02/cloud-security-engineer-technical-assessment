@@ -1,0 +1,73 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "alpha": {
+      "name": "alpha",
+      "severity": "critical",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1001,
+          "name": "alpha",
+          "title": "Prototype pollution in alpha",
+          "url": "https://github.com/advisories/GHSA-aaaa-bbbb-cccc",
+          "severity": "critical",
+          "cwe": ["CWE-1321"],
+          "cvss": {"score": 9.8, "vectorString": "CVSS:3.1/AV:N"},
+          "range": "<2.0.0"
+        },
+        {
+          "source": 1002,
+          "name": "alpha",
+          "title": "ReDoS in alpha",
+          "url": "https://github.com/advisories/GHSA-dddd-eeee-ffff",
+          "severity": "moderate",
+          "cwe": [],
+          "cvss": {"score": 5.3},
+          "range": "<1.5.0"
+        }
+      ],
+      "effects": ["beta"],
+      "range": "<2.0.0",
+      "nodes": ["node_modules/alpha"],
+      "fixAvailable": {"name": "alpha", "version": "2.1.0", "isSemVerMajor": true}
+    },
+    "beta": {
+      "name": "beta",
+      "severity": "high",
+      "isDirect": false,
+      "via": ["alpha"],
+      "effects": [],
+      "range": "*",
+      "nodes": ["node_modules/beta"],
+      "fixAvailable": true
+    },
+    "gamma": {
+      "name": "gamma",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1003,
+          "name": "gamma",
+          "title": "Unsafe parsing in gamma",
+          "url": "https://github.com/advisories/GHSA-gggg-hhhh-iiii",
+          "severity": "high",
+          "range": "<3.0.0"
+        }
+      ],
+      "nodes": ["node_modules/x/node_modules/gamma", "node_modules/gamma"],
+      "fixAvailable": false
+    },
+    "delta": {
+      "name": "delta",
+      "severity": "low",
+      "via": [
+        {"source": 1004, "name": "delta", "title": "Minor leak in delta"}
+      ]
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {"info": 0, "low": 1, "moderate": 0, "high": 2, "critical": 1, "total": 4}
+  }
+}
