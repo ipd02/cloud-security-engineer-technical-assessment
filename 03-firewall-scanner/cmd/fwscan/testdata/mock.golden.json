@@ -1,0 +1,57 @@
+{
+  "aws": {
+    "security_groups": [
+      {
+        "id": "sg-12345678",
+        "name": "open-sg",
+        "region": "us-east-1",
+        "insecure_rules": [
+          {
+            "protocol": "tcp",
+            "port": "8080",
+            "source": "0.0.0.0/0"
+          },
+          {
+            "protocol": "udp",
+            "port": "123",
+            "source": "0.0.0.0/0"
+          }
+        ]
+      }
+    ]
+  },
+  "gcp": {
+    "firewall_rules": [
+      {
+        "name": "allow-all",
+        "network": "default",
+        "project": "example-project",
+        "insecure_rules": [
+          {
+            "protocol": "icmp",
+            "port": "all",
+            "source": "0.0.0.0/0"
+          }
+        ]
+      }
+    ]
+  },
+  "azure": {
+    "nsgs": [
+      {
+        "id": "/subscriptions/xxxx/resourceGroups/my-rg/providers/Microsoft.Network/networkSecurityGroups/my-nsg",
+        "name": "open-nsg",
+        "location": "westeurope",
+        "insecure_rules": [
+          {
+            "protocol": "*",
+            "port": "*",
+            "source": "0.0.0.0/0",
+            "rule_id": "allow-any"
+          }
+        ]
+      }
+    ]
+  },
+  "errors": []
+}
