@@ -1,0 +1,15 @@
+title = "gitleaks config"
+
+[extend]
+useDefault = true
+
+# The task's Dockerfile contains two hardcoded secrets on purpose.
+# Only these two literals, in the original Dockerfile, are allowed.
+# Nothing else is allowlisted.
+[[allowlists]]
+description = "Intentional fixtures from the assessment Dockerfile"
+paths = ['''02-cloud-security-check/docker/Dockerfile\.original''']
+regexes = [
+  '''SuperSecretPassword123!''',
+  '''prod-key-778899''',
+]

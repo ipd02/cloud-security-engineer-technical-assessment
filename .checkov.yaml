@@ -1,0 +1,4 @@
+# Checkov defaults for this repo. Per-resource skips live inline
+# in the Terraform and CloudFormation files, each with a reason.
+quiet: true
+compact: true

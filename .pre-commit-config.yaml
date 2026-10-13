@@ -1,0 +1,41 @@
+default_language_version:
+  python: python3.12
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+        exclude: ^04-dependency-audit/(vulnerable-input|reports)/
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        exclude: ^04-dependency-audit/(vulnerable-input|reports)/
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        exclude: ^02-cloud-security-check/cloudformation/
+      - id: check-added-large-files
+      - id: detect-private-key
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.15.1
+    hooks:
+      - id: hadolint
+        # The original Dockerfile is the task input and is meant to fail.
+        exclude: Dockerfile\.original$
+
+  - repo: https://github.com/aws-cloudformation/cfn-lint
+    rev: v1.57.2
+    hooks:
+      - id: cfn-lint
+        files: 02-cloud-security-check/cloudformation/hardened\.yaml$
+
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.109.2
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_tflint
