@@ -60,12 +60,16 @@ variable "private_subnet_cidr" {
 
 variable "trusted_ssh_cidrs" {
   description = <<-EOT
-    Source ranges allowed to reach tcp/22 on the instance. Required, no default.
-    Rejected: an empty list, malformed CIDRs, 0.0.0.0/0, ::/0, IPv4 prefixes
-    shorter than /8 and IPv6 prefixes shorter than /32. A /8 is already 16
-    million addresses, so anything wider is effectively the internet.
+    IPv4 source ranges allowed to reach tcp/22 on the instance. Required, no default.
+    The instance has no external IP, so these ranges must reach the VPC over private
+    connectivity (VPN, Interconnect, peering) or sit inside it. See the README.
+    Rejected: null, an empty list, anything that is not a canonical IPv4 CIDR (IPv6,
+    host bits set, whitespace), 0.0.0.0/0, any prefix shorter than /8, and a list
+    that adds up to more than 16,777,216 addresses (one /8) in total, so a long list
+    of /8s cannot rebuild the internet.
   EOT
   type        = list(string)
+  nullable    = false
 
   validation {
     condition     = length(var.trusted_ssh_cidrs) > 0
@@ -73,21 +77,26 @@ variable "trusted_ssh_cidrs" {
   }
 
   validation {
-    condition     = alltrue([for c in var.trusted_ssh_cidrs : can(cidrhost(c, 0))])
-    error_message = "Every entry in trusted_ssh_cidrs must be a valid CIDR such as 203.0.113.0/24."
-  }
-
-  validation {
-    condition     = !contains(var.trusted_ssh_cidrs, "0.0.0.0/0") && !contains(var.trusted_ssh_cidrs, "::/0")
-    error_message = "trusted_ssh_cidrs must not contain 0.0.0.0/0 or ::/0."
-  }
-
-  validation {
     condition = alltrue([
       for c in var.trusted_ssh_cidrs :
-      !can(cidrhost(c, 0)) || tonumber(split("/", c)[1]) >= (strcontains(c, ":") ? 32 : 8)
+      can(regex("^[0-9]{1,3}(\\.[0-9]{1,3}){3}/[0-9]{1,2}$", c)) && try(cidrsubnet(c, 0, 0) == c, false)
     ])
-    error_message = "trusted_ssh_cidrs entries must be at least a /8 (IPv4) or /32 (IPv6)."
+    error_message = "Every entry in trusted_ssh_cidrs must be a canonical IPv4 CIDR such as 203.0.113.0/24 (no host bits, no spaces, no IPv6)."
+  }
+
+  validation {
+    condition     = !contains(var.trusted_ssh_cidrs, "0.0.0.0/0")
+    error_message = "trusted_ssh_cidrs must not contain 0.0.0.0/0."
+  }
+
+  validation {
+    condition     = alltrue([for c in var.trusted_ssh_cidrs : try(tonumber(split("/", c)[1]) >= 8, false)])
+    error_message = "trusted_ssh_cidrs entries must be at least a /8."
+  }
+
+  validation {
+    condition     = try(sum([for c in distinct(var.trusted_ssh_cidrs) : pow(2, 32 - tonumber(split("/", c)[1]))]) <= 16777216, false)
+    error_message = "trusted_ssh_cidrs may cover at most 16,777,216 addresses in total (one /8)."
   }
 }
 

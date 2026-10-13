@@ -28,7 +28,7 @@ check "ssh_range_is_narrow" {
   assert {
     condition = alltrue([
       for c in var.trusted_ssh_cidrs :
-      strcontains(c, ":") || tonumber(split("/", c)[1]) >= 16
+      tonumber(split("/", c)[1]) >= 16
     ])
     error_message = "A trusted SSH range wider than /16 is allowed but very broad. Prefer office or VPN egress addresses, or enable_iap_ssh."
   }
