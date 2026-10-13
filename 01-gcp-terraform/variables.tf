@@ -135,9 +135,9 @@ variable "machine_type" {
 }
 
 variable "boot_image" {
-  description = "Boot image family. Must support Shielded VM."
+  description = "Boot image family. Must support Shielded VM. Default is Debian 13 (trixie); Debian 12 left regular security support in July 2026."
   type        = string
-  default     = "projects/debian-cloud/global/images/family/debian-12"
+  default     = "projects/debian-cloud/global/images/family/debian-13"
 }
 
 variable "boot_disk_size_gb" {

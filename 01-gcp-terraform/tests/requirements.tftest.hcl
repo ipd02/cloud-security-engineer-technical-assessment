@@ -46,6 +46,16 @@ run "instance_is_in_the_private_subnet" {
     condition     = google_compute_instance.web.service_account[0].email == google_service_account.web.email
     error_message = "The instance must run as the dedicated service account."
   }
+
+  assert {
+    condition     = google_compute_instance.web.service_account[0].scopes == toset(["https://www.googleapis.com/auth/logging.write", "https://www.googleapis.com/auth/monitoring.write"]) && !contains(google_compute_instance.web.service_account[0].scopes, "https://www.googleapis.com/auth/cloud-platform")
+    error_message = "Scopes must match the two IAM roles, never cloud-platform."
+  }
+
+  assert {
+    condition     = google_compute_instance.web.metadata["startup-script"] == file("${path.module}/scripts/startup.sh") && google_compute_instance.web.metadata_startup_script == null
+    error_message = "The startup script must live in metadata so editing it does not replace the instance."
+  }
 }
 
 # Bullet 3: a global load balancer that routes traffic to the instance.
@@ -68,7 +78,7 @@ run "global_load_balancer_routes_to_the_instance" {
   }
 
   assert {
-    condition     = toset(google_compute_instance_group.web.instances) == toset([google_compute_instance.web.id])
+    condition     = toset(google_compute_instance_group.web.instances) == toset([google_compute_instance.web.self_link])
     error_message = "The instance group must contain exactly the web instance."
   }
 
