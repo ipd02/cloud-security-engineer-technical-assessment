@@ -53,6 +53,7 @@ audit_report.py INPUT [--lockfile package-lock.json] [--trivy trivy.json]
 
 - Reads the npm 7 and later format (`vulnerabilities`). Falls back to the npm 6 format (`advisories`). `-` reads stdin.
 - Writes one row per package and advisory, plus one row for packages that are vulnerable only through a dependency. The summary counts these rows, so an advisory that hits two packages counts twice. Fields: package, severity, direct or not, installed versions, GHSA id, CVE, CWE, CVSS score, range, fix package and version, whether the fix is a major bump.
+- A version that also reads a list of accepted risks, so reviewed findings are not reported again, is in [extras/](extras/README.md#accepted-risks).
 - `--lockfile` adds installed versions. `--trivy` adds CVE ids by matching GHSA ids.
 - `--epss` adds the EPSS score and percentile from a saved FIRST EPSS API response. `--epss-fetch` asks `api.first.org` for the CVE ids instead (public, no key, needs network). EPSS needs CVE ids, and `npm audit` only gives GHSA ids, so pass `--trivy` too. Without it the script warns and adds no scores. The highest score of a row's CVEs is used. `--min-epss` drops advisories whose known score is below the value. Advisories with no score are kept, so a missing score never hides a finding.
 - `--min-severity` filters the output and the summary. `--fail-on` exits 1 if any remaining finding is at that level or above. Exit 2 means unreadable or malformed input, a failed EPSS lookup, or a write error.

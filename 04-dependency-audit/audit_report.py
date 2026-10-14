@@ -18,6 +18,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -382,7 +383,7 @@ def print_summary(summary: dict, min_severity: str) -> None:
         print(f"Advisories with an EPSS score: {summary['advisories_with_epss']}")
 
 
-def parse_args(argv: list[str] | None) -> argparse.Namespace:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("input", help="npm audit --json file, or - for stdin")
     parser.add_argument("--lockfile", help="package-lock.json, used to add installed versions")
@@ -407,6 +408,13 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         choices=SEVERITIES,
         help="exit 1 if any finding has this severity or higher",
     )
+    return parser
+
+
+def parse_args(
+    argv: list[str] | None, parser: argparse.ArgumentParser | None = None
+) -> argparse.Namespace:
+    parser = parser or build_parser()
     args = parser.parse_args(argv)
     if args.min_epss is not None:
         if not 0 <= args.min_epss <= 1:
@@ -435,13 +443,20 @@ def attach_epss(
     return source, {v["date"] for v in epss_map.values() if v["date"]}
 
 
-def run(args: argparse.Namespace) -> int:
+RowsHook = Callable[[argparse.Namespace, list[dict], dict], list[dict]]
+
+
+def run(args: argparse.Namespace, rows_hook: RowsHook | None = None) -> int:
+    """Build the report. rows_hook(args, rows, meta) may drop rows and add keys to meta."""
     warnings: list[str] = []
     report = load_json(args.input)
     lock = load_json(args.lockfile) if args.lockfile else {}
     cve_map = load_cve_map(args.trivy)
     rows = build_rows(report, lock, cve_map, warnings)
     epss_source, epss_dates = attach_epss(args, rows, warnings)
+    meta_extra: dict = {}
+    if rows_hook:
+        rows = rows_hook(args, rows, meta_extra)
     floor = RANK[args.min_severity]
     rows = [r for r in rows if RANK[r["severity"]] >= floor]
     if args.min_epss is not None:
@@ -459,6 +474,7 @@ def run(args: argparse.Namespace) -> int:
         "epss_source": epss_source,
         "epss_date": ", ".join(sorted(epss_dates)),
         "warnings": sorted(set(warnings)),
+        **meta_extra,
     }
     write_outputs(rows, summary, args.json_out, args.csv_out, meta)
     for warning in meta["warnings"]:
@@ -472,10 +488,15 @@ def run(args: argparse.Namespace) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
+def main(
+    argv: list[str] | None = None,
+    *,
+    parser: argparse.ArgumentParser | None = None,
+    rows_hook: RowsHook | None = None,
+) -> int:
+    args = parse_args(argv, parser)
     try:
-        return run(args)
+        return run(args, rows_hook)
     except (OSError, ValueError, TypeError, AttributeError, RecursionError) as exc:
         print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2

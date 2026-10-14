@@ -68,3 +68,62 @@ I installed the old and new versions with `--ignore-scripts` into scratch direct
 On a scratch copy of the task input I added `overrides` for `qs` 6.16.0 and `path-to-regexp` 0.1.13, with `express` still on 4.15.0. `npm audit` went from 24 vulnerable packages to 22, and neither `qs` nor `path-to-regexp` was flagged any more. Output: `reports/npm-audit-overrides-applied.txt`.
 
 I did not test whether Express 4.15.0 still works with those versions. An override changes what the parent package runs against, so test the parent before relying on it.
+
+## 5. Accepted risks
+
+Some findings cannot be fixed: the package is abandoned, or the only fix is a major upgrade the team cannot take yet. In `tests/fixtures/custom-app` the real npm 11 output has five packages with no reachable fix (`request`, `form-data`, `qs`, `tough-cookie`, `uuid`). A scan that runs on a schedule would report them every time. `audit_report_accepted.py` reads a committed file of accepted risks and leaves those findings out of the report and out of the `--fail-on` gate.
+
+### The file
+
+```json
+{
+  "accepted": [
+    {
+      "advisory": "GHSA-p8p7-x288-28g6",
+      "package": "request",
+      "version": "2.88.2",
+      "reason": "request is deprecated and has no patched version. Replacement is planned.",
+      "controls": ["Outbound traffic is limited to an allowlist of hosts at the egress proxy"],
+      "owner": "payments-team",
+      "accepted_on": "2026-10-14",
+      "expires": "2027-01-14"
+    }
+  ]
+}
+```
+
+- Required: `advisory` (a GHSA id), `package`, `reason`, `controls` (a list, at least one entry), `owner` and `expires` (a date). Optional: `version` and `accepted_on`.
+- An entry covers one advisory in one package. If `version` is given and the report knows the installed versions, the entry does not apply to another version.
+- A file with a missing field, an unknown field, a bad date, an empty `controls` list or a duplicate entry is rejected with exit code 2. Every problem is listed.
+
+### What the script does
+
+| Case | Result |
+|---|---|
+| Entry is valid and matches a finding | The finding is left out of the report and the gate. It is listed in `--accepted-out` with its entry. |
+| The expiry date has passed | The finding is reported again, and a warning names the entry. The date itself still counts as valid. |
+| The entry expires within `--warn-days` (default 30) | The finding stays accepted and a warning names the entry. |
+| The entry matches no finding | A warning asks you to remove it. This keeps the file from filling with old entries. |
+| All advisories behind a "vulnerable through a dependency" row are accepted | That row is left out too. If one advisory is still open, the row stays. |
+
+Accepting `request` `GHSA-p8p7-x288-28g6` does not hide the other advisories in `request`'s dependencies. In the example the package `request` still shows as vulnerable through `form-data`, `qs`, `tough-cookie` and `uuid`.
+
+### When it is reasonable to accept a risk
+
+Accepting a risk means the dependency stays vulnerable and something else stops the exploit. Write down what that is in `controls`. The list is only as good as the controls, and this tool cannot check them.
+
+| Kind of advisory | Controls that can make accepting it reasonable |
+|---|---|
+| SSRF in an HTTP client (`request`) | Egress filtering so the process cannot reach internal or metadata addresses. A locked-down cloud metadata service. A service account with minimal permissions. URLs given to the client never come from user input. |
+| Regular expression denial of service in a parser (`qs`, `path-to-regexp`) | Request size and time limits at the gateway or load balancer. A rate limit. A timeout and memory limit on the process, and a restart or scale-out policy. |
+| Prototype pollution (`lodash`, `minimist`) | Input is validated against a schema before it reaches the function. The vulnerable code path is not exposed to untrusted input. |
+| Dev-only package (the `mocha` chain) | CI runners are short-lived and hold no production secrets. Dependencies come from a lockfile. The build is not reachable from outside. |
+| Any of them | A gateway or WAF rule for known payloads. Logging and alerting that would show an attempt. A named owner and a date to look again. |
+
+Do not accept a finding that has a reachable fix. Fix it.
+
+### Keeping it honest
+
+- The accepted file lives in the repository, so every change goes through review. Put it under CODEOWNERS with the security team.
+- `expires` is required. Pick a short period. Renewing means a new review.
+- The expired and unused entries show up in the accepted output and in the warnings, so a periodic job can post them to the team.
