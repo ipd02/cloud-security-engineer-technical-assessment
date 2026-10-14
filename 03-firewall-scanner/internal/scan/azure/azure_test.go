@@ -133,12 +133,6 @@ func TestScanErrorKeepsEarlierPages(t *testing.T) {
 	}
 }
 
-func TestNewRequiresSubscription(t *testing.T) {
-	if _, err := New("", false); err == nil {
-		t.Fatal("want error for empty subscription")
-	}
-}
-
 // ctxTransport fails like a real HTTP transport when the request context is done.
 type ctxTransport struct{}
 

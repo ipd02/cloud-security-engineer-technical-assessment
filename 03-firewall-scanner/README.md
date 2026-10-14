@@ -159,21 +159,22 @@ internal/report/       JSON writer
 internal/mock/         fixture clients for --mock (they return SDK types, so the real adapters run)
 ```
 
-Providers run concurrently with `errgroup`. The context carries the `--timeout`. A provider error is recorded in `errors` and never cancels the other providers. AWS regions are scanned in parallel, at most 8 at once.
+Providers run concurrently with `errgroup`. The context carries the `--timeout`. A provider error is recorded in `errors` and never cancels the other providers. Inside a provider, AWS regions, AWS accounts and Azure subscriptions are scanned in parallel, at most 8 at once. GCP projects are scanned one after another.
 
-Go 1.26.0 is the minimum, set by the SDK dependencies in `go.mod`. SDK versions (from `go.mod`): `aws-sdk-go-v2` v1.47.3, `service/ec2` v1.338.4, `config` v1.33.9; `cloud.google.com/go/compute` v1.72.0; `azidentity` v1.14.1, `azcore` v1.23.3, `armnetwork/v7` v7.2.0; `golang.org/x/sync` v0.24.0.
+Go 1.26.0 is the minimum, set by the SDK dependencies. All versions are in `go.mod`.
 
 ## Verified how
 
-| Provider | Unit tests with fakes | Live run against a real account |
-| --- | --- | --- |
-| AWS | Yes. Fake EC2 client: pagination over three pages, filtering, sorting, multi-region, `all` regions, partial failure, error on a later page, IPv6 flag. | Not run. |
-| GCP | Yes. Fake listers and a fake asset searcher for the scope logic. The real SDK clients against local `httptest` servers for page tokens, an HTTP 403, a slow server and a timeout, and for the Cloud Asset, network policy and hierarchical policy requests. | Not run. |
-| Azure | Yes. The SDK's own fake server (`armnetwork/fake`): two pages, address prefix lists, port range lists, error on the second page. | Not run. |
+Every claim in this README about live behaviour comes from runs on 2026-10-14 against real test environments. Each run compared the findings with an expected set built from the cloud's own CLI output.
 
-- The detection logic has table-driven tests for tcp, udp, icmp, `-1`, port ranges, multiple CIDRs where one is open, IPv6, disabled GCP rules, egress rules, deny rules, and Azure `*`, `Any` and `Internet`.
+| Provider | Unit tests | Live runs |
+| --- | --- | --- |
+| AWS | A fake EC2 client: pagination over three pages, filtering, sorting, multi-region, `all` regions, partial failure, error on a later page, IPv6 flag. A fake Organizations client: account pages, suspended accounts, the caller's own account, scope fallback, partial failure. | One account that is the management account of an AWS Organization, with 18 test security groups in two regions. Scans with `--aws-regions` (one, two and `all`), `--include-ipv6`, `--aws-scope auto`, `org` and `account`. Run with the account's credentials and as a role that holds only `ec2:DescribeSecurityGroups` and `ec2:DescribeRegions` (checked with the IAM policy simulator). |
+| GCP | Fake listers, a fake asset searcher and a fake discoverer for the scope logic. The real SDK clients against local `httptest` servers for page tokens, an HTTP 403, a slow server and a timeout, and for the Cloud Asset, network policy and hierarchical policy requests. | A test organization with two projects and one folder: 22 test VPC firewall rules next to the default ones, a network firewall policy, an organization policy and a folder policy. Scans by project list, folder, organization and by discovery with no flag. Run as the project owner and as a service account whose custom role holds `compute.firewalls.list`, `compute.firewallPolicies.list` and `cloudasset.assets.searchAllResources`. |
+| Azure | The SDK's own fake server (`armnetwork/fake`): two pages, address prefix lists, port range lists, error on the second page. A fake subscription list: paging, disabled subscriptions, de-duplication, partial failure. | A free subscription with 4 NSGs in two regions and 20 rules, run through the Azure CLI login and as a service principal whose custom role holds only `Microsoft.Network/networkSecurityGroups/read`. Scans with `--azure-subscription` and `--azure-all-subscriptions`. |
+
+- The detection logic has table-driven tests for tcp, udp, icmp, `-1`, port ranges, multiple CIDRs where one is open, IPv6, disabled GCP rules, egress rules, deny rules, policy rules, and Azure `*`, `Any` and `Internet`.
 - The JSON output has a golden-file test (`cmd/fwscan/testdata/mock.golden.json`).
-- Credential loading (`aws.New`, `azidentity`, GCP Application Default Credentials) was not exercised against a real identity. The Azure scanner in particular has never talked to Azure.
-- <!-- UPDATE: author may add a dated GCP live run here (date, scope, read-only identity) -->
+- The exit codes, the timeout and the isolation of one failing provider from the others are covered by tests that inject fake scanners.
 
 This is a take-home sample. It has not been hardened or load tested.

@@ -104,19 +104,18 @@ func New(ctx context.Context, o Options) (*Scanner, error) {
 		}
 		return aws.ToString(out.Account), nil
 	}
-	switch o.Scope {
-	case "", ScopeAuto, ScopeOrg:
+	s.Mode = o.Scope
+	if s.Mode == "" {
 		s.Mode = ScopeAuto
-		if o.Scope == ScopeOrg {
-			s.Mode = ScopeOrg
-		}
+	}
+	switch s.Mode {
+	case ScopeAuto, ScopeOrg:
 		if o.RoleName == "" {
 			return nil, errors.New("aws role name is required to scan an organization")
 		}
 		s.Org = organizations.NewFromConfig(orgCfg)
 		s.AccountFactory = assumeRoleFactory(cfg, orgCfg, o.RoleName)
 	case ScopeAccount:
-		s.Mode = ScopeAccount
 	default:
 		return nil, fmt.Errorf("unknown aws scope %q: use auto, org or account", o.Scope)
 	}
@@ -124,9 +123,6 @@ func New(ctx context.Context, o Options) (*Scanner, error) {
 		if r = strings.TrimSpace(r); r != "" {
 			s.Regions = append(s.Regions, r)
 		}
-	}
-	if len(s.Regions) == 0 && s.DefaultRegion == "" {
-		return nil, errors.New("no aws region: set AWS_REGION or use --aws-regions")
 	}
 	return s, nil
 }

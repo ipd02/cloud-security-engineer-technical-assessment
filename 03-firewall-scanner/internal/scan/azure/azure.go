@@ -10,7 +10,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v7"
 
 	"github.com/ipd02/cloud-security-engineer-technical-assessment/03-firewall-scanner/internal/detect"
@@ -26,18 +25,6 @@ type NSGAPI interface {
 type Scanner struct {
 	Client      NSGAPI
 	IncludeIPv6 bool
-}
-
-// New builds a Scanner with DefaultAzureCredential.
-func New(subscription string, includeIPv6 bool) (*Scanner, error) {
-	if subscription == "" {
-		return nil, errors.New("azure subscription is required: use --azure-subscription")
-	}
-	cred, err := azidentity.NewDefaultAzureCredential(nil)
-	if err != nil {
-		return nil, fmt.Errorf("azure credential: %w", err)
-	}
-	return NewWithCredential(subscription, cred, includeIPv6, nil)
 }
 
 // NewWithCredential builds a Scanner from a credential and optional client options.
