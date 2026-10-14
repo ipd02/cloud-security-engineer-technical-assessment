@@ -28,19 +28,56 @@ jobs:
       - name: Install gitleaks
         run: |
           base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
-          curl -sSfL "${base}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o gitleaks.tgz
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL "${base}/${archive}" -o "${archive}"
           curl -sSfL "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" -o checksums.txt
-          sha256sum --ignore-missing -c checksums.txt
-          tar -xzf gitleaks.tgz gitleaks
+          grep " ${archive}\$" checksums.txt | sha256sum -c -
+          tar -xzf "${archive}" gitleaks
           ./gitleaks version
       - name: Scan history
         run: ./gitleaks detect --config .gitleaks.toml --redact --verbose
+
+  dependency-audit:
+    name: dependency audit (ruff, tests, trivy)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      RUFF_VERSION: 0.17.0
+      TRIVY_VERSION: 0.75.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install ruff
+        run: |
+          python3 -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/pip" install --quiet "ruff==${RUFF_VERSION}"
+          echo "${RUNNER_TEMP}/venv/bin" >> "${GITHUB_PATH}"
+      - name: Install trivy
+        run: |
+          base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -sSfL "${base}/${archive}" -o "${archive}"
+          curl -sSfL "${base}/trivy_${TRIVY_VERSION}_checksums.txt" -o checksums.txt
+          grep " ${archive}\$" checksums.txt | sha256sum -c -
+          mkdir -p "${RUNNER_TEMP}/bin"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/bin" trivy
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      - name: Lint
+        run: make dep-audit-lint
+      - name: Unit tests
+        run: make dep-audit-test
+      # fixed/ must have no HIGH or CRITICAL finding, and vulnerable-input/ must still be caught.
+      - name: Scan
+        run: make dep-audit-scan
 
   # Each part adds its own job above this one in its own branch.
   summary:
     name: summary
     if: always()
-    needs: [secrets]
+    needs: [secrets, dependency-audit]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}

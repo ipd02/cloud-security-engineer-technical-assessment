@@ -11,7 +11,7 @@ CI badge: added after the repository exists.
 | 1 | Secure GCP infrastructure with Terraform | `01-gcp-terraform/` | to be filled |
 | 2 | CloudFormation and Dockerfile security review | `02-cloud-security-check/` | to be filled |
 | 3 | Go multi-cloud firewall scanner | `03-firewall-scanner/` | to be filled |
-| 4 | Third-party dependency audit | `04-dependency-audit/` | to be filled |
+| 4 | Third-party dependency audit | `04-dependency-audit/` | `make dep-audit-test dep-audit-scan` |
 
 ## Coverage matrix
 
