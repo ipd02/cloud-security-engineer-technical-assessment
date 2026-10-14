@@ -116,8 +116,7 @@ Short list for planning. The code changes for each major bump:
 - **mocha 5 to 12:** needs Node `^20.19.0 || >=22.12.0`. Check the test config files, reporters and flags the project uses.
 - **express 4.15 to 4.22, lodash 4.17 to 4.18, body-parser, dotenv:** same major line. `express` brings newer `qs` and `path-to-regexp`, so test routes with unusual patterns and query strings with deep nesting or large arrays.
 
-Not covered: connection options, schema and middleware behaviour, population and query casting in mongoose. These need the real application and a database.
-A smaller first step exists for mongoose. Version 6.13.11 also audits clean, and it still accepts callbacks. It crosses two majors (4 to 6), and what changes between 4 and 6 is not covered here.
+A smaller first step exists for mongoose. Version 6.13.11 also audits clean, and it still accepts callbacks. It crosses two majors (4 to 6).
 The call-by-call results behind this list are in [extras/REPORT.md](extras/REPORT.md), section 3.
 
 ## 7. Recommended plan
