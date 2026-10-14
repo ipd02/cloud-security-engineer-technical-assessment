@@ -1,0 +1,11 @@
+# date_utc: 2026-10-14T15:59:57Z
+# npm: 11.19.1
+# node: v26.10.0
+# cmd: npm install --package-lock-only --ignore-scripts, then npm audit --json (scratch copy of vulnerable-input/ with overrides {"path-to-regexp":"0.1.13","qs":"6.16.0"} added; express stays 4.15.0)
+overrides: {"path-to-regexp":"0.1.13","qs":"6.16.0"}
+express: 4.15.0
+qs: 6.16.0
+path-to-regexp: 0.1.13
+before: {"info":0,"low":3,"moderate":3,"high":8,"critical":10,"total":24}
+after:  {"info":0,"low":3,"moderate":3,"high":6,"critical":10,"total":22}
+qs or path-to-regexp still flagged: []

@@ -165,7 +165,43 @@ I installed the old and new versions with `--ignore-scripts` into scratch direct
 
 After the fix both scanners report 0.
 
-## 9. Files
+### When the two scanners disagree
+
+Here they differ in four ways. Each one is a general pattern.
+
+| Difference | What it was here | What to do in general |
+|---|---|---|
+| One tool reports an advisory, the other does not | `GHSA-h8hf-x3f4-xwgp` (mongoose, critical) is in npm only. Installed 4.13.21 is inside its range `<5.13.15`. I do not know why trivy lacks it. | Treat it as real until shown otherwise. Check the advisory page and its affected range against the installed version. Databases differ and update at different times. Record the decision. Here it is fixed anyway by the mongoose upgrade. |
+| Different scope | Trivy skips dev dependencies by default. Without `--include-dev-deps` it reported 42 findings instead of 45 and missed the `mocha` chain. npm counts packages that are vulnerable only through a dependency. Trivy does not. | Run both with the same scope. Say which flags were used. |
+| Different severity | None here. Severity matched on all 45. | Gate on the higher one. Keep both values in the report. Read the CVSS vector before downgrading. |
+| Different fix advice | npm gives one target per package (`mongoose@9.11.2`, a new major). Trivy lists the patched version on each release line, for example `6.13.9, 7.8.9, 8.22.1, 9.1.6`. | Use trivy's list to find the smallest upgrade. For mongoose it shows patches on 6.x, 7.x and 8.x. Version 6.13.11 audits clean (section 6). Always confirm with a re-scan. |
+
+Rule for a gate: fail if either tool reports an advisory at the chosen level. An advisory seen by only one tool can be accepted only with a written reason, an owner and an expiry date. `npm audit` has no ignore list. `trivy` does: a `.trivyignore` line `CVE-2019-10744 exp:2099-01-01` hid that finding, and the same line with a past date did not (tested on a scratch copy). `audit_report.py` has no ignore list.
+
+## 9. When the upgrade is not possible or breaks things
+
+In this example every package has a fix, and the fix is an upgrade. That is not the general case. This section lists the other cases, in the order I would try them. Items marked "tested here" were run on this input. The others are general practice that I did not run on this input.
+
+| Situation | What to do | Evidence |
+|---|---|---|
+| The fix is in the same major | Change the range and re-lock. `npm audit fix` does this when the range allows it. | Tested here: `express`, `lodash` (sections 3 and 6). |
+| The fix is a new major, and the code breaks | Read the changelog. Write tests for the code that uses the package. Upgrade one major at a time, or go through a patched older line. Probe the changed APIs before touching the app. Keep the lockfile change in its own commit so it can be reverted. | Tested here: mongoose, jsonwebtoken, mocha probes (section 6). |
+| The app is on an old line and the latest major does not fit (old Node, old database server, a dependency that has not been ported) | 1. Upgrade the runtime first if the cause is Node (section 5). 2. Move to the newest patched release of the line you are on. Trivy lists these (section 8). 3. If the line is unsupported, plan the move off it and treat steps 4 to 6 as temporary. | Step 2 tested here: mongoose 6.13.11 audits clean (section 6). The old-Node case is not tested. |
+| The vulnerable package is transitive and the parent has no release that updates it | Force the patched version with `overrides` in `package.json`. This changes what the parent runs against, so test the parent. | Tested here: `overrides` for `qs` 6.16.0 and `path-to-regexp` 0.1.13 with `express` still on 4.15.0 took the audit from 24 to 22 packages (`reports/npm-audit-overrides-applied.txt`). Whether Express 4.15.0 still works with them was not tested. |
+| The patch exists but only as a fork or a pull request | Patch the installed file with a patch tool, or use a maintained fork. Both need an owner and a review date, because you now maintain the change. | Not tested. |
+| No fixed version exists (npm shows `fixAvailable: false`) | Remove the package, or replace it with a maintained one. If that is not possible, reduce exposure: do not call the vulnerable function, validate input before it, add a gateway or WAF rule, and run the process with least privilege. | Not tested. No package here lacks a fix. |
+| Dev-only package (here the `mocha` chain) | Lower priority than production code. Fix it on the schedule of the build tooling. Use `npm audit --omit=dev` to report production risk separately. It still matters on a build machine or CI runner. | `--omit=dev` not run here. |
+| The finding is not reachable, or the code path is not used | Accept the risk in writing: advisory id, reason, owner, expiry date. Use `.trivyignore` with `exp:` or a VEX statement for trivy, and a documented exception for npm. Do not accept without a reason. Reachability needs the application code, which this task does not include. | `.trivyignore` with `exp:` tested here (section 8). No reachability analysis was done. |
+| The upgrade is done and breaks in production | Revert the lockfile commit. Deploy to a small share of traffic first. Keep the old version deployable until the new one has run for a set time. | Not tested. |
+
+Things to check at every step:
+
+- Re-run both scanners after each change, and compare counts with the earlier run. Do not assume a change worked.
+- Keep the lockfile in git so the build is the same on every machine.
+- Set a date to look again at anything accepted or worked around. A temporary override that nobody owns becomes the next old pin.
+- A workaround is not a fix. Report it as "mitigated" and keep the advisory open.
+
+## 10. Files
 
 | File | What it is |
 |---|---|
@@ -177,6 +213,7 @@ After the fix both scanners report 0.
 | `reports/npm-audit-fix-applied.txt`, `npm-audit-fix-force-applied.txt`, `npm-audit-fix-carets-applied.txt` | `npm audit fix` runs on scratch copies |
 | `reports/epss-before.json`, `epss-before.meta.txt` | Raw FIRST EPSS response for the CVE ids, with date |
 | `reports/mocha-smoke.txt` | One trivial mocha test on 12.0.3 |
+| `reports/npm-audit-overrides-applied.txt` | `overrides` experiment on a scratch copy |
 | `reports/vulnerabilities-before.*`, `vulnerabilities-after.*` | Output of `audit_report.py` (JSON and CSV), with a `meta` block in the JSON |
 | `reports/breaking-change-probe-*.txt` | Output of `fixed/breaking-change-probe.js` |
 | `reports/scanner-comparison.txt` | npm audit against trivy |

@@ -2,7 +2,7 @@
 
 This part scans the `package.json` from the assessment, reports the vulnerable dependencies, proposes a fixed manifest and proves it with a second scan. A small Python script turns `npm audit --json` into JSON and CSV.
 
-Read [REPORT.md](REPORT.md) for the findings, the fix and the remediation plan.
+Read [REPORT.md](REPORT.md) for the findings, the fix and the remediation plan. It also covers what to do when the two scanners disagree (section 8) and when an upgrade is not possible or breaks things (section 9).
 
 ## Result
 
