@@ -1,3 +1,4 @@
 date_utc: 2026-10-13T18:28:04Z
 trivy: 0.75.0
 cmd: trivy fs --scanners vuln --include-dev-deps (run in vulnerable-input/)
+note: the trivy vulnerability database version and update time were not recorded for this run.

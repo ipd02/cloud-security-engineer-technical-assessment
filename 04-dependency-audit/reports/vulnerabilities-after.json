@@ -1,4 +1,13 @@
 {
+  "meta": {
+    "tool": "audit_report.py",
+    "generated_at": "2026-10-14T15:37:36Z",
+    "input": "npm-audit-after.json",
+    "audit_report_version": 2,
+    "epss_source": "",
+    "epss_date": "",
+    "warnings": []
+  },
   "summary": {
     "advisories_by_severity": {
       "info": 0,

@@ -5,6 +5,7 @@ Vulnerable packages: 0
   moderate  packages   0   advisories   0
   low       packages   0   advisories   0
   info      packages   0   advisories   0
+Advisories are counted once per package and advisory.
 Fixable without a major bump: 0
 Fixable only with a major bump: 0
 No fix available: 0

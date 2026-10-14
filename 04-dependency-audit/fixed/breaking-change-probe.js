@@ -10,6 +10,8 @@ t('verify with alg none token',()=>jwt.verify(jwt.sign({a:1},null,{algorithm:'no
 t('sign RSA 1024 key',()=>{const {generateKeyPairSync}=require('crypto');const k=generateKeyPairSync('rsa',{modulusLength:1024});return jwt.sign({a:1},k.privateKey.export({type:'pkcs1',format:'pem'}),{algorithm:'RS256'})});
 t('sign RSA 2048 key',()=>{const {generateKeyPairSync}=require('crypto');const k=generateKeyPairSync('rsa',{modulusLength:2048});return jwt.sign({a:1},k.privateKey.export({type:'pkcs1',format:'pem'}),{algorithm:'RS256'})});
 t('verify with public key but HS256 token (alg confusion)',()=>{const {generateKeyPairSync}=require('crypto');const k=generateKeyPairSync('rsa',{modulusLength:2048});const pub=k.publicKey.export({type:'spki',format:'pem'});return jwt.verify(jwt.sign({a:1},pub),pub)});
+t('sign EC key with RS256 (key type check)',()=>{const {generateKeyPairSync}=require('crypto');const k=generateKeyPairSync('ec',{namedCurve:'prime256v1'});return jwt.sign({a:1},k.privateKey.export({type:'pkcs8',format:'pem'}),{algorithm:'RS256'})});
+t('sign RSA 1024 key with allowInsecureKeySizes',()=>{const {generateKeyPairSync}=require('crypto');const k=generateKeyPairSync('rsa',{modulusLength:1024});return jwt.sign({a:1},k.privateKey.export({type:'pkcs1',format:'pem'}),{algorithm:'RS256',allowInsecureKeySizes:true})});
 t('sign with no secret',()=>jwt.sign({a:1},''));
 t('sign expiresIn "1x"',()=>jwt.sign({a:1},'s',{expiresIn:'1x'}));
 t('sign payload string + expiresIn',()=>jwt.sign('str','s',{expiresIn:60}));
@@ -18,7 +20,8 @@ console.log('mongoose',m.version);
 const M=m.model('T',new m.Schema({a:Number}));
 t('Model.find with callback',()=>M.find({},()=>{}));
 t('Model.findOne with callback',()=>M.findOne({},()=>{}));
-const sv=new M({a:1}).save(()=>{});if(sv&&sv.catch)sv.catch((e)=>console.log('doc.save with callback => REJECTS',e.name+': '+e.message));
+let rejected=false;const sv=new M({a:1}).save(()=>{});if(sv&&sv.catch)sv.catch((e)=>{rejected=true;console.log('doc.save with callback => REJECTS',e.name+': '+e.message)});
+setTimeout(()=>{if(!rejected)console.log('doc.save with callback => not rejected (no database, so the save is only queued)');process.exit(0)},300);
 t('Model.count()',()=>M.count({}));
 t('Model.update()',()=>M.update({}, {a:1}));
 t('Model.remove()',()=>M.remove({}));

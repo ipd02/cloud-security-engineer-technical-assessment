@@ -1,1 +1,1 @@
-package,severity,kind,direct,installed_versions,advisory_id,source_id,cve,title,cwe,cvss_score,vulnerable_range,via,fix_available,fix_package,fix_version,fix_semver_major,url
+package,severity,kind,direct,installed_versions,advisory_id,source_id,cve,title,cwe,cvss_score,epss,epss_percentile,vulnerable_range,via,fix_available,fix_package,fix_version,fix_semver_major,url

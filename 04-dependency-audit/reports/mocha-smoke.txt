@@ -1,0 +1,13 @@
+# date_utc: 2026-10-14T15:36:17Z
+# node: v26.10.0
+# mocha: 12.0.3
+# cmd: npx --no-install mocha test/t.js (scratch dir, fixed/package-lock.json installed with npm ci --ignore-scripts)
+# test file: describe("x", () => { it("y", () => { assert.equal(1, 1) }) })
+
+
+  x
+    ✔ y
+
+
+  1 passing (2ms)
+
