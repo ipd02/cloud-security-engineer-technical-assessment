@@ -2,6 +2,10 @@
 
 ## What it does
 
+![Architecture: request path, SSH path and what enforces each rule](docs/architecture.png)
+
+The diagram source is `docs/architecture.svg`. The numbers and live results in it match the sections below.
+
 A Terraform module that builds a small web stack in one GCP project:
 
 - A custom-mode VPC with a public and a private subnet, both with flow logs.
