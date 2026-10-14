@@ -71,30 +71,30 @@ Files are in `module/`.
 
 | Check | Result |
 | --- | --- |
-| `terraform fmt -check`, `init -backend=false`, `validate` | clean |
+| `terraform fmt -check`, `init -backend=false -lockfile=readonly`, `validate` | clean, modules and example |
 | `tflint` (recommended preset) | no issues |
 | `terraform test` (mocked provider) | 34 passed, 0 failed |
 | `checkov` with the three shared custom policies | 43 passed, 0 failed, 11 documented skips |
-| `examples/basic` | validates |
 
-### Live runs, 2026-10-14
+The tests have one run per bullet of the brief, plus the SSH range validation cases.
 
-Applied twice in a throwaway project with a self-signed certificate, and destroyed each time. A listing showed nothing left behind. The first run had no bastion (20 resources). The second has the final code (23 resources).
+### Live run, 2026-10-14
 
-| Check | Result | Run |
-| --- | --- | --- |
-| Backend service | `HEALTHY` | both |
-| `https://<lb ip>/` | 200 | both |
-| TLS | 1.2 and 1.3 negotiate | first |
-| Port 80 on the load balancer address | no answer | both |
-| Instance | private subnet, no external IP | both |
-| SSH: trusted range, bastion, instance | works | second |
-| SSH straight to the instance | times out | second |
-| Bastion to instance | tcp/22 open, tcp/80 closed | second |
-| Bastion with another range in `trusted_ssh_cidrs` | times out | second |
-| Project roles of the module's accounts | only the two writer roles, on the instance account | second |
+Applied in a throwaway project (23 resources) by an account that held only the roles in the table below, then destroyed. A listing showed nothing left behind. The certificate was a self-signed one passed in as `existing_ssl_certificate_id`.
 
-Not verified: the Google-managed certificate and TLS 1.1 refusal.
+| Check | Result |
+| --- | --- |
+| Backend service | `HEALTHY` |
+| `https://<lb ip>/` | 200 |
+| TLS | 1.2 and 1.3 negotiate |
+| Port 80 on the load balancer address | no answer |
+| Instance | private subnet, no external IP |
+| `ssh -J <user>@<bastion_external_ip> <user>@<instance_internal_ip>` from the trusted range | works |
+| SSH straight to the instance | times out |
+| Bastion to instance | tcp/22 open, tcp/80 closed |
+| Bastion with another range in `trusted_ssh_cidrs` | times out |
+| Firewall rules in the VPC | `allow-lb-http`, `allow-ssh-bastion-in`, `allow-ssh-bastion-to-web` |
+| Project roles of the module's accounts | only the two writer roles, on the instance account |
 
 ### Checkov skips
 
@@ -108,7 +108,7 @@ Each is an inline `checkov:skip` with its reason.
 
 ## Deployer roles
 
-Chosen from role descriptions. The account that applied it live was a project owner, so the table is unproven.
+The live run above applied and destroyed everything with an account holding exactly these roles.
 
 | Role | Why |
 | --- | --- |
@@ -119,12 +119,11 @@ Chosen from role descriptions. The account that applied it live was a project ow
 | `roles/iam.serviceAccountAdmin`, `roles/iam.serviceAccountUser` | Create and attach the service accounts |
 | `roles/resourcemanager.projectIamAdmin` | Grant the two writer roles |
 
-The APIs `compute`, `iam`, `logging` and `monitoring` must be enabled. The module does not enable them.
+The APIs `compute`, `iam`, `logging` and `monitoring` must be enabled first.
 
 ## Scope notes
 
-- One instance in one zone, no autoscaling.
-- Port 80 from the load balancer to the instance is plain HTTP.
-- The instance has no route to the internet. The extended version adds Cloud NAT.
-- SSH keys use Google's default handling. The extended version switches to OS Login.
-- After a real instance replacement (new image or disk), the instance group stays empty until a second `terraform apply`. Editing the startup script does not replace the instance. It runs at boot, so reset the instance to rerun it.
+- One instance in one zone. Port 80 from the load balancer to the instance is plain HTTP.
+- The two writer roles let an agent or application on the instance write logs and metrics.
+- SSH keys use Google's default handling (project or instance metadata). The extended version switches to OS Login.
+- After a real instance replacement (new image or disk), run `terraform apply` a second time to put the instance back in its group. Editing the startup script does not replace the instance. It runs at boot, so reset the instance to rerun it.

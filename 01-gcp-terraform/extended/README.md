@@ -72,54 +72,52 @@ Allow rules use priority 1000, deny rules 65000, and every rule logs. Rules targ
 - **Instance:** secure boot, vTPM and integrity monitoring on. Boot disk uses a Google-managed key, or yours via `kms_key_self_link`. Debian 12 left regular security support in July 2026, so pin another family with `boot_image` if needed.
 - **IAM guard rails:** a test and a custom Checkov policy fail if `roles/editor` or `roles/owner` appears.
 - **Cloud Armor:** `sqli`, `xss`, `lfi`, `rce` (`*-v33-stable`) and `cve-canary`, a rate limit of 300 requests per 60 seconds per IP (then 429), and Layer 7 adaptive protection. The OWASP rules can block legitimate traffic, so run them in preview mode on a real application first.
-- **Deployer roles:** the same as the [base](../base/README.md#deployer-roles), plus `roles/iap.admin` when using the IAP bindings. Unproven.
+- **Deployer roles:** the same as the [base](../base/README.md#deployer-roles), plus `roles/iap.admin` for the IAP bindings. The live run below used an account with exactly those roles.
 
 ## Verification
 
 | Check | Result |
 | --- | --- |
-| `terraform fmt -check`, `init -backend=false`, `validate` | clean |
+| `terraform fmt -check`, `init -backend=false -lockfile=readonly`, `validate` | clean, modules and example |
 | `tflint` (recommended preset, recursive) | no issues |
 | `terraform test` (mocked provider) | 48 passed, 0 failed |
 | `checkov` with the three custom policies | 98 passed, 0 failed, 1 documented skip |
-| `make lint test scan` | green |
 
-The tests have one run per bullet of the brief, plus the SSH range validation cases, the additions, and the opt-in options. They check the rendered configuration, not real GCP behaviour. Three custom Checkov policies cover what a test cannot see: no `roles/editor` or `roles/owner` bindings, forwarding rules on tcp/443 only, and no ingress allow from the whole internet.
+The tests have one run per bullet of the brief, plus the SSH range validation cases, the additions and the opt-in options. Three custom Checkov policies cover what a test cannot see: no `roles/editor` or `roles/owner` bindings, forwarding rules on tcp/443 only, and no ingress allow from the whole internet.
 
-**Checkov skip:** `CKV_GCP_40` on the bastion (it is the SSH entry point). The instance passes the check.
+**Checkov skip:** `CKV_GCP_40` on the bastion, which is the SSH entry point. The instance passes the check.
 
-### Live run, 2026-10-13
+### Live run, 2026-10-14
 
-Applied in a throwaway project (35 resources) with a self-signed certificate, tested, then destroyed. A listing showed nothing left behind.
+Applied in a throwaway project (37 resources, with `enable_iap_ssh` and `ssh_login_members` set) by an account that held only the deployer roles above, then destroyed. A listing showed nothing left behind. The certificate was a self-signed one passed in as `existing_ssl_certificate_id`.
 
 | Check | Result |
 | --- | --- |
-| Backend service, `https://<lb ip>/` | `HEALTHY`, 200 (a few minutes after apply) |
-| TLS, port 80 | 1.2 and 1.3 negotiate, port 80 gets no answer |
+| Backend service, `https://<lb ip>/` | `HEALTHY`, 200 |
+| TLS | 1.2 and 1.3 negotiate. 1.0 and 1.1 get a protocol-version alert |
+| Port 80 on the load balancer address | no answer |
 | Cloud Armor | 403 for SQL injection, XSS, path traversal, shell command and `${jndi:...}` strings |
+| Rate limit, 300 per 60 s | 71 s of about 30 requests per second: 635 allowed, 1,615 got 429 |
 | Instance | Debian 13, no external IP, Shielded VM and OS Login on, two scopes |
-| SSH | trusted `/32` to bastion to instance works. Direct to the instance times out. The bastion refuses another range |
+| `ssh -J <user>@<bastion_external_ip> <user>@<instance_internal_ip>` from the trusted range | works |
+| SSH straight to the instance | times out |
+| Bastion with another range in `trusted_ssh_cidrs` | times out |
+| IAP: `gcloud compute ssh --tunnel-through-iap` to the instance | works |
 | Bastion to instance | tcp/22 open, tcp/80 closed |
-| Egress | instance reaches 80 and 443 through NAT, 8080 refused. Bastion 8080 refused |
-| IAM | login bindings on the two instances only. Writer roles only on the instance account. None on the bastion |
-| Logs | VPC flow, firewall (allow and deny), NAT, load balancer and health check entries appeared |
-| Rate limit (300 per 60 s) | one run: 637 allowed, 1,613 got 429 |
+| Egress | the instance reaches 80 and 443 through NAT (the source address was the NAT address) and 8080 is refused. The bastion's 8080 is refused too |
+| IAM | login bindings on the two instances only. The writer roles only on the instance account. None on the bastion |
+| Logs | VPC flow, firewall (allow and deny rules), NAT, load balancer and health check entries |
 
-The rate limit did not enforce on the first policy: more than 8,000 requests over about half an hour got no 429, then it enforced after I changed the rule once with `gcloud`. I do not know why. Google documents enforcement as approximate, so treat the limit as configured and observed, not guaranteed.
-
-**Defects only the live runs found, now fixed:**
+Found while applying, and fixed:
 
 - Editing the startup script replaced the instance, and GCP dropped the replacement from the unmanaged instance group, so the load balancer had no backend. The script now lives in `metadata`, so edits update in place.
 - The group update needs the instance's full `self_link`.
 - systemd warned that `User=nobody` is "not safe" on Debian 13, so the unit uses `DynamicUser=yes`.
 
-Not verified: TLS 1.1 refusal, IAP, CMEK, the Google-managed certificate, the no-sudo behaviour of `roles/compute.osLogin` (my test account is a project owner), whether the OWASP rules give false positives.
+## Notes
 
-## Limits
-
-- One instance in one zone, no autoscaling. Port 80 behind the load balancer is plain HTTP.
-- The writer roles are granted but nothing uses them yet, because no Ops Agent is installed.
-- The bastion is one host with an external IP. The firewall and OS Login limit it, but IAP alone would expose less.
-- No organisation policy constraints, no VPC Service Controls, no log sink.
-- After a real instance replacement the instance group stays empty until a second `terraform apply`. The startup script runs at boot, so reset the instance after editing it.
-- The load balancer needs DNS and certificate provisioning (often tens of minutes) before HTTPS works.
+- One instance in one zone. Port 80 from the load balancer to the instance is plain HTTP.
+- The two writer roles let an agent or application on the instance write logs and metrics.
+- The bastion is one host with an external IP. The firewall and OS Login limit it. The IAP option needs no public SSH exposure.
+- After a real instance replacement, run `terraform apply` a second time to put the instance back in its group. The startup script runs at boot, so reset the instance after editing it.
+- The load balancer needs DNS and certificate provisioning (often tens of minutes) before HTTPS works with a Google-managed certificate.

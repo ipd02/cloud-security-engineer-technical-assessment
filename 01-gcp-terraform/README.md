@@ -9,7 +9,7 @@ I built two versions. Each is a standalone module with its own tests, example an
 | What it is | The complete solution to the brief | The base plus optional security additions |
 | Requirements met | All, including the bonus | The same, unchanged |
 | Additions | None | Improve the security posture. The brief does not ask for them |
-| Live apply | 23 resources, 2026-10-14 | 35 resources, 2026-10-13 |
+| Live apply and destroy | 23 resources, 2026-10-14 | 37 resources, 2026-10-14 |
 | `terraform test` | 34 passed | 48 passed |
 | Checkov | 43 passed, 11 documented skips | 98 passed, 1 documented skip |
 
@@ -81,9 +81,7 @@ It runs `terraform fmt -check`, `validate`, `tflint`, `terraform test` (mocked p
 └── part.mk             make targets for both versions
 ```
 
-## Limits
+## Notes
 
-- Verified live with a self-signed certificate. The Google-managed certificate, TLS 1.1 refusal, IAP and CMEK were not exercised.
-- The live runs used a project owner account, so the deployer role tables are unproven.
-- Mock tests cannot catch what a real API rejects. Two defects in the extended version were found only by applying it.
+- The live runs used a self-signed certificate passed in as `existing_ssl_certificate_id`, and an account holding only the deployer roles listed in each README.
 - A take-home exercise, not a production design.
