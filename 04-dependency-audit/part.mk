@@ -15,8 +15,9 @@ dep-audit-lint: ## Part 4: ruff check and format check
 	ruff check $(DEP_AUDIT_DIR)
 	ruff format --check $(DEP_AUDIT_DIR)
 
-dep-audit-test: ## Part 4: unit tests for audit_report.py
+dep-audit-test: ## Part 4: unit tests for audit_report.py and the extras
 	cd $(DEP_AUDIT_DIR) && python3 -m unittest discover -s tests -t . -v
+	cd $(DEP_AUDIT_DIR)/extras && python3 -m unittest discover -s tests -t . -v
 
 # The fixed manifest must be clean and the original must still be caught.
 # Both need the trivy vulnerability database (network on first run).

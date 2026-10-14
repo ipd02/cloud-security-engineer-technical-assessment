@@ -2,7 +2,7 @@
 
 This part scans the `package.json` from the assessment, reports the vulnerable dependencies, proposes a fixed manifest and proves it with a second scan. A small Python script turns `npm audit --json` into JSON and CSV.
 
-Read [REPORT.md](REPORT.md) for the findings, the fix and the remediation plan. It also covers what to do when the two scanners disagree (section 8) and when an upgrade is not possible or breaks things (section 9).
+Read [REPORT.md](REPORT.md) for the findings, the fix and the remediation plan. Section 9 covers what to do when an upgrade is not possible or breaks things. Extra checks (second scanner, EPSS, API probes) are in [extras/](extras/README.md).
 
 ## Result
 
@@ -14,9 +14,8 @@ Read [REPORT.md](REPORT.md) for the findings, the fix and the remediation plan. 
 |---|---|
 | `vulnerable-input/package.json` | The task input, content as given (whitespace reconstructed). Its lockfile is generated. |
 | `fixed/package.json` | Proposed upgrades, with a lockfile. |
-| `fixed/breaking-change-probe.js` | Calls changed APIs of `jsonwebtoken` and `mongoose` without a database. |
 | `audit_report.py` | Bonus script, standard library only. |
-| `compare_scanners.py` | Compares `npm audit` and `trivy fs` output by GHSA id. |
+| `extras/` | Checks beyond the task: second scanner comparison, EPSS, API probes. See [extras/README.md](extras/README.md). |
 | `tests/` | Unit tests for both scripts, with small fixtures. |
 | `reports/` | Raw scanner output, with dates and tool versions, plus generated JSON and CSV. |
 | `part.mk` | Make targets, picked up by the root `Makefile`. |
@@ -44,8 +43,6 @@ python3 ../audit_report.py /tmp/audit.json --lockfile package-lock.json \
   --json-out /tmp/v.json --csv-out /tmp/v.csv --min-severity high --fail-on critical
 ```
 
-The probe script needs the fixed packages installed in a scratch directory, with `npm ci --ignore-scripts`.
-
 ## audit_report.py
 
 ```
@@ -70,9 +67,9 @@ audit_report.py INPUT [--lockfile package-lock.json] [--trivy trivy.json]
 Scans and probes run on 2026-10-13 and 2026-10-14 (npm 11.19.1, Node v26.10.0, trivy 0.75.0, Python 3.12.1, ruff 0.17.0). EPSS scores are from 2026-10-14. The trivy database version was not recorded for the saved scans:
 
 - `npm audit` and `npm audit --json` on both lockfiles. Raw output is in `reports/`.
-- `trivy fs` on both lockfiles, and the comparison with npm audit.
+- `trivy fs` on both lockfiles.
 - `npm audit fix` and `npm audit fix --force` on scratch copies, lockfile only.
-- `fixed/breaking-change-probe.js` against the old and new `jsonwebtoken` and `mongoose`, installed with `--ignore-scripts`.
+- The extra checks in `extras/` (see its README).
 - `make dep-audit-test`, `make dep-audit-lint`, `make dep-audit-scan`.
 - The audit was repeated on 2026-10-14 in scratch copies. Same 24 packages and 46 advisories.
 - `audit_report.py` was checked with single-line changes to the code (mutation checks). Each one is caught by a test.

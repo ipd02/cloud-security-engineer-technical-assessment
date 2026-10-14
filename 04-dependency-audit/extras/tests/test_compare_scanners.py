@@ -11,7 +11,7 @@ from pathlib import Path
 
 import compare_scanners as cs
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = Path(__file__).resolve().parents[2] / "tests" / "fixtures"
 
 
 class CompareTests(unittest.TestCase):
