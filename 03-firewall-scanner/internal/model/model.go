@@ -8,7 +8,8 @@ type InsecureRule struct {
 	Protocol string `json:"protocol"`
 	Port     string `json:"port"`
 	Source   string `json:"source"`
-	// RuleID names the Azure rule. Additive, omitted when empty.
+	// RuleID names the Azure rule or the GCP policy rule priority. Additive,
+	// omitted when empty.
 	RuleID string `json:"rule_id,omitempty"`
 }
 
@@ -22,11 +23,20 @@ type SecurityGroup struct {
 
 // FirewallRule is a GCP VPC firewall rule with at least one insecure entry.
 type FirewallRule struct {
-	Name          string         `json:"name"`
-	Network       string         `json:"network"`
-	Project       string         `json:"project,omitempty"` // additive
+	Name    string `json:"name"`
+	Network string `json:"network"`
+	Project string `json:"project,omitempty"` // additive
+	// Type is "network_firewall_policy" or "hierarchical_firewall_policy" for
+	// policy rules. Additive, omitted for plain VPC firewall rules.
+	Type          string         `json:"type,omitempty"`
 	InsecureRules []InsecureRule `json:"insecure_rules"`
 }
+
+// Types of GCP firewall resources reported besides VPC firewall rules.
+const (
+	TypeNetworkPolicy      = "network_firewall_policy"
+	TypeHierarchicalPolicy = "hierarchical_firewall_policy"
+)
 
 // NSG is an Azure network security group with at least one insecure rule.
 type NSG struct {

@@ -24,6 +24,7 @@ Real scans use the default credential chain of each cloud:
 
 ```sh
 fwscan --providers aws --aws-regions all
+fwscan --providers gcp --gcp-org 123456789012
 fwscan --providers gcp --gcp-project my-project
 fwscan --providers azure --azure-subscription 00000000-0000-0000-0000-000000000000
 fwscan --fail-on-findings --output report.json --gcp-project my-project --azure-subscription <id>
@@ -38,8 +39,14 @@ fwscan --fail-on-findings --output report.json --gcp-project my-project --azure-
 | `--timeout` | `60s` | Overall scan timeout. |
 | `--include-ipv6` | off | Also report `::/0` sources (an extension, see below). |
 | `--aws-regions` | configured region | Comma separated regions, or `all` (uses `DescribeRegions`). |
-| `--gcp-project` | none | GCP project id. Required for `gcp`. |
+| `--gcp-org` | none | GCP organization number. Scans every project under it through Cloud Asset Inventory. |
+| `--gcp-folder` | none | GCP folder number. Same as `--gcp-org` for one folder and its subfolders. |
+| `--gcp-project` | none | GCP project ids, comma separated. Reads the Compute API directly, in real time. |
+| `--gcp-quota-project` | none | GCP project that is billed for the API calls. User credentials need it for `--gcp-org` and `--gcp-folder`, and the Cloud Asset API must be enabled there. The caller needs `serviceusage.services.use` on it. |
+| `--gcp-policies` | on | Also read GCP network and hierarchical firewall policies. Turn it off to need fewer permissions. |
 | `--azure-subscription` | none | Azure subscription id. Required for `azure`. |
+
+For `gcp` one of `--gcp-org`, `--gcp-folder` or `--gcp-project` is required. `--gcp-org` and `--gcp-folder` exclude each other. A project can be combined with either.
 | `--version` | | Print the version. |
 
 Exit codes:
@@ -58,7 +65,8 @@ The JSON follows the example in the task. The example is not valid JSON as print
 
 - `port` is always a string: `"8080"`, `"1000-2000"`, `"all"` (AWS, GCP) or `"*"` (Azure).
 - Only resources with at least one insecure rule are listed.
-- Extra fields, all additive: `region` (AWS), `project` (GCP), `location` (Azure), `rule_id` (Azure rule name), and a top-level `errors` list.
+- Extra fields, all additive: `region` (AWS), `project` (GCP), `location` (Azure), `rule_id` (Azure rule name, or the priority of a GCP policy rule), `type` (GCP, only for policy rules: `network_firewall_policy` or `hierarchical_firewall_policy`), and a top-level `errors` list.
+- For a GCP policy rule, `network` lists the networks the policy is attached to, or the folder or organization for a hierarchical policy. `project` is empty for a hierarchical policy.
 - `errors` is always present. A provider that fails does not hide the other providers. Partial results from a provider that failed halfway are kept, and the error is listed.
 - A provider that was not selected is omitted. A selected provider with no findings has an empty list.
 - Output is sorted (region, id, name, then protocol, port, source), so runs can be diffed.
@@ -91,7 +99,7 @@ Example (`fwscan --mock`, trimmed to one provider):
 | Cloud | What counts |
 | --- | --- |
 | AWS | Each `IpPermissions[].IpRanges[].CidrIp` equal to `0.0.0.0/0`. Protocol `-1` is reported as protocol `all`, port `all`. Numeric protocols 1, 6, 17 and 58 are shown as `icmp`, `tcp`, `udp`, `icmpv6`. A tcp or udp range of 0-65535 is shown as `all`. For ICMP the numbers are type and code (`-1` is `all`). |
-| GCP | Direction `INGRESS` (an empty direction counts as ingress), not `disabled`, `allowed` entries present, `sourceRanges` contains `0.0.0.0/0`. An `allowed` entry with no `ports` means all ports. Each port or range in `ports` is one finding. Deny rules and egress rules are ignored. |
+| GCP | VPC firewall rules: direction `INGRESS` (an empty direction counts as ingress), not `disabled`, `allowed` entries present, `sourceRanges` contains `0.0.0.0/0`. An `allowed` entry with no `ports` means all ports. Each port or range in `ports` is one finding. Deny rules and egress rules are ignored. Policy rules (network and hierarchical firewall policies): direction `INGRESS`, not disabled, action `allow`, `srcIpRanges` contains `0.0.0.0/0`. Each `layer4Configs` entry is read like an `allowed` entry. The finding has a `type` and the priority as `rule_id`. |
 | Azure | Direction `Inbound`, access `Allow`, custom `securityRules` only. The source is `*`, `Any`, `Internet` or `0.0.0.0/0`, in `sourceAddressPrefix` or in any entry of `sourceAddressPrefixes` (case-insensitive). Ports come from `destinationPortRange` and each entry of `destinationPortRanges`. The source is reported as written, so a rule with `*` shows `"source": "*"`. Azure's built-in default rules are skipped. |
 
 Things to know:
@@ -99,7 +107,13 @@ Things to know:
 - IPv6 `::/0` is not part of the task. It is reported only with `--include-ipv6`, and is labelled in the output by its source value `::/0`.
 - Azure `Internet` is a service tag for public address space, not literally `0.0.0.0/0`. It is treated as open to the internet on purpose, as the task intends.
 - Azure effective allow is out of scope. The scanner does not look at rule priority, so a higher-priority deny rule that would block the traffic is not considered. It may over-report. It does not model NSG association with subnets or NICs either.
-- GCP: it does not evaluate rule priority or hierarchical firewall policies, and it does not check whether any instance uses the rule's target tags. Same over-reporting caveat.
+- "Open" means the literal `0.0.0.0/0` (and `::/0` with the flag). Several ranges that together cover the internet, such as `0.0.0.0/1` and `128.0.0.0/1`, are not reported. This follows the task, which names `0.0.0.0/0`.
+- GCP: it does not evaluate rule priority or the order between VPC rules and policies, and it ignores target tags and service accounts. It does not check whether any instance uses a rule. A rule shadowed by a higher-priority deny is still reported. Only `sourceRanges` and `srcIpRanges` are read. A rule that has only source tags or source service accounts is not reported. A rule with both a source range of `0.0.0.0/0` and source tags is reported, because GCP treats them as alternatives.
+- GCP policies: `allow` is the only action reported. `goto_next` and `deny` are not, and neither is an allow that goes through a security profile group. Source address groups, FQDNs, region codes and secure tags in a policy rule are not read. A policy that is not attached to anything is still reported.
+- GCP scope: `--gcp-org` and `--gcp-folder` read the Cloud Asset Inventory index. It can be a few minutes behind real changes. `--gcp-project` reads the Compute API directly. Projects are scanned one after another, and a project whose Compute API is off is skipped without an error.
+- GCP: regional network firewall policies come from the project-wide list. Hierarchical policies are read for the organization or folder and its subfolders. A folder you pass with `--gcp-folder` is not checked for policies of its parents.
+- AWS: it scans one account. It reads security groups only, not network ACLs or AWS Network Firewall.
+- Azure: it scans one subscription. It reads NSGs only, not Azure Firewall, application security groups or Virtual Network Manager security admin rules.
 - AWS: it does not check whether the group is attached to anything. Only IPv4 and (optionally) IPv6 ranges are checked. Prefix lists and referenced security groups are not expanded.
 - Several protocol and port entries in one rule produce several findings, one each.
 
@@ -110,7 +124,9 @@ The tool never changes anything. Give it a read-only identity.
 | Cloud | Permission needed | Notes |
 | --- | --- | --- |
 | AWS | `ec2:DescribeSecurityGroups`, plus `ec2:DescribeRegions` for `--aws-regions all` | Allow only these two actions on `*` (the Describe actions do not support resource-level scoping). |
-| GCP | `compute.firewalls.list` | A custom role with this one permission is the tightest option. `roles/compute.networkViewer` also works and is broader. `roles/compute.securityAdmin` is too broad. |
+| GCP, project scope, `--gcp-policies=false` | `compute.firewalls.list` on each project | A custom role with this one permission is the tightest option. `roles/compute.networkViewer` also works and is broader. `roles/compute.securityAdmin` is too broad. |
+| GCP, project scope, default | add `compute.firewallPolicies.list` on each project | Network firewall policies. Not in `roles/compute.networkViewer`. |
+| GCP, org or folder scope | `cloudasset.assets.searchAllResources` on the scope, `compute.firewallPolicies.list` on the organization, on each folder and on each project | The Cloud Asset API must be enabled in the project the credentials bill against. `roles/cloudasset.viewer` includes the first one and is broad. Use a custom role. |
 | Azure | `Microsoft.Network/networkSecurityGroups/read` | Built-in `Reader` on the subscription covers this. A custom role with that one action is tighter. `Network Contributor` is too broad. |
 
 ## Layout
@@ -120,7 +136,7 @@ cmd/fwscan/            flags, concurrency, exit codes
 internal/model/        report types (JSON shape)
 internal/detect/       pure functions: is this rule open to the world
 internal/scan/aws/     EC2 adapter behind a small interface, paginator, multi-region
-internal/scan/gcp/     compute FirewallsClient behind a Lister interface
+internal/scan/gcp/     compute and Cloud Asset clients behind small interfaces (VPC rules, policies, org scope)
 internal/scan/azure/   armnetwork SecurityGroupsClient pager behind an interface
 internal/report/       JSON writer
 internal/mock/         fixture clients for --mock (they return SDK types, so the real adapters run)
@@ -135,7 +151,7 @@ Go 1.26.0 is the minimum, set by the SDK dependencies in `go.mod`. SDK versions 
 | Provider | Unit tests with fakes | Live run against a real account |
 | --- | --- | --- |
 | AWS | Yes. Fake EC2 client: pagination over three pages, filtering, sorting, multi-region, `all` regions, partial failure, error on a later page, IPv6 flag. | Not run. |
-| GCP | Yes. Fake lister, plus the real SDK client against a local `httptest` server for page tokens and an HTTP 403. | Not run. |
+| GCP | Yes. Fake listers and a fake asset searcher for the scope logic. The real SDK clients against local `httptest` servers for page tokens, an HTTP 403, a slow server and a timeout, and for the Cloud Asset, network policy and hierarchical policy requests. | Not run. |
 | Azure | Yes. The SDK's own fake server (`armnetwork/fake`): two pages, address prefix lists, port range lists, error on the second page. | Not run. |
 
 - The detection logic has table-driven tests for tcp, udp, icmp, `-1`, port ranges, multiple CIDRs where one is open, IPv6, disabled GCP rules, egress rules, deny rules, and Azure `*`, `Any` and `Internet`.

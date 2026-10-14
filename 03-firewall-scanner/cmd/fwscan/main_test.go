@@ -84,6 +84,7 @@ func TestExitCodes(t *testing.T) {
 		{"bad timeout", []string{"--timeout", "0s"}, exitError},
 		{"stray argument", []string{"extra"}, exitError},
 		{"gcp without project", []string{"--providers", "gcp"}, exitError},
+		{"gcp org and folder together", []string{"--providers", "gcp", "--gcp-org", "1", "--gcp-folder", "2"}, exitError},
 		{"azure without subscription", []string{"--providers", "azure"}, exitError},
 		{"unwritable output", []string{"--mock", "--output", filepath.Join(t.TempDir(), "no", "such", "dir", "o.json")}, exitError},
 	}
@@ -253,5 +254,18 @@ func TestOutputFileModeAndOverwrite(t *testing.T) {
 	b, err := fs.ReadFile(os.DirFS(filepath.Dir(path)), filepath.Base(path))
 	if err != nil || strings.Contains(string(b), "sg-12345678") {
 		t.Fatalf("file not overwritten: %v %q", err, b)
+	}
+}
+
+func TestFlagDefaults(t *testing.T) {
+	o, err := parseFlags(nil, &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !o.gcpPolicies || o.includeIPv6 || o.failOn || o.mock {
+		t.Fatalf("defaults = %+v", o)
+	}
+	if got := splitList(" a, b,,c "); len(got) != 3 || got[1] != "b" {
+		t.Fatalf("splitList = %v", got)
 	}
 }

@@ -176,6 +176,36 @@ func GCPInsecure(r GCPRule, includeIPv6 bool) []model.InsecureRule {
 	return out
 }
 
+// GCPPolicyRule describes one rule of a hierarchical or network firewall
+// policy. Layer4 lists the protocol and port pairs the rule matches.
+type GCPPolicyRule struct {
+	Priority    int32
+	Direction   string // INGRESS or EGRESS
+	Action      string // allow, deny, goto_next, apply_security_profile_group
+	Disabled    bool
+	SrcIPRanges []string
+	Layer4      []GCPAllowed
+}
+
+// GCPPolicyInsecure returns insecure entries for an enabled ingress policy
+// rule whose action is allow. Other actions never open the rule to the internet.
+// The priority is reported as the rule id.
+func GCPPolicyInsecure(r GCPPolicyRule, includeIPv6 bool) []model.InsecureRule {
+	if !strings.EqualFold(r.Action, "allow") {
+		return nil
+	}
+	rules := GCPInsecure(GCPRule{
+		Direction:    r.Direction,
+		Disabled:     r.Disabled,
+		SourceRanges: r.SrcIPRanges,
+		Allowed:      r.Layer4,
+	}, includeIPv6)
+	for i := range rules {
+		rules[i].RuleID = strconv.Itoa(int(r.Priority))
+	}
+	return rules
+}
+
 // AzureRule describes one NSG rule without any SDK types.
 type AzureRule struct {
 	Name           string

@@ -236,3 +236,35 @@ func TestSort(t *testing.T) {
 		}
 	}
 }
+
+func TestGCPPolicyInsecure(t *testing.T) {
+	open := []string{"0.0.0.0/0"}
+	tests := []struct {
+		name string
+		in   GCPPolicyRule
+		want []model.InsecureRule
+	}{
+		{"allow tcp", GCPPolicyRule{Priority: 100, Direction: "INGRESS", Action: "allow", SrcIPRanges: open, Layer4: []GCPAllowed{{"tcp", []string{"22"}}}},
+			[]model.InsecureRule{{Protocol: "tcp", Port: "22", Source: "0.0.0.0/0", RuleID: "100"}}},
+		{"allow all protocols", GCPPolicyRule{Priority: 7, Direction: "INGRESS", Action: "ALLOW", SrcIPRanges: open, Layer4: []GCPAllowed{{"all", nil}}},
+			[]model.InsecureRule{{Protocol: "all", Port: "all", Source: "0.0.0.0/0", RuleID: "7"}}},
+		{"deny", GCPPolicyRule{Direction: "INGRESS", Action: "deny", SrcIPRanges: open, Layer4: []GCPAllowed{{"all", nil}}}, nil},
+		{"goto_next", GCPPolicyRule{Direction: "INGRESS", Action: "goto_next", SrcIPRanges: open, Layer4: []GCPAllowed{{"tcp", nil}}}, nil},
+		{"egress", GCPPolicyRule{Direction: "EGRESS", Action: "allow", SrcIPRanges: open, Layer4: []GCPAllowed{{"tcp", nil}}}, nil},
+		{"disabled", GCPPolicyRule{Direction: "INGRESS", Action: "allow", Disabled: true, SrcIPRanges: open, Layer4: []GCPAllowed{{"tcp", nil}}}, nil},
+		{"internal source", GCPPolicyRule{Direction: "INGRESS", Action: "allow", SrcIPRanges: []string{"10.0.0.0/8"}, Layer4: []GCPAllowed{{"tcp", nil}}}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GCPPolicyInsecure(tt.in, false)
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %+v; want %+v", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("got %+v; want %+v", got, tt.want)
+				}
+			}
+		})
+	}
+}

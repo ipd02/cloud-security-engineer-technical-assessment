@@ -40,6 +40,10 @@ type options struct {
 	includeIPv6 bool
 	awsRegions  string
 	gcpProject  string
+	gcpOrg      string
+	gcpFolder   string
+	gcpPolicies bool
+	gcpQuota    string
 	azureSub    string
 	showVersion bool
 }
@@ -60,7 +64,11 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.DurationVar(&o.timeout, "timeout", 60*time.Second, "overall scan timeout")
 	fs.BoolVar(&o.includeIPv6, "include-ipv6", false, "also report ::/0 sources")
 	fs.StringVar(&o.awsRegions, "aws-regions", "", "AWS regions, comma separated, or all (default: configured region)")
-	fs.StringVar(&o.gcpProject, "gcp-project", "", "GCP project id")
+	fs.StringVar(&o.gcpProject, "gcp-project", "", "GCP project ids, comma separated")
+	fs.StringVar(&o.gcpOrg, "gcp-org", "", "GCP organization number, scans every project under it")
+	fs.StringVar(&o.gcpFolder, "gcp-folder", "", "GCP folder number, scans every project under it")
+	fs.StringVar(&o.gcpQuota, "gcp-quota-project", "", "GCP project billed for API calls, needed for --gcp-org and --gcp-folder with user credentials")
+	fs.BoolVar(&o.gcpPolicies, "gcp-policies", true, "also read GCP network and hierarchical firewall policies")
 	fs.StringVar(&o.azureSub, "azure-subscription", "", "Azure subscription id")
 	fs.BoolVar(&o.showVersion, "version", false, "print the version and exit")
 	if err := fs.Parse(args); err != nil {
@@ -211,10 +219,17 @@ func scanAWS(ctx context.Context, o options) ([]model.SecurityGroup, error) {
 
 func scanGCP(ctx context.Context, o options) ([]model.FirewallRule, error) {
 	if o.mock {
-		s := &gcpscan.Scanner{Lister: mock.GCPLister(), Project: mock.Project, IncludeIPv6: o.includeIPv6}
+		s := &gcpscan.Scanner{Lister: mock.GCPLister(), Projects: []string{mock.Project}, IncludeIPv6: o.includeIPv6}
 		return s.Scan(ctx)
 	}
-	s, closeFn, err := gcpscan.New(ctx, o.gcpProject, o.includeIPv6)
+	s, closeFn, err := gcpscan.New(ctx, gcpscan.Options{
+		Projects:     splitList(o.gcpProject),
+		Org:          strings.TrimSpace(o.gcpOrg),
+		Folder:       strings.TrimSpace(o.gcpFolder),
+		Policies:     o.gcpPolicies,
+		QuotaProject: strings.TrimSpace(o.gcpQuota),
+		IncludeIPv6:  o.includeIPv6,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -232,4 +247,15 @@ func scanAzure(ctx context.Context, o options) ([]model.NSG, error) {
 		return nil, err
 	}
 	return s.Scan(ctx)
+}
+
+// splitList splits a comma separated flag value and drops empty entries.
+func splitList(v string) []string {
+	var out []string
+	for _, p := range strings.Split(v, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

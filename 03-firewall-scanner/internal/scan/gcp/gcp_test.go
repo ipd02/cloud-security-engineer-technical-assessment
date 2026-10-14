@@ -42,7 +42,7 @@ func allow(p string, ports ...string) *computepb.Allowed {
 
 func TestScan(t *testing.T) {
 	open := []string{"0.0.0.0/0"}
-	s := &Scanner{Project: "p", Lister: fakeLister{fws: []*computepb.Firewall{
+	s := &Scanner{Projects: []string{"p"}, Lister: fakeLister{fws: []*computepb.Firewall{
 		fw("z-open-ssh", "INGRESS", false, open, allow("tcp", "22")),
 		fw("a-allow-all", "INGRESS", false, open, allow("icmp")),
 		fw("disabled", "INGRESS", true, open, allow("tcp", "22")),
@@ -68,14 +68,14 @@ func TestScan(t *testing.T) {
 
 func TestScanError(t *testing.T) {
 	boom := errors.New("403 forbidden")
-	s := &Scanner{Project: "p", Lister: fakeLister{err: boom}}
+	s := &Scanner{Projects: []string{"p"}, Lister: fakeLister{err: boom}}
 	if _, err := s.Scan(context.Background()); !errors.Is(err, boom) {
 		t.Fatalf("err = %v", err)
 	}
 }
 
 func TestNewRequiresProject(t *testing.T) {
-	if _, _, err := New(context.Background(), "", false); err == nil {
+	if _, _, err := New(context.Background(), Options{}); err == nil {
 		t.Fatal("want error for empty project")
 	}
 }
@@ -110,7 +110,7 @@ func TestClientListerPagination(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = c.Close() }()
-	s := &Scanner{Project: "p", Lister: ClientLister{Client: c}}
+	s := &Scanner{Projects: []string{"p"}, Lister: ClientLister{Client: c}}
 	got, err := s.Scan(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -133,7 +133,7 @@ func TestClientListerHTTPError(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = c.Close() }()
-	s := &Scanner{Project: "p", Lister: ClientLister{Client: c}}
+	s := &Scanner{Projects: []string{"p"}, Lister: ClientLister{Client: c}}
 	if _, err := s.Scan(context.Background()); err == nil {
 		t.Fatal("want error")
 	}
@@ -143,7 +143,7 @@ func TestClientListerHTTPError(t *testing.T) {
 func TestScanKeepsPartialResults(t *testing.T) {
 	boom := errors.New("page 2 failed")
 	open := []string{"0.0.0.0/0"}
-	s := &Scanner{Project: "p", Lister: fakeLister{err: boom, fws: []*computepb.Firewall{
+	s := &Scanner{Projects: []string{"p"}, Lister: fakeLister{err: boom, fws: []*computepb.Firewall{
 		fw("one", "INGRESS", false, open, allow("tcp", "22")),
 	}}}
 	got, err := s.Scan(context.Background())
@@ -174,7 +174,7 @@ func TestClientListerTimesOutOnSlowServer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	start := time.Now()
-	s := &Scanner{Project: "p", Lister: ClientLister{Client: c, Abandoned: &abandoned}}
+	s := &Scanner{Projects: []string{"p"}, Lister: ClientLister{Client: c, Abandoned: &abandoned}}
 	if _, err := s.Scan(ctx); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err = %v; want context.DeadlineExceeded", err)
 	}
@@ -200,7 +200,7 @@ func TestClientListerHonoursContext(t *testing.T) {
 	defer func() { _ = c.Close() }()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	s := &Scanner{Project: "p", Lister: ClientLister{Client: c}}
+	s := &Scanner{Projects: []string{"p"}, Lister: ClientLister{Client: c}}
 	if _, err := s.Scan(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v; want context.Canceled", err)
 	}
