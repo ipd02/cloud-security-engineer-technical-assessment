@@ -79,7 +79,7 @@ Allow rules use priority 1000, deny rules 65000, and every rule logs. Rules targ
 | Check | Result |
 | --- | --- |
 | `terraform fmt -check`, `init -backend=false -lockfile=readonly`, `validate` | clean, modules and example |
-| `tflint` (recommended preset, recursive) | no issues |
+| `tflint` (recommended preset and the Google ruleset, recursive) | no issues |
 | `terraform test` (mocked provider) | 48 passed, 0 failed |
 | `checkov` with the three custom policies | 98 passed, 0 failed, 1 documented skip |
 
