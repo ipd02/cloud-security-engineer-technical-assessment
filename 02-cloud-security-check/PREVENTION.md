@@ -98,7 +98,7 @@ Some problems still get through: a setting that drifts, an old key, a new vulner
 
 ### The running workload
 
-Run containers with a read-only filesystem, no extra capabilities, `no-new-privileges` and the default seccomp profile. Add an AppArmor or SELinux profile where the host supports it. In Kubernetes, set the same options in the `securityContext` and enforce them with Pod Security Admission. The README shows the Docker flags and a Kubernetes manifest.
+Run containers with a read-only filesystem, no extra capabilities, `no-new-privileges` and the default seccomp profile. Add an AppArmor or SELinux profile where the host supports it. In Kubernetes, set the same options in the `securityContext` and enforce them with Pod Security Admission. The README (issue 2 of the Dockerfile section) shows the Docker flags and the Kubernetes settings.
 
 ### Finding drift and exposure
 

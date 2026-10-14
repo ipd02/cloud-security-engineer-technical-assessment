@@ -130,87 +130,82 @@ To see the real permissions of one user or role, use the IAM policy simulator (`
 5. **Retire the user.** Set its keys to inactive (`aws iam update-access-key --status Inactive`). Wait one release cycle and watch CloudTrail for failures. Then delete the keys, the policy and the user. In the test account, a call with the inactive key failed, and deleting the key, the policy and the user worked.
 6. **Block it from coming back.** Add a service control policy that denies creating IAM users and access keys, and attaching `AdministratorAccess`, outside an approved admin role. `policies/scp-deny-iam-users-and-admin.json` is an example.
 
-## 4. Dockerfile: what is wrong, and the fix for each
+## 4. Dockerfile
+
+### 4.1 What is wrong
 
 The issues are listed in the order they appear in the Dockerfile. Severity uses the same scale as section 1.
 
-| # | In `Dockerfile.original` | Why it matters | Severity | Fix in `Dockerfile.hardened` |
-| --- | --- | --- | --- | --- |
-| 1 | `FROM ubuntu:18.04` | Ubuntu 18.04 no longer gets standard security updates. The tag can also change, so two builds can differ. | High | A base that still gets security updates. This Dockerfile uses `python:3.13-slim-trixie`, because the app is Python, pinned by digest so every build uses the same image. `ubuntu:24.04` would also work. See "What the real app changes". |
-| 2 | `USER root` | A bug in the app gives root inside the container. | High | A numeric user (`10001`) with no shell and no home folder. |
-| 3 | Installs `curl`, `vim`, `dnsutils`, `python3-pip` | Each extra program adds vulnerabilities and gives an attacker more tools. The app needs none of them. | Medium | The demo app needs none of them, so nothing is installed and pip is removed. The health check uses Python. The real app may need one of them (see below). |
-| 4 | `apt-get install` with no `--no-install-recommends`, no cleanup and no pinned versions | A larger image that keeps the package lists. | Low | There is no apt step left. |
-| 5 | `ENV DB_PASSWORD=...` and `ENV API_KEY=...` | Anyone who can pull the image can read these values with `docker inspect` or `docker history`. They stay in the image even if a later step removes them. | Critical | No secrets in the image. They are given when the container starts (see below). |
-| 6 | `COPY . /app` with no `.dockerignore` | Copies everything in the folder into the image, including `.git`, `.env` files and keys. | High | `.dockerignore` excludes everything except `app.py`, and `COPY` names that one file. |
-| 7 | `chmod -R 777 /app` | Every user and process can change the code. | Medium | `app.py` belongs to root and is read-only. |
-| 8 | `EXPOSE 80` | A port below 1024 needs root or an extra permission to open. | Low | The app uses port 8080. |
-| 9 | `CMD python3 app.py` | The shell form starts the app through a shell, so a stop signal may not reach it. | Low | The list form: `CMD ["python", "/app/app.py"]`. |
-| 10 | No `HEALTHCHECK` | Docker cannot tell a stuck container from a healthy one. | Low | A `HEALTHCHECK` that calls `/healthz` with Python. |
+| # | In `Dockerfile.original` | Why it matters | Severity |
+| --- | --- | --- | --- |
+| 1 | `FROM ubuntu:18.04` | Ubuntu 18.04 no longer gets standard security updates. The tag can also change, so two builds can differ. | High |
+| 2 | `USER root` | A bug in the app gives root inside the container. | High |
+| 3 | Installs `curl`, `vim`, `dnsutils`, `python3-pip` | Each extra program adds vulnerabilities and gives an attacker more tools. | Medium |
+| 4 | `apt-get install` with no `--no-install-recommends`, no cleanup and no pinned versions | A larger image that keeps the package lists. | Low |
+| 5 | `ENV DB_PASSWORD=...` and `ENV API_KEY=...` | Anyone who can pull the image can read these values with `docker inspect` or `docker history`. They stay in the image even if a later step removes them. | Critical |
+| 6 | `COPY . /app` with no `.dockerignore` | Copies everything in the folder into the image, including `.git`, `.env` files and keys. | High |
+| 7 | `chmod -R 777 /app` | Every user and process can change the code. | Medium |
+| 8 | `EXPOSE 80` | A port below 1024 needs root or an extra permission to open. | Low |
+| 9 | `CMD python3 app.py` | The shell form starts the app through a shell, so a stop signal may not reach it. | Low |
+| 10 | No `HEALTHCHECK` | Docker cannot tell a stuck container from a healthy one. | Low |
 
-The app has no build step, so the improved Dockerfile needs only one stage.
+### 4.2 How each issue is fixed
 
-### What the real app changes
+The fixes are in `docker/Dockerfile.hardened`. The numbers match the table above.
 
-The task gives the Dockerfile but not the app. The only clue is `CMD python3 app.py`, so the app is written in Python. The improved Dockerfile therefore runs a small demo app. The fixes above are right for the Dockerfile itself, but a full check needs the real app, to answer these questions:
+**1. Base image.** Use a base that still gets security updates, and pin it by digest. The improved Dockerfile uses `python:3.13-slim-trixie@sha256:...`. The app is Python, so this image already contains Python and no `apt` step is needed. `ubuntu:24.04` would also work. The digest makes every build use exactly the same image. Someone has to update it on purpose to pick up new fixes.
+
+The task gives the Dockerfile but not the app. The only clue is `CMD python3 app.py`. The improved Dockerfile therefore runs a small demo app. A full check needs the real app, to answer these questions:
 
 - **Does it run on a newer Python?** Ubuntu 18.04 ships Python 3.6. Some code written for it breaks on 3.13, because some modules were removed and some behavior changed. Run the app's tests on the new version.
-- **Does it use any of the removed tools?** If it calls `curl`, `dig` or similar, add back only that package, with `--no-install-recommends` and an `apt` cleanup in the same step. Do not add back `vim`.
 - **Does it install Python packages?** The task has no `requirements.txt`. If there is one, install it in a first build stage, pin the versions, and copy only the result into the final image.
-- **Does it depend on anything specific to Ubuntu?** If so, use `ubuntu:24.04` as the base, install `python3` in one `apt` step, and keep the non-root user and the other fixes.
+- **Does it use any of the removed tools?** See issue 3.
+- **Does it depend on anything specific to Ubuntu?** If so, use `ubuntu:24.04` as the base, install `python3` in one `apt` step (see issue 4), and keep the other fixes.
 - **Do the scanners still pass?** Build the image with the real app and run the same checks as in "What was checked".
 
-### If an older Python version has to stay
-
-Use these steps, in this order:
+If an older Python version has to stay, take these steps in this order:
 
 1. **Upgrade the app first.** This is the real fix. An old Python version gets no security fixes, whatever the base image is. Check which versions still get fixes on python.org, and move to one of them.
-2. **If the upgrade is not possible yet, pin and shrink the risk.** Use the official image for that exact version, pinned by digest. Keep everything else in this Dockerfile: non-root user, read-only files, no secrets, no extra tools.
-3. **Limit what the container can reach.** Run it with a read-only filesystem and no extra capabilities (see "Run flags"). Allow only the network connections it needs.
+2. **If the upgrade is not possible yet, pin and shrink the risk.** Use the official image for that exact version, pinned by digest. Keep every other fix: non-root user, read-only files, no secrets, no extra tools.
+3. **Limit what the container can reach.** Use the run flags in issue 2, and allow only the network connections it needs.
 4. **Scan on a schedule and set a deadline.** Run `trivy image` regularly, because the findings will not be fixed. Write down who owns the upgrade and by when.
 5. **If the old Ubuntu release itself must stay,** Ubuntu offers paid extended security updates for 18.04 (Ubuntu Pro). That keeps the system packages patched. It does not patch the app's own libraries.
 
-### Secrets when the container starts
-
-The image holds no secret. Give the secret to the running container:
-
-- **Docker or Compose:** mount a file, for example `-v ./secret:/run/secrets/db_password:ro -e DB_PASSWORD_FILE=/run/secrets/db_password`.
-- **Kubernetes:** use a Secret volume, or the Secrets Store CSI driver with AWS Secrets Manager, GCP Secret Manager or HashiCorp Vault. A file is better than an environment variable, because it does not show up in `docker inspect`.
-- **ECS:** use the `secrets` field of the task definition with a Secrets Manager or SSM Parameter Store ARN.
-
-Treat the two values in the task's Dockerfile as leaked and change them. They are in the image history wherever that image was pushed.
-
-### Run flags
+**2. Root user.** Create a user with a number (`10001`), no shell and no home folder, and switch to it with `USER`. Also start the container with settings that limit what it can do:
 
 ```sh
 docker run -d --read-only --cap-drop=ALL --security-opt no-new-privileges \
   -p 8080:8080 cloud-check-hardened:local
 ```
 
-Docker applies its default seccomp profile unless you override it, so do not pass `--security-opt seccomp=unconfined`. If the app needs scratch space, add `--tmpfs /tmp` instead of making the whole filesystem writable.
+- `--cap-drop=ALL` removes the extra Linux privileges a container has by default.
+- `--security-opt no-new-privileges` stops a process from gaining more privileges later.
+- `--read-only` makes the container's filesystem read-only (see issue 7).
+- Docker applies its default seccomp profile, which blocks risky system calls. Do not pass `--security-opt seccomp=unconfined`.
 
-The same settings in Kubernetes:
+In Kubernetes the same settings are `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `capabilities.drop: ["ALL"]` and `seccompProfile.type: RuntimeDefault`.
 
-```yaml
-spec:
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 10001
-    runAsGroup: 10001
-    seccompProfile:
-      type: RuntimeDefault
-  containers:
-    - name: app
-      image: <registry>/app@sha256:<digest>
-      securityContext:
-        allowPrivilegeEscalation: false
-        readOnlyRootFilesystem: true
-        capabilities:
-          drop: ["ALL"]
-      readinessProbe:
-        httpGet: { path: /healthz, port: 8080 }
-```
+**3. Extra tools.** The demo app needs none of them, so nothing is installed, and pip is removed because nothing in the running container needs it. The health check uses Python instead of `curl`. If the real app does need a tool, such as `curl` or `dig`, add back only that package. Do not add back `vim`. The demo app has no build step, so the Dockerfile has one stage. With packages to install, use a first stage as described in issue 1.
 
-Kubernetes ignores the Dockerfile `HEALTHCHECK`, so the probe is set in the manifest.
+**4. `apt` options.** The improved Dockerfile has no `apt` step, so there is nothing to fix. If one is needed, install with `--no-install-recommends`, pin versions where practical, and remove the package lists (`rm -rf /var/lib/apt/lists/*`) in the same `RUN` step.
+
+**5. Secrets.** The image holds no secret. Give the secret to the running container instead:
+
+- **Docker or Compose:** mount a file, for example `-v ./secret:/run/secrets/db_password:ro -e DB_PASSWORD_FILE=/run/secrets/db_password`.
+- **Kubernetes:** use a Secret volume, or the Secrets Store CSI driver with AWS Secrets Manager, GCP Secret Manager or HashiCorp Vault.
+- **ECS:** use the `secrets` field of the task definition with a Secrets Manager or SSM Parameter Store ARN.
+
+A file is better than an environment variable, because it does not show up in `docker inspect`. The demo app reads the path from `DB_PASSWORD_FILE`, logs that it read the file, and never logs or returns the value. Treat the two values in the task's Dockerfile as leaked and change them. They are in the image history wherever that image was pushed.
+
+**6. Copying everything.** `.dockerignore` excludes everything except `app.py`, and `COPY` names that one file.
+
+**7. World-writable files.** `app.py` belongs to root and is read-only (mode `0444`), so the app user cannot change it. The `--read-only` flag in issue 2 protects the rest of the filesystem. If the app needs scratch space, add `--tmpfs /tmp` instead of making the whole filesystem writable.
+
+**8. Port 80.** The app listens on port 8080, which any user can open.
+
+**9. Shell form.** Use the list form: `CMD ["python", "/app/app.py"]`. The app then receives stop signals directly.
+
+**10. Health check.** A `HEALTHCHECK` calls `/healthz` with Python. Kubernetes ignores the Dockerfile `HEALTHCHECK`, so set a `readinessProbe` on `/healthz` there.
 
 ## 5. Preventing both problems
 
@@ -233,7 +228,7 @@ Everything below was run while building this part. The image checks apply to the
 | `trivy config` on the originals | `original.yaml`: 9 findings (5 high). `Dockerfile.original`: 5 findings (2 critical, 2 high). |
 | `hadolint` on `Dockerfile.original` | 8 findings |
 | `tests/assert-originals-fail.sh` | 11 checks, all held. Each "must fail" check also looks for a named rule, so a crash does not count. |
-| Image build and run with the run flags above | Healthy within seconds, `/healthz` returns 200, runs as user 10001 with no capabilities, and writing to `/app` fails (read-only). |
+| Image build and run with the flags in issue 2 | Healthy within seconds, `/healthz` returns 200, runs as user 10001 with no capabilities, and writing to `/app` fails (read-only). |
 | Secret file | With `DB_PASSWORD_FILE` pointing at a mounted file, the app logs that it read the file. The value is never in the logs or in a response. |
 | `docker history` of the image | No password or key in it |
 | `trivy image` | No Python findings. 44 high findings in the Debian base image, and none of them has a fix yet. With `--ignore-unfixed` the scan is clean. |
