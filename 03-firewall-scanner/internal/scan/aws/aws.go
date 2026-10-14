@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/organizations"
 	orgtypes "github.com/aws/aws-sdk-go-v2/service/organizations/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/smithy-go"
 
 	"github.com/ipd02/cloud-security-engineer-technical-assessment/03-firewall-scanner/internal/detect"
 	"github.com/ipd02/cloud-security-engineer-technical-assessment/03-firewall-scanner/internal/model"
@@ -46,18 +47,30 @@ type Scanner struct {
 	DefaultRegion string   // used when Regions is empty and for DescribeRegions
 	IncludeIPv6   bool
 
-	// Org, when set, scans every active account of the organization. Each
-	// account is reached through AccountFactory and Factory is not used.
+	// Org lists the accounts of the organization. With it set, Scan follows
+	// Mode: the active accounts of the organization are scanned through
+	// AccountFactory, except the caller's own account, which uses Factory.
 	Org            OrgAPI
 	AccountFactory AccountFactory
+	Mode           string
+	// CallerAccount returns the id of the account the credentials belong to.
+	CallerAccount func(ctx context.Context) (string, error)
 }
+
+// Scope modes. Auto scans the organization when the caller can list its
+// accounts, and the caller's own account otherwise.
+const (
+	ScopeAuto    = "auto"
+	ScopeOrg     = "org"
+	ScopeAccount = "account"
+)
 
 // Options selects what New builds.
 type Options struct {
 	Regions     string // comma separated list, "all", or empty for the configured default region
 	IncludeIPv6 bool
-	Org         bool   // scan every active account of the organization
-	RoleName    string // role assumed in each account when Org is set
+	Scope       string // ScopeAuto (also when empty), ScopeOrg or ScopeAccount
+	RoleName    string // role assumed in the other accounts of an organization
 }
 
 // orgRegion is the region of the Organizations and STS clients. Both are
@@ -67,7 +80,9 @@ const orgRegion = "us-east-1"
 
 // New builds a Scanner with the default AWS credential chain.
 func New(ctx context.Context, o Options) (*Scanner, error) {
-	cfg, err := config.LoadDefaultConfig(ctx)
+	// Without a region in the environment or the profile, some credential
+	// providers (for example "aws login") cannot refresh their token.
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithDefaultRegion(orgRegion))
 	if err != nil {
 		return nil, fmt.Errorf("load aws config: %w", err)
 	}
@@ -80,14 +95,30 @@ func New(ctx context.Context, o Options) (*Scanner, error) {
 			return ec2.NewFromConfig(c)
 		},
 	}
-	if o.Org {
-		if o.RoleName == "" {
-			return nil, errors.New("aws role name is required with --aws-org")
+	orgCfg := cfg.Copy()
+	orgCfg.Region = orgRegion
+	s.CallerAccount = func(ctx context.Context) (string, error) {
+		out, err := sts.NewFromConfig(orgCfg).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+		if err != nil {
+			return "", fmt.Errorf("get caller identity: %w", err)
 		}
-		orgCfg := cfg.Copy()
-		orgCfg.Region = orgRegion
+		return aws.ToString(out.Account), nil
+	}
+	switch o.Scope {
+	case "", ScopeAuto, ScopeOrg:
+		s.Mode = ScopeAuto
+		if o.Scope == ScopeOrg {
+			s.Mode = ScopeOrg
+		}
+		if o.RoleName == "" {
+			return nil, errors.New("aws role name is required to scan an organization")
+		}
 		s.Org = organizations.NewFromConfig(orgCfg)
 		s.AccountFactory = assumeRoleFactory(cfg, orgCfg, o.RoleName)
+	case ScopeAccount:
+		s.Mode = ScopeAccount
+	default:
+		return nil, fmt.Errorf("unknown aws scope %q: use auto, org or account", o.Scope)
 	}
 	for _, r := range strings.Split(o.Regions, ",") {
 		if r = strings.TrimSpace(r); r != "" {
@@ -131,17 +162,50 @@ const maxParallelAccounts = 8
 // Scan returns security groups that have insecure rules. When a region or an
 // account fails it still returns the groups from the others, plus a joined error.
 func (s *Scanner) Scan(ctx context.Context) ([]model.SecurityGroup, error) {
-	if s.Org != nil {
-		return s.scanOrg(ctx)
+	if s.Org == nil || s.Mode == ScopeAccount {
+		return s.scanCurrentAccount(ctx)
 	}
-	return s.scanRegions(ctx)
-}
-
-// scanOrg scans every active account of the organization, a few at a time.
-func (s *Scanner) scanOrg(ctx context.Context) ([]model.SecurityGroup, error) {
 	accounts, err := s.activeAccounts(ctx)
 	if err != nil {
+		if s.Mode != ScopeOrg && orgUnavailable(err) {
+			return s.scanCurrentAccount(ctx)
+		}
 		return nil, err
+	}
+	return s.scanOrg(ctx, accounts)
+}
+
+// orgUnavailable reports an error that means the credentials cannot list an
+// organization: the account has none, or the caller is not allowed to read it.
+func orgUnavailable(err error) bool {
+	var notInUse *orgtypes.AWSOrganizationsNotInUseException
+	if errors.As(err, &notInUse) {
+		return true
+	}
+	var api smithy.APIError
+	return errors.As(err, &api) && (api.ErrorCode() == "AccessDeniedException" || api.ErrorCode() == "AWSOrganizationsNotInUseException")
+}
+
+// scanCurrentAccount scans the account of the credentials, with those credentials.
+func (s *Scanner) scanCurrentAccount(ctx context.Context) ([]model.SecurityGroup, error) {
+	groups, err := s.scanRegions(ctx)
+	if s.CallerAccount != nil {
+		id, idErr := s.CallerAccount(ctx)
+		if idErr != nil {
+			return groups, errors.Join(err, idErr)
+		}
+		for i := range groups {
+			groups[i].Account = id
+		}
+	}
+	return groups, err
+}
+
+// scanOrg scans the given accounts, a few at a time.
+func (s *Scanner) scanOrg(ctx context.Context, accounts []string) ([]model.SecurityGroup, error) {
+	caller := ""
+	if s.CallerAccount != nil {
+		caller, _ = s.CallerAccount(ctx) // unknown: every account is then reached through the role
 	}
 	var (
 		mu     sync.Mutex
@@ -156,7 +220,7 @@ func (s *Scanner) scanOrg(ctx context.Context) ([]model.SecurityGroup, error) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			g, err := s.scanAccount(ctx, id)
+			g, err := s.scanAccount(ctx, id, id == caller)
 			mu.Lock()
 			defer mu.Unlock()
 			groups = append(groups, g...)
@@ -181,10 +245,14 @@ func (s *Scanner) scanOrg(ctx context.Context) ([]model.SecurityGroup, error) {
 	return groups, errors.Join(errs...)
 }
 
-func (s *Scanner) scanAccount(ctx context.Context, id string) ([]model.SecurityGroup, error) {
-	factory, err := s.AccountFactory(ctx, id)
-	if err != nil {
-		return nil, err
+func (s *Scanner) scanAccount(ctx context.Context, id string, own bool) ([]model.SecurityGroup, error) {
+	factory := s.Factory
+	if !own {
+		var err error
+		factory, err = s.AccountFactory(ctx, id)
+		if err != nil {
+			return nil, err
+		}
 	}
 	sub := &Scanner{Factory: factory, Regions: s.Regions, DefaultRegion: s.DefaultRegion, IncludeIPv6: s.IncludeIPv6}
 	groups, err := sub.scanRegions(ctx)
@@ -262,10 +330,11 @@ func (s *Scanner) scanRegions(ctx context.Context) ([]model.SecurityGroup, error
 }
 
 func (s *Scanner) listRegions(ctx context.Context) ([]string, error) {
-	if s.DefaultRegion == "" {
-		return nil, errors.New("describe regions: no default region configured")
+	region := s.DefaultRegion
+	if region == "" {
+		region = orgRegion
 	}
-	out, err := s.Factory(s.DefaultRegion).DescribeRegions(ctx, &ec2.DescribeRegionsInput{})
+	out, err := s.Factory(region).DescribeRegions(ctx, &ec2.DescribeRegionsInput{})
 	if err != nil {
 		return nil, fmt.Errorf("describe regions: %w", err)
 	}

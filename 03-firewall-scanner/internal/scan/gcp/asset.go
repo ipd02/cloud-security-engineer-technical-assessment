@@ -87,13 +87,13 @@ func (a *assetClient) Search(ctx context.Context, scope, assetType string) ([]As
 // scanScope reads every VPC firewall rule under the scope from Cloud Asset
 // Inventory. With policy listers set it also reads the hierarchical policies
 // of the scope and its folders, and the network policies of every project.
-func (s *Scanner) scanScope(ctx context.Context) ([]model.FirewallRule, error) {
+func (s *Scanner) scanScope(ctx context.Context, scope string) ([]model.FirewallRule, error) {
 	var out []model.FirewallRule
 	var errs []error
 
-	assets, err := s.Assets.Search(ctx, s.Scope, assetFirewall)
+	assets, err := s.Assets.Search(ctx, scope, assetFirewall)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("search firewalls in %s: %w", s.Scope, brief(err)))
+		errs = append(errs, fmt.Errorf("search firewalls in %s: %w", scope, brief(err)))
 	}
 	for _, a := range assets {
 		fw, err := firewallFromAsset(a)
@@ -107,14 +107,14 @@ func (s *Scanner) scanScope(ctx context.Context) ([]model.FirewallRule, error) {
 	}
 
 	if s.Hierarchy != nil {
-		rules, err := s.hierarchicalRules(ctx)
+		rules, err := s.hierarchicalRules(ctx, scope)
 		out = append(out, rules...)
 		if err != nil {
 			errs = append(errs, err)
 		}
 	}
 	if s.NetworkPolicies != nil {
-		rules, err := s.scopeNetworkPolicies(ctx)
+		rules, err := s.scopeNetworkPolicies(ctx, scope)
 		out = append(out, rules...)
 		if err != nil {
 			errs = append(errs, err)
@@ -123,17 +123,17 @@ func (s *Scanner) scanScope(ctx context.Context) ([]model.FirewallRule, error) {
 	return out, errors.Join(errs...)
 }
 
-func (s *Scanner) hierarchicalRules(ctx context.Context) ([]model.FirewallRule, error) {
+func (s *Scanner) hierarchicalRules(ctx context.Context, scope string) ([]model.FirewallRule, error) {
 	var out []model.FirewallRule
 	var errs []error
-	parents := []string{s.Scope}
-	folders, err := s.Assets.Search(ctx, s.Scope, assetFolder)
+	parents := []string{scope}
+	folders, err := s.Assets.Search(ctx, scope, assetFolder)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("search folders in %s: %w", s.Scope, brief(err)))
+		errs = append(errs, fmt.Errorf("search folders in %s: %w", scope, brief(err)))
 	}
 	for _, f := range folders {
 		if i := strings.LastIndex(f.Name, "/folders/"); i >= 0 {
-			if parent := "folders/" + f.Name[i+len("/folders/"):]; parent != s.Scope {
+			if parent := "folders/" + f.Name[i+len("/folders/"):]; parent != scope {
 				parents = append(parents, parent)
 			}
 		}
@@ -164,12 +164,12 @@ func (s *Scanner) hierarchicalRules(ctx context.Context) ([]model.FirewallRule, 
 	return out, errors.Join(errs...)
 }
 
-func (s *Scanner) scopeNetworkPolicies(ctx context.Context) ([]model.FirewallRule, error) {
+func (s *Scanner) scopeNetworkPolicies(ctx context.Context, scope string) ([]model.FirewallRule, error) {
 	var out []model.FirewallRule
 	var errs []error
-	projects, err := s.Assets.Search(ctx, s.Scope, assetProject)
+	projects, err := s.Assets.Search(ctx, scope, assetProject)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("search projects in %s: %w", s.Scope, brief(err)))
+		errs = append(errs, fmt.Errorf("search projects in %s: %w", scope, brief(err)))
 	}
 	for _, p := range projects {
 		id := projectID(p)

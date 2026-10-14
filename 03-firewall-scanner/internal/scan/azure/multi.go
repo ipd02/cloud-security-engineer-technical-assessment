@@ -37,8 +37,9 @@ const maxParallelSubscriptions = 8
 
 // NewMulti builds a MultiScanner with DefaultAzureCredential.
 func NewMulti(subscriptions []string, all, includeIPv6 bool) (*MultiScanner, error) {
-	if len(subscriptions) == 0 && !all {
-		return nil, errors.New("azure subscription is required: use --azure-subscription or --azure-all-subscriptions")
+	// With no subscription named, scan every subscription the credential can read.
+	if len(subscriptions) == 0 {
+		all = true
 	}
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {

@@ -111,8 +111,17 @@ func TestMultiNoSubscriptionFound(t *testing.T) {
 	}
 }
 
-func TestNewMultiNeedsSubscription(t *testing.T) {
-	if _, err := NewMulti(nil, false, false); err == nil {
-		t.Fatal("want an error without a subscription and without --azure-all-subscriptions")
+// With no subscription named the scanner covers every readable subscription.
+func TestNewMultiDefaultsToAllSubscriptions(t *testing.T) {
+	m, err := NewMulti(nil, false, false)
+	if err != nil {
+		t.Skipf("no azure credential chain in this environment: %v", err)
+	}
+	if !m.All {
+		t.Fatal("no subscription named must scan all subscriptions")
+	}
+	m, err = NewMulti([]string{"sub-a"}, false, false)
+	if err != nil || m.All {
+		t.Fatalf("a named subscription must not widen the scan: %v, all=%v", err, m != nil && m.All)
 	}
 }

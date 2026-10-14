@@ -12,6 +12,7 @@ import (
 
 	compute "cloud.google.com/go/compute/apiv1"
 	"cloud.google.com/go/compute/apiv1/computepb"
+	resourcemanager "cloud.google.com/go/resourcemanager/apiv3"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
@@ -36,11 +37,14 @@ type HierarchyLister interface {
 	ListHierarchicalPolicies(ctx context.Context, parent string) ([]*computepb.FirewallPolicy, error)
 }
 
-// Scanner scans a list of projects, or a whole organization or folder.
-// Nil policy listers switch policy scanning off.
+// Scanner scans a list of projects, and organizations or folders. With none of
+// them set and a Discover, it scans the organizations the caller can see, or
+// else the projects the caller can see. Nil policy listers switch policy
+// scanning off.
 type Scanner struct {
 	Projects        []string // project ids
-	Scope           string   // "organizations/ID" or "folders/ID", scanned through Cloud Asset Inventory
+	Scopes          []string // "organizations/ID" or "folders/ID", scanned through Cloud Asset Inventory
+	Discover        Discoverer
 	Lister          Lister
 	NetworkPolicies NetworkPolicyLister
 	Hierarchy       HierarchyLister
@@ -63,9 +67,8 @@ type Options struct {
 // New builds a Scanner with Application Default Credentials. The returned
 // close function releases the clients.
 func New(ctx context.Context, o Options) (*Scanner, func() error, error) {
-	if len(o.Projects) == 0 && o.Org == "" && o.Folder == "" {
-		return nil, nil, errors.New("gcp scope is required: use --gcp-project, --gcp-org or --gcp-folder")
-	}
+	// With no project, organization or folder, scan what the caller can see.
+	auto := len(o.Projects) == 0 && o.Org == "" && o.Folder == ""
 	if o.Org != "" && o.Folder != "" {
 		return nil, nil, errors.New("use either --gcp-org or --gcp-folder, not both")
 	}
@@ -91,7 +94,7 @@ func New(ctx context.Context, o Options) (*Scanner, func() error, error) {
 		return nil, nil, err
 	}
 
-	if len(o.Projects) > 0 {
+	if len(o.Projects) > 0 || auto {
 		c, err := compute.NewFirewallsRESTClient(ctx, copts...)
 		if err != nil {
 			return fail(fmt.Errorf("create gcp firewalls client: %w", err))
@@ -107,10 +110,25 @@ func New(ctx context.Context, o Options) (*Scanner, func() error, error) {
 		closers = append(closers, c.Close)
 		s.NetworkPolicies = NetworkPolicyClient{Client: c, Abandoned: abandoned}
 	}
-	if o.Org != "" || o.Folder != "" {
-		s.Scope = "organizations/" + o.Org
+	if auto {
+		orgs, err := resourcemanager.NewOrganizationsRESTClient(ctx, copts...)
+		if err != nil {
+			return fail(fmt.Errorf("create gcp organizations client: %w", err))
+		}
+		closers = append(closers, orgs.Close)
+		projects, err := resourcemanager.NewProjectsRESTClient(ctx, copts...)
+		if err != nil {
+			return fail(fmt.Errorf("create gcp projects client: %w", err))
+		}
+		closers = append(closers, projects.Close)
+		s.Discover = ResourceManagerClient{Orgs: orgs, ProjectsC: projects, Abandoned: abandoned}
+	}
+	if o.Org != "" || o.Folder != "" || auto {
+		if o.Org != "" {
+			s.Scopes = []string{"organizations/" + o.Org}
+		}
 		if o.Folder != "" {
-			s.Scope = "folders/" + o.Folder
+			s.Scopes = []string{"folders/" + o.Folder}
 		}
 		a, err := newAssetClient(ctx, abandoned, copts...)
 		if err != nil {
@@ -192,20 +210,40 @@ func (l ClientLister) ListFirewalls(ctx context.Context, project string) ([]*com
 func (s *Scanner) Scan(ctx context.Context) ([]model.FirewallRule, error) {
 	var out []model.FirewallRule
 	var errs []error
-	for _, p := range s.Projects {
+	projects, scopes := s.Projects, s.Scopes
+	if len(projects) == 0 && len(scopes) == 0 && s.Discover != nil {
+		orgs, err := s.Discover.Organizations(ctx)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if len(orgs) > 0 {
+			scopes = orgs
+		} else if err == nil {
+			ps, err := s.Discover.Projects(ctx)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			projects = ps
+		}
+		if len(scopes) == 0 && len(projects) == 0 && len(errs) == 0 {
+			errs = append(errs, errors.New("no gcp organization or project is visible to these credentials: use --gcp-project, --gcp-org or --gcp-folder"))
+		}
+	}
+	for _, p := range projects {
 		rules, err := s.scanProject(ctx, p)
 		out = append(out, rules...)
 		if err != nil {
 			errs = append(errs, err)
 		}
 	}
-	if s.Scope != "" {
-		rules, err := s.scanScope(ctx)
+	for _, scope := range scopes {
+		rules, err := s.scanScope(ctx, scope)
 		out = append(out, rules...)
 		if err != nil {
 			errs = append(errs, err)
 		}
 	}
+	out = dedupe(out)
 	sort.SliceStable(out, func(i, j int) bool {
 		a, b := out[i], out[j]
 		if a.Project != b.Project {
@@ -347,8 +385,31 @@ func (e *briefError) Unwrap() error { return e.err }
 
 func brief(err error) error {
 	msg := err.Error()
-	if i := strings.Index(msg, "\nerror details:"); i >= 0 {
-		return &briefError{msg: msg[:i], err: err}
+	i := strings.Index(msg, "\nerror details:")
+	if i < 0 && !strings.Contains(msg, "requires a quota project") {
+		return err
 	}
-	return err
+	if i >= 0 {
+		msg = msg[:i]
+	}
+	if strings.Contains(msg, "requires a quota project") {
+		msg = "googleapi: Error 403: this API needs a quota project with the API enabled. Pass --gcp-quota-project PROJECT, or run: gcloud auth application-default set-quota-project PROJECT"
+	}
+	return &briefError{msg: msg, err: err}
+}
+
+// dedupe drops a rule that appears twice, for example when a project is named
+// and also lies inside a scanned organization.
+func dedupe(rules []model.FirewallRule) []model.FirewallRule {
+	seen := map[string]bool{}
+	out := rules[:0]
+	for _, r := range rules {
+		key := r.Project + "|" + r.Type + "|" + r.Network + "|" + r.Name
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, r)
+	}
+	return out
 }

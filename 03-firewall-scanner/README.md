@@ -23,7 +23,8 @@ make fwscan-lint      # golangci-lint with the root .golangci.yml
 Real scans use the default credential chain of each cloud:
 
 ```sh
-fwscan --providers aws --aws-regions all
+fwscan                                                  # everything the credentials can see, in all three clouds
+fwscan --providers aws --aws-regions eu-west-1,eu-north-1 --aws-scope account
 fwscan --providers gcp --gcp-org 123456789012
 fwscan --providers gcp --gcp-project my-project
 fwscan --providers azure --azure-subscription 00000000-0000-0000-0000-000000000000
@@ -38,20 +39,28 @@ fwscan --fail-on-findings --output report.json --gcp-project my-project --azure-
 | `--fail-on-findings` | off | Exit 1 when at least one insecure rule is found. |
 | `--timeout` | `60s` | Overall scan timeout. |
 | `--include-ipv6` | off | Also report `::/0` sources (an extension, see below). |
-| `--aws-regions` | configured region | Comma separated regions, or `all` (uses `DescribeRegions`). |
-| `--aws-org` | off | Scan every active account of the AWS organization. Run it as an IAM user or role of the management account (not the root user), or of a delegated administrator. |
-| `--aws-role-name` | `fwscan-reader` | Role assumed in each account with `--aws-org`. It must exist in every account, including the management account. |
+| `--aws-regions` | `all` | Comma separated regions, or `all` (every enabled region, read with `DescribeRegions`). |
+| `--aws-scope` | `auto` | `auto` scans the organization when the caller can list its accounts, and the caller's own account otherwise. `org` requires the organization. `account` scans only the caller's account. |
+| `--aws-role-name` | `fwscan-reader` | Role assumed in the other accounts of an organization. It must exist in each of them. The caller's own account is scanned with the caller's credentials. |
 | `--gcp-org` | none | GCP organization number. Scans every project under it through Cloud Asset Inventory. |
 | `--gcp-folder` | none | GCP folder number. Same as `--gcp-org` for one folder and its subfolders. |
 | `--gcp-project` | none | GCP project ids, comma separated. Reads the Compute API directly, in real time. |
 | `--gcp-quota-project` | none | GCP project that is billed for the API calls. User credentials need it for `--gcp-org` and `--gcp-folder`, and the Cloud Asset API must be enabled there. The caller needs `serviceusage.services.use` on it. |
 | `--gcp-policies` | on | Also read GCP network and hierarchical firewall policies. Turn it off to need fewer permissions. |
 | `--azure-subscription` | none | Azure subscription ids, comma separated. |
-| `--azure-all-subscriptions` | off | Also scan every enabled subscription the credential can read. This is the Azure tenant scope. |
+| `--azure-all-subscriptions` | on when no subscription is named | Also scan every enabled subscription the credential can read. This is the Azure tenant scope. |
 
-For `azure` one of `--azure-subscription` or `--azure-all-subscriptions` is required, and both can be combined.
+## Default scope
 
-For `gcp` one of `--gcp-org`, `--gcp-folder` or `--gcp-project` is required. `--gcp-org` and `--gcp-folder` exclude each other. A project can be combined with either.
+With no scope flag, each cloud scans everything its credentials can see:
+
+| Cloud | Default | Flags that narrow it |
+| --- | --- | --- |
+| AWS | The organization when the caller can list its accounts, else the caller's account. All enabled regions. | `--aws-scope`, `--aws-regions` |
+| GCP | Every organization the caller can see, or, when there is none, every project the caller can see. | `--gcp-org`, `--gcp-folder`, `--gcp-project` |
+| Azure | Every enabled subscription the credential can read. | `--azure-subscription` |
+
+`--gcp-org` and `--gcp-folder` exclude each other. A GCP project can be combined with either, and a project inside a scanned scope is reported once. `--azure-all-subscriptions` adds all readable subscriptions to the ones named with `--azure-subscription`. With user credentials GCP organization scans need `--gcp-quota-project` (or `gcloud auth application-default set-quota-project`).
 | `--version` | | Print the version. |
 
 Exit codes:
@@ -70,7 +79,7 @@ The JSON follows the example in the task. The example is not valid JSON as print
 
 - `port` is always a string: `"8080"`, `"1000-2000"`, `"all"` (AWS, GCP) or `"*"` (Azure).
 - Only resources with at least one insecure rule are listed.
-- Extra fields, all additive: `region` (AWS), `account` (AWS, only with `--aws-org`), `project` (GCP), `location` (Azure), `rule_id` (Azure rule name, or the priority of a GCP policy rule), `type` (GCP, only for policy rules: `network_firewall_policy` or `hierarchical_firewall_policy`), and a top-level `errors` list.
+- Extra fields, all additive: `region` (AWS), `account` (AWS), `project` (GCP), `location` (Azure), `rule_id` (Azure rule name, or the priority of a GCP policy rule), `type` (GCP, only for policy rules: `network_firewall_policy` or `hierarchical_firewall_policy`), and a top-level `errors` list.
 - For a GCP policy rule, `network` lists the networks the policy is attached to, or the folder or organization for a hierarchical policy. `project` is empty for a hierarchical policy.
 - `errors` is always present. A provider that fails does not hide the other providers. Partial results from a provider that failed halfway are kept, and the error is listed.
 - A provider that was not selected is omitted. A selected provider with no findings has an empty list.
@@ -118,7 +127,7 @@ Things to know:
 - GCP scope: `--gcp-org` and `--gcp-folder` read the Cloud Asset Inventory index. It lags behind real changes. In a test, a rule created seconds earlier was missing from the first run and present about 30 seconds later. `--gcp-project` reads the Compute API directly. Projects are scanned one after another, and a project whose Compute API is off is skipped without an error.
 - GCP: regional network firewall policies come from the project-wide list. Hierarchical policies are read for the organization or folder and its subfolders. A folder you pass with `--gcp-folder` is not checked for policies of its parents.
 - AWS: temporary credentials issued by the global STS endpoint are rejected in opt-in regions. With `--aws-regions all` that region fails with `AuthFailure`, the other regions still report, and the exit code is 2. Use a regional STS endpoint (`AWS_STS_REGIONAL_ENDPOINTS=regional`) or long-lived role credentials.
-- AWS: without `--aws-org` it scans the account of the credentials. With `--aws-org` it scans the active accounts of the organization, and accounts that are suspended or closing are skipped. A role that cannot be assumed in one account is reported in `errors`, and the other accounts still report. Only the `aws` partition is supported. It reads security groups only, not network ACLs or AWS Network Firewall.
+- AWS: in an organization it scans the active accounts, and accounts that are suspended or closing are skipped. A role that cannot be assumed in one account is reported in `errors`, and the other accounts still report. Only the `aws` partition is supported. It reads security groups only, not network ACLs or AWS Network Firewall.
 - Azure: it scans the subscriptions you name, or every enabled subscription the credential can read. Management groups are not walked. It reads NSGs only, not Azure Firewall, application security groups or Virtual Network Manager security admin rules.
 - AWS: it does not check whether the group is attached to anything. Only IPv4 and (optionally) IPv6 ranges are checked. Prefix lists and referenced security groups are not expanded.
 - Several protocol and port entries in one rule produce several findings, one each.
@@ -130,9 +139,10 @@ The tool never changes anything. Give it a read-only identity.
 | Cloud | Permission needed | Notes |
 | --- | --- | --- |
 | AWS | `ec2:DescribeSecurityGroups`, plus `ec2:DescribeRegions` for `--aws-regions all` | Allow only these two actions on `*` (the Describe actions do not support resource-level scoping). |
-| AWS, `--aws-org` | The caller needs `organizations:ListAccounts` and `sts:AssumeRole` on the role in each account. The role in each account holds the two EC2 actions above. | The role must trust the caller. The root user cannot assume roles. |
+| AWS, organization scan | The caller needs `organizations:ListAccounts` and `sts:AssumeRole` on the role in each other account. The role in each account holds the two EC2 actions above. | The role must trust the caller. Without `organizations:ListAccounts`, `--aws-scope auto` scans the caller's account only. |
 | GCP, project scope, `--gcp-policies=false` | `compute.firewalls.list` on each project | A custom role with this one permission is the tightest option. `roles/compute.networkViewer` also works and is broader. `roles/compute.securityAdmin` is too broad. |
 | GCP, project scope, default | add `compute.firewallPolicies.list` on each project | Network firewall policies. Not in `roles/compute.networkViewer`. |
+| GCP, no scope flag | `resourcemanager.organizations.get` to find organizations, and `resourcemanager.projects.get` to find projects | Without them nothing is found and the tool asks for a scope flag. |
 | GCP, org or folder scope | `cloudasset.assets.searchAllResources` on the scope, `compute.firewallPolicies.list` on the organization, on each folder and on each project | The Cloud Asset API must be enabled in the project the credentials bill against. `roles/cloudasset.viewer` includes the first one and is broad. Use a custom role. |
 | Azure | `Microsoft.Network/networkSecurityGroups/read` on each subscription | Built-in `Reader` on the subscription covers this. A custom role with that one action is tighter. `Network Contributor` is too broad. `--azure-all-subscriptions` lists the subscriptions where the identity holds a role, so it needs no extra permission. |
 

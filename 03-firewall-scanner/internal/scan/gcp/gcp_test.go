@@ -74,12 +74,6 @@ func TestScanError(t *testing.T) {
 	}
 }
 
-func TestNewRequiresProject(t *testing.T) {
-	if _, _, err := New(context.Background(), Options{}); err == nil {
-		t.Fatal("want error for empty project")
-	}
-}
-
 // TestClientListerPagination runs the real SDK client against a local HTTP
 // server, so page tokens are followed by the SDK iterator. No network, no credentials.
 func TestClientListerPagination(t *testing.T) {

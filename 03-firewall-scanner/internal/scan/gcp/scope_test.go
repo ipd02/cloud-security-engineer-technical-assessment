@@ -157,7 +157,7 @@ func TestScopeScan(t *testing.T) {
 	}}
 	open := []string{"0.0.0.0/0"}
 	s := &Scanner{
-		Scope:  "organizations/123",
+		Scopes: []string{"organizations/123"},
 		Assets: assets,
 		Hierarchy: fakeHierarchy{
 			"organizations/123": {policies: []*computepb.FirewallPolicy{policy("org-policy", []string{"organizations/123"}, policyRule(10, "allow", "INGRESS", open, l4("tcp", "443")))}},
@@ -226,7 +226,7 @@ func TestScopeSearchErrorKeepsPolicies(t *testing.T) {
 	boom := errors.New("403 asset")
 	open := []string{"0.0.0.0/0"}
 	s := &Scanner{
-		Scope:  "folders/9",
+		Scopes: []string{"folders/9"},
 		Assets: &fakeAssets{errs: map[string]error{assetFirewall: boom, assetFolder: boom, assetProject: boom}},
 		Hierarchy: fakeHierarchy{"folders/9": {policies: []*computepb.FirewallPolicy{
 			policy("p", nil, policyRule(1, "allow", "INGRESS", open, l4("all")))}}},
@@ -238,7 +238,7 @@ func TestScopeSearchErrorKeepsPolicies(t *testing.T) {
 }
 
 func TestNewValidatesScope(t *testing.T) {
-	for _, o := range []Options{{}, {Org: "1", Folder: "2"}} {
+	for _, o := range []Options{{Org: "1", Folder: "2"}} {
 		if _, _, err := New(context.Background(), o); err == nil {
 			t.Fatalf("want an error for %+v", o)
 		}
@@ -374,6 +374,10 @@ func TestBriefDropsErrorDetails(t *testing.T) {
 	if b.Error() != "googleapi: Error 403: denied" || !errors.Is(b, base) {
 		t.Fatalf("brief = %q", b.Error())
 	}
+	quota := errors.New("googleapi: Error 403: Your application is authenticating by using local Application Default Credentials. The cloudasset.googleapis.com API requires a quota project, which is not set by default.\nerror details: name = ErrorInfo")
+	if m := brief(quota).Error(); !strings.Contains(m, "--gcp-quota-project") || strings.Contains(m, "\n") {
+		t.Fatalf("quota project error = %q", m)
+	}
 	plain := errors.New("plain")
 	if brief(plain) != plain {
 		t.Fatal("an error without details must be returned unchanged")
@@ -407,7 +411,7 @@ func TestHierarchicalPoliciesAreNotReportedTwice(t *testing.T) {
 	}
 	assets := &fakeAssets{byType: map[string][]Asset{assetFolder: {{Name: "//cloudresourcemanager.googleapis.com/folders/111"}}}}
 
-	got, err := (&Scanner{Scope: "organizations/9", Assets: assets, Hierarchy: hier}).Scan(context.Background())
+	got, err := (&Scanner{Scopes: []string{"organizations/9"}, Assets: assets, Hierarchy: hier}).Scan(context.Background())
 	if err != nil || len(got) != 2 {
 		t.Fatalf("org scope: got %+v, err %v", got, err)
 	}
@@ -418,8 +422,112 @@ func TestHierarchicalPoliciesAreNotReportedTwice(t *testing.T) {
 	}
 
 	// The folder scope returns itself from the folder search.
-	got, err = (&Scanner{Scope: "folders/111", Assets: assets, Hierarchy: hier}).Scan(context.Background())
+	got, err = (&Scanner{Scopes: []string{"folders/111"}, Assets: assets, Hierarchy: hier}).Scan(context.Background())
 	if err != nil || len(got) != 1 || got[0].Name != "folder-policy" {
 		t.Fatalf("folder scope: got %+v, err %v", got, err)
+	}
+}
+
+type fakeDiscover struct {
+	orgs, projects []string
+	orgsErr        error
+	projectsErr    error
+	projectCalls   int
+}
+
+func (f *fakeDiscover) Organizations(context.Context) ([]string, error) { return f.orgs, f.orgsErr }
+func (f *fakeDiscover) Projects(context.Context) ([]string, error) {
+	f.projectCalls++
+	return f.projects, f.projectsErr
+}
+
+// With no scope given, every organization the caller can see is scanned, and
+// the projects are not listed.
+func TestDiscoverScansVisibleOrganizations(t *testing.T) {
+	open := []string{"0.0.0.0/0"}
+	assets := &fakeAssets{byType: map[string][]Asset{
+		assetFirewall: {firewallAsset(t, "proj-a", "open", map[string]any{
+			"direction": "INGRESS", "sourceRanges": []any{"0.0.0.0/0"},
+			"allowed": []any{map[string]any{"IPProtocol": "tcp", "ports": []any{"22"}}}})},
+	}}
+	d := &fakeDiscover{orgs: []string{"organizations/1", "organizations/2"}}
+	s := &Scanner{Discover: d, Assets: assets, Hierarchy: fakeHierarchy{
+		"organizations/1": {policies: []*computepb.FirewallPolicy{policy("p1", nil, policyRule(1, "allow", "INGRESS", open, l4("all")))}},
+	}}
+	got, err := s.Scan(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.projectCalls != 0 {
+		t.Fatal("projects must not be listed when organizations exist")
+	}
+	scopes := map[string]bool{}
+	for _, sc := range assets.scopes {
+		scopes[sc] = true
+	}
+	if !scopes["organizations/1"] || !scopes["organizations/2"] {
+		t.Fatalf("scopes searched: %v", assets.scopes)
+	}
+	// proj-a's firewall is returned by both organizations in this fake: it is reported once.
+	if len(got) != 2 {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+// Without an organization the visible projects are scanned instead.
+func TestDiscoverFallsBackToProjects(t *testing.T) {
+	open := []string{"0.0.0.0/0"}
+	d := &fakeDiscover{projects: []string{"p1", "p2"}}
+	s := &Scanner{Discover: d, Lister: fakeLister{fws: []*computepb.Firewall{fw("open", "INGRESS", false, open, allow("tcp", "22"))}}}
+	got, err := s.Scan(context.Background())
+	if err != nil || len(got) != 2 || got[0].Project != "p1" || got[1].Project != "p2" {
+		t.Fatalf("got %+v, err %v", got, err)
+	}
+}
+
+func TestDiscoverNothingVisible(t *testing.T) {
+	_, err := (&Scanner{Discover: &fakeDiscover{}}).Scan(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "no gcp organization or project is visible") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestDiscoverErrorsAreReported(t *testing.T) {
+	boom := errors.New("search denied")
+	_, err := (&Scanner{Discover: &fakeDiscover{orgsErr: boom}}).Scan(context.Background())
+	if !errors.Is(err, boom) {
+		t.Fatalf("orgs err = %v", err)
+	}
+	_, err = (&Scanner{Discover: &fakeDiscover{projectsErr: boom}}).Scan(context.Background())
+	if !errors.Is(err, boom) {
+		t.Fatalf("projects err = %v", err)
+	}
+}
+
+// Naming a scope switches discovery off.
+func TestExplicitScopeSkipsDiscovery(t *testing.T) {
+	d := &fakeDiscover{orgs: []string{"organizations/1"}, projects: []string{"p"}}
+	s := &Scanner{Discover: d, Projects: []string{"named"}, Lister: fakeLister{}}
+	if _, err := s.Scan(context.Background()); err != nil || d.projectCalls != 0 {
+		t.Fatalf("err %v, project discovery calls %d", err, d.projectCalls)
+	}
+}
+
+// A project that is both named and inside a scanned organization is reported once.
+func TestNamedProjectInsideScannedScopeIsNotDuplicated(t *testing.T) {
+	assets := &fakeAssets{byType: map[string][]Asset{
+		assetFirewall: {firewallAsset(t, "p", "open", map[string]any{
+			"direction": "INGRESS", "sourceRanges": []any{"0.0.0.0/0"},
+			"network": "https://x/global/networks/default",
+			"allowed": []any{map[string]any{"IPProtocol": "tcp", "ports": []any{"22"}}}})},
+	}}
+	open := []string{"0.0.0.0/0"}
+	s := &Scanner{
+		Projects: []string{"p"}, Scopes: []string{"organizations/1"}, Assets: assets,
+		Lister: fakeLister{fws: []*computepb.Firewall{fw("open", "INGRESS", false, open, allow("tcp", "22"))}},
+	}
+	got, err := s.Scan(context.Background())
+	if err != nil || len(got) != 1 {
+		t.Fatalf("got %+v, err %v", got, err)
 	}
 }

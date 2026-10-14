@@ -39,7 +39,7 @@ type options struct {
 	timeout     time.Duration
 	includeIPv6 bool
 	awsRegions  string
-	awsOrg      bool
+	awsScope    string
 	awsRole     string
 	gcpProject  string
 	gcpOrg      string
@@ -66,9 +66,9 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.BoolVar(&o.failOn, "fail-on-findings", false, "exit 1 when insecure rules are found")
 	fs.DurationVar(&o.timeout, "timeout", 60*time.Second, "overall scan timeout")
 	fs.BoolVar(&o.includeIPv6, "include-ipv6", false, "also report ::/0 sources")
-	fs.StringVar(&o.awsRegions, "aws-regions", "", "AWS regions, comma separated, or all (default: configured region)")
-	fs.BoolVar(&o.awsOrg, "aws-org", false, "scan every active account of the AWS organization, run from the management account")
-	fs.StringVar(&o.awsRole, "aws-role-name", "fwscan-reader", "role assumed in each account with --aws-org")
+	fs.StringVar(&o.awsRegions, "aws-regions", "all", "AWS regions, comma separated, or all")
+	fs.StringVar(&o.awsScope, "aws-scope", "auto", "auto, org or account: auto scans the organization when the caller can list its accounts, else the current account")
+	fs.StringVar(&o.awsRole, "aws-role-name", "fwscan-reader", "role assumed in the other accounts of an organization")
 	fs.StringVar(&o.gcpProject, "gcp-project", "", "GCP project ids, comma separated")
 	fs.StringVar(&o.gcpOrg, "gcp-org", "", "GCP organization number, scans every project under it")
 	fs.StringVar(&o.gcpFolder, "gcp-folder", "", "GCP folder number, scans every project under it")
@@ -219,7 +219,7 @@ func scanAWS(ctx context.Context, o options) ([]model.SecurityGroup, error) {
 	s, err := awsscan.New(ctx, awsscan.Options{
 		Regions:     o.awsRegions,
 		IncludeIPv6: o.includeIPv6,
-		Org:         o.awsOrg,
+		Scope:       o.awsScope,
 		RoleName:    strings.TrimSpace(o.awsRole),
 	})
 	if err != nil {

@@ -83,9 +83,7 @@ func TestExitCodes(t *testing.T) {
 		{"empty providers", []string{"--providers", ","}, exitError},
 		{"bad timeout", []string{"--timeout", "0s"}, exitError},
 		{"stray argument", []string{"extra"}, exitError},
-		{"gcp without project", []string{"--providers", "gcp"}, exitError},
 		{"gcp org and folder together", []string{"--providers", "gcp", "--gcp-org", "1", "--gcp-folder", "2"}, exitError},
-		{"azure without subscription", []string{"--providers", "azure"}, exitError},
 		{"unwritable output", []string{"--mock", "--output", filepath.Join(t.TempDir(), "no", "such", "dir", "o.json")}, exitError},
 	}
 	for _, tt := range tests {
@@ -97,17 +95,20 @@ func TestExitCodes(t *testing.T) {
 	}
 }
 
-func TestMissingProjectIsInErrorsField(t *testing.T) {
-	code, out, stderr := runArgs(t, "--providers", "gcp")
+// A provider that fails is named in the errors field and on stderr. The scanners
+// are fakes: a real scan would use the credentials of the machine.
+func TestProviderErrorIsInErrorsField(t *testing.T) {
+	var out, errb bytes.Buffer
+	code := runWith([]string{"--providers", "gcp"}, &out, &errb, scanners{gcp: failingGCP})
 	if code != exitError {
 		t.Fatalf("exit = %d", code)
 	}
 	var rep model.Report
-	if err := json.Unmarshal([]byte(out), &rep); err != nil {
+	if err := json.Unmarshal(out.Bytes(), &rep); err != nil {
 		t.Fatal(err)
 	}
-	if len(rep.Errors) != 1 || rep.Errors[0].Provider != "gcp" || !strings.Contains(stderr, "gcp") {
-		t.Fatalf("errors = %+v, stderr = %q", rep.Errors, stderr)
+	if len(rep.Errors) != 1 || rep.Errors[0].Provider != "gcp" || !strings.Contains(errb.String(), "gcp: permission denied") {
+		t.Fatalf("errors = %+v, stderr = %q", rep.Errors, errb.String())
 	}
 }
 

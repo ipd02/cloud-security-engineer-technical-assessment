@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/organizations"
 	orgtypes "github.com/aws/aws-sdk-go-v2/service/organizations/types"
+	"github.com/aws/smithy-go"
 
 	"github.com/ipd02/cloud-security-engineer-technical-assessment/03-firewall-scanner/internal/model"
 )
@@ -156,10 +157,22 @@ func TestScanAllRegionsDescribeFails(t *testing.T) {
 	}
 }
 
-func TestScanAllWithoutDefaultRegion(t *testing.T) {
-	s := &Scanner{Regions: []string{"all"}, Factory: func(string) EC2API { return &fakeEC2{} }}
-	if _, err := s.Scan(context.Background()); err == nil {
-		t.Fatal("want error")
+// With no default region the region list is read through us-east-1.
+func TestScanAllWithoutDefaultRegionUsesUSEast1(t *testing.T) {
+	var asked []string
+	var mu sync.Mutex
+	s := &Scanner{Regions: []string{"all"}, Factory: func(region string) EC2API {
+		mu.Lock()
+		asked = append(asked, region)
+		mu.Unlock()
+		return &fakeEC2{pages: [][]types.SecurityGroup{{}}, regions: []types.Region{{RegionName: aws.String("eu-north-1")}}}
+	}}
+	if _, err := s.Scan(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(asked)
+	if strings.Join(asked, ",") != "eu-north-1,us-east-1" {
+		t.Fatalf("regions asked: %v", asked)
 	}
 }
 
@@ -324,8 +337,88 @@ func TestScanOrgKeepsPartialAccountResults(t *testing.T) {
 	}
 }
 
-func TestNewOrgNeedsRole(t *testing.T) {
-	if _, err := New(context.Background(), Options{Org: true}); err == nil {
-		t.Fatal("want an error without a role name")
+func TestNewValidatesOptions(t *testing.T) {
+	for _, o := range []Options{{Scope: ScopeOrg}, {}, {Scope: "everything", RoleName: "r"}} {
+		if _, err := New(context.Background(), o); err == nil {
+			t.Fatalf("want an error for %+v", o)
+		}
+	}
+	if _, err := New(context.Background(), Options{Scope: ScopeAccount, Regions: "eu-west-1"}); err != nil {
+		t.Fatalf("account scope needs no role: %v", err)
+	}
+}
+
+func openGroups() *fakeEC2 {
+	return &fakeEC2{pages: [][]types.SecurityGroup{{sg("sg-1", "one", perm("tcp", 22, 22, "0.0.0.0/0"))}}}
+}
+
+func callerIs(id string) func(context.Context) (string, error) {
+	return func(context.Context) (string, error) { return id, nil }
+}
+
+// Auto mode scans the caller's own account when it cannot list an organization.
+func TestScanAutoFallsBackToCurrentAccount(t *testing.T) {
+	denied := &smithy.GenericAPIError{Code: "AccessDeniedException", Message: "not the management account"}
+	for name, listErr := range map[string]error{
+		"no organization": &orgtypes.AWSOrganizationsNotInUseException{},
+		"access denied":   denied,
+	} {
+		t.Run(name, func(t *testing.T) {
+			org := &fakeOrg{err: listErr}
+			s := &Scanner{
+				Org: org, Mode: ScopeAuto, Factory: func(string) EC2API { return openGroups() }, DefaultRegion: "eu-west-1",
+				CallerAccount: callerIs("111111111111"),
+				AccountFactory: func(context.Context, string) (ClientFactory, error) {
+					t.Fatal("no role may be assumed for the caller's own account")
+					return nil, nil
+				},
+			}
+			got, err := s.Scan(context.Background())
+			if err != nil || len(got) != 1 || got[0].Account != "111111111111" || org.calls != 1 {
+				t.Fatalf("got %+v, err %v, list calls %d", got, err, org.calls)
+			}
+		})
+	}
+}
+
+// Any other list error is not hidden by the fallback, and org mode never falls back.
+func TestScanAutoDoesNotHideOtherErrors(t *testing.T) {
+	boom := errors.New("throttled")
+	s := &Scanner{Org: &fakeOrg{err: boom}, Mode: ScopeAuto, Factory: func(string) EC2API { return openGroups() }, DefaultRegion: "eu-west-1"}
+	if got, err := s.Scan(context.Background()); !errors.Is(err, boom) || len(got) != 0 {
+		t.Fatalf("got %+v, err %v", got, err)
+	}
+	s = &Scanner{Org: &fakeOrg{err: &orgtypes.AWSOrganizationsNotInUseException{}}, Mode: ScopeOrg, Factory: func(string) EC2API { return openGroups() }, DefaultRegion: "eu-west-1"}
+	if got, err := s.Scan(context.Background()); err == nil || len(got) != 0 {
+		t.Fatalf("org mode must report the missing organization: got %+v, err %v", got, err)
+	}
+}
+
+func TestScanAccountModeNeverListsTheOrganization(t *testing.T) {
+	org := &fakeOrg{err: errors.New("must not be called")}
+	s := &Scanner{Org: org, Mode: ScopeAccount, Factory: func(string) EC2API { return openGroups() }, DefaultRegion: "eu-west-1", CallerAccount: callerIs("222222222222")}
+	got, err := s.Scan(context.Background())
+	if err != nil || org.calls != 0 || len(got) != 1 || got[0].Account != "222222222222" {
+		t.Fatalf("got %+v, err %v, list calls %d", got, err, org.calls)
+	}
+}
+
+// In an organization the caller's own account uses the caller's credentials,
+// and the other accounts are reached through the role.
+func TestScanOrgUsesOwnCredentialsForTheCallersAccount(t *testing.T) {
+	org := &fakeOrg{pages: [][]orgtypes.Account{{account("111111111111", orgtypes.AccountStatusActive), account("222222222222", orgtypes.AccountStatusActive)}}}
+	var assumed []string
+	s := &Scanner{
+		Org: org, Mode: ScopeAuto, DefaultRegion: "eu-west-1", Regions: []string{"eu-west-1"},
+		Factory:       func(string) EC2API { return openGroups() },
+		CallerAccount: callerIs("111111111111"),
+		AccountFactory: func(_ context.Context, id string) (ClientFactory, error) {
+			assumed = append(assumed, id)
+			return func(string) EC2API { return openGroups() }, nil
+		},
+	}
+	got, err := s.Scan(context.Background())
+	if err != nil || len(got) != 2 || strings.Join(assumed, ",") != "222222222222" {
+		t.Fatalf("got %+v, err %v, assumed %v", got, err, assumed)
 	}
 }
