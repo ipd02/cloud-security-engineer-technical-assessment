@@ -56,6 +56,12 @@ File-by-file detail is in the [base README](base/README.md).
 | Flow, firewall, NAT, load balancer and health check logs | Detection and investigation |
 | Custom Checkov policies, more tests | Guard rails a unit test cannot give |
 
+## Environments and audit logs
+
+The module takes `project_id` and `name`. A team would call it once per environment, each call pointed at its own project, as `extended/examples/basic/main.tf` shows. No extra environments are built here.
+
+Cloud Audit Logs and a log sink are not part of this module. A real deployment would route Admin Activity logs to a locked log bucket in a separate project. The flow, firewall, NAT and load balancer logs in the extended version cover network detection only.
+
 ## Run the checks
 
 No GCP credentials are needed. From the repo root:
