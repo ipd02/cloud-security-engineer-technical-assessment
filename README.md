@@ -2,7 +2,16 @@
 
 [![ci](https://github.com/ipd02/cloud-security-engineer-technical-assessment/actions/workflows/ci.yml/badge.svg)](https://github.com/ipd02/cloud-security-engineer-technical-assessment/actions/workflows/ci.yml)
 
-This repository answers a four-part cloud security assessment. Part 1 is a Terraform module for a GCP web service behind a global load balancer, in a base and an extended version. Part 2 reviews a CloudFormation template and a Dockerfile, with hardened replacements and a prevention plan. Part 3 is a Go command line tool that finds firewall rules open to `0.0.0.0/0` in AWS, GCP and Azure. Part 4 audits the Node.js dependencies of a sample `package.json`, with a report script. Each part has its own README with the answers, the limits and how it was checked.
+This repository is my answer to a cloud security engineer take-home assessment. The task has four parts: secure infrastructure as code on GCP, a security review of a CloudFormation template and a Dockerfile, a Go tool that finds firewall rules open to the internet, and an audit of vulnerable Node.js dependencies. Each part has its own folder and README with the answers, the limits and how it was checked.
+
+## How the work was done
+
+- **Same method for every part.** State the principle, then show the concrete control that implements it: a resource, a flag, a policy or a command.
+- **Breadth before polish.** All four parts are complete, and the shared checks, CI and documentation cover the whole repository.
+- **Inputs kept, fixes proven.** The task's own CloudFormation template, Dockerfile and `package.json` are kept unchanged. A test asserts that the scanners reject them and accept the hardened versions, so a scanner that stops catching a known problem fails the build.
+- **Checks that need no credentials.** `make lint test scan` runs formatting, linting, unit tests, policy checks and vulnerability scans with mocked providers and fake cloud clients. The same checks run in CI, whose actions are pinned to commit SHAs and whose tools are pinned to exact versions.
+- **Live tests by hand.** The Terraform modules, the AWS findings and the scanner were also run once against throwaway test environments, which were deleted afterwards. CI does not repeat those runs.
+- **Limits are stated.** Each README says what was verified, how, and what was not. Nothing here is claimed to be production-ready.
 
 ## Parts
 
@@ -15,26 +24,9 @@ This repository answers a four-part cloud security assessment. Part 1 is a Terra
 
 `make help` lists every target. `make lint test scan` runs the checks of all four parts. None of them needs cloud credentials.
 
-## Tools
+## Requirements
 
-The checks need these tools on your `PATH`. The versions are the ones CI uses.
-
-| Tool | Version | Used by |
-| --- | --- | --- |
-| Terraform | 1.16.5 (the modules need 1.9 or later) | Part 1 |
-| tflint | 0.64.0, with the Google ruleset 0.40.0 (`tflint --init` downloads it) | Part 1 |
-| checkov | 3.3.20 | Parts 1 and 2 |
-| cfn-lint | 1.57.2 | Part 2 |
-| hadolint | 2.15.1 | Part 2 |
-| trivy | 0.75.0 | Parts 2 and 4 |
-| Docker | any recent version | `make cloud-check-build` only |
-| Go | 1.26 | Part 3 |
-| golangci-lint | 2.14.0 | Part 3 |
-| Python | 3.12 | Parts 2 and 4 |
-| ruff | 0.17.0 | Part 4 |
-| gitleaks | 8.30.1 | `make secrets` |
-
-The first run needs network access to download the Terraform provider and the trivy vulnerability database. `.pre-commit-config.yaml` runs a subset of these checks before each commit.
+`make lint test scan` needs Terraform, tflint (with the Google ruleset), checkov, cfn-lint, hadolint, trivy, ruff, Go, golangci-lint and Python 3.12 on your `PATH`. Docker is needed only for `make cloud-check-build`. The exact versions are in `.github/workflows/ci.yml`, `ci/` and `02-cloud-security-check/scripts/ci-install-tools.sh`. The first run needs network access for the Terraform provider, the tflint plugin and the trivy database.
 
 ## Coverage matrix
 
