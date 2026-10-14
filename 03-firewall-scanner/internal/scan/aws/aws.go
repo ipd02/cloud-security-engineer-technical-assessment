@@ -99,13 +99,12 @@ func New(ctx context.Context, o Options) (*Scanner, error) {
 	}
 	orgCfg := cfg.Copy()
 	orgCfg.Region = orgRegion
-	var warnOnce sync.Once
 	s.CallerAccount = func(ctx context.Context) (string, error) {
 		out, err := sts.NewFromConfig(orgCfg).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 		if err != nil {
 			return "", fmt.Errorf("get caller identity: %w", err)
 		}
-		warnOnce.Do(func() { warnIfRoot(o.Warn, aws.ToString(out.Arn)) })
+		warnIfRoot(o.Warn, aws.ToString(out.Arn))
 		return aws.ToString(out.Account), nil
 	}
 	s.Mode = o.Scope
