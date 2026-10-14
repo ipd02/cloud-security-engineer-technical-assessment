@@ -16,7 +16,7 @@ Read [REPORT.md](REPORT.md) for the findings, the fix and the remediation plan. 
 | `fixed/package.json` | Proposed upgrades, with a lockfile. |
 | `audit_report.py` | Bonus script, standard library only. |
 | `extras/` | Checks beyond the task: second scanner comparison, EPSS, API probes. See [extras/README.md](extras/README.md). |
-| `tests/` | Unit tests for both scripts, with small fixtures. |
+| `tests/` | Unit tests for `audit_report.py`, with small fixtures. |
 | `reports/` | Raw scanner output, with dates and tool versions, plus generated JSON and CSV. |
 | `part.mk` | Make targets, picked up by the root `Makefile`. |
 
@@ -30,7 +30,7 @@ From the repository root:
 make dep-audit-test     # unit tests
 make dep-audit-lint     # ruff check and format check
 make dep-audit-scan     # trivy: fixed/ passes, vulnerable-input/ must return exit code 5 (findings). Any other failure is an error
-make dep-audit-report   # rebuild JSON, CSV and summaries from the saved reports
+make dep-audit-report   # rebuild JSON, CSV and summaries from the saved reports (only meta.generated_at changes)
 ```
 
 To repeat the scan yourself (needs network, never run a normal `npm install` on the vulnerable folder):
@@ -64,7 +64,7 @@ audit_report.py INPUT [--lockfile package-lock.json] [--trivy trivy.json]
 
 ## What was verified
 
-Scans and probes run on 2026-10-13 and 2026-10-14 (npm 11.19.1, Node v26.10.0, trivy 0.75.0, Python 3.12.1, ruff 0.17.0). EPSS scores are from 2026-10-14. The trivy database version was not recorded for the saved scans:
+Scans run on 2026-10-13 and 2026-10-14 (npm 11.19.1, Node v26.10.0, trivy 0.75.0, Python 3.12.1, ruff 0.17.0). EPSS scores are from 2026-10-14. The trivy database version was not recorded for the saved scans:
 
 - `npm audit` and `npm audit --json` on both lockfiles. Raw output is in `reports/`.
 - `trivy fs` on both lockfiles.

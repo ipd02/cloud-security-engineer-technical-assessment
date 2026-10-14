@@ -19,6 +19,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
+from pathlib import Path
 
 SEVERITIES = ("info", "low", "moderate", "high", "critical")
 RANK = {name: index for index, name in enumerate(SEVERITIES)}
@@ -408,25 +409,32 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     return args
 
 
+def attach_epss(
+    args: argparse.Namespace, rows: list[dict], warnings: list[str]
+) -> tuple[str, set[str]]:
+    """Add EPSS scores from --epss or --epss-fetch. Returns the source and the score dates."""
+    if not (args.epss or args.epss_fetch):
+        return "", set()
+    if args.epss:
+        epss_map = parse_epss(load_json(args.epss))
+        source = "file:" + Path(args.epss).name
+    else:
+        wanted = sorted({c for row in rows for c in row_cves(row)})
+        epss_map = fetch_epss(wanted) if wanted else {}
+        source = EPSS_API
+    apply_epss(rows, epss_map)
+    if any(r["kind"] == "advisory" for r in rows) and not any(row_cves(r) for r in rows):
+        warnings.append("no EPSS scores were added: npm audit has no CVE ids, pass --trivy")
+    return source, {v["date"] for v in epss_map.values() if v["date"]}
+
+
 def run(args: argparse.Namespace) -> int:
     warnings: list[str] = []
     report = load_json(args.input)
     lock = load_json(args.lockfile) if args.lockfile else {}
     cve_map = load_cve_map(args.trivy)
     rows = build_rows(report, lock, cve_map, warnings)
-    epss_source = ""
-    epss_dates: set[str] = set()
-    if args.epss or args.epss_fetch:
-        if args.epss:
-            epss_map = parse_epss(load_json(args.epss))
-            epss_source = "file:" + args.epss.replace("\\", "/").rsplit("/", 1)[-1]
-        else:
-            wanted = sorted({c for row in rows for c in row_cves(row)})
-            epss_map = fetch_epss(wanted) if wanted else {}
-            epss_source = EPSS_API
-        if apply_epss(rows, epss_map) == 0:
-            warnings.append("no EPSS scores were added: npm audit has no CVE ids, pass --trivy")
-        epss_dates = {v["date"] for v in epss_map.values() if v["date"]}
+    epss_source, epss_dates = attach_epss(args, rows, warnings)
     floor = RANK[args.min_severity]
     rows = [r for r in rows if RANK[r["severity"]] >= floor]
     if args.min_epss is not None:
@@ -439,10 +447,8 @@ def run(args: argparse.Namespace) -> int:
     meta = {
         "tool": "audit_report.py",
         "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "input": "stdin" if args.input == "-" else args.input.replace("\\", "/").rsplit("/", 1)[-1],
-        "audit_report_version": report.get("auditReportVersion")
-        if isinstance(report, dict)
-        else None,
+        "input": "stdin" if args.input == "-" else Path(args.input).name,
+        "audit_report_version": report.get("auditReportVersion"),
         "epss_source": epss_source,
         "epss_date": ", ".join(sorted(epss_dates)),
         "warnings": sorted(set(warnings)),

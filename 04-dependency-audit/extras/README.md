@@ -24,6 +24,7 @@ python3 extras/compare_scanners.py reports/npm-audit-before.json reports/trivy-b
 The probe needs the packages installed in a scratch directory. Never run a normal `npm install` on `vulnerable-input/`:
 
 ```sh
-mkdir /tmp/probe && cp fixed/package*.json extras/breaking-change-probe.js /tmp/probe
-cd /tmp/probe && npm ci --ignore-scripts && node breaking-change-probe.js
+probe_dir=$(mktemp -d)
+cp fixed/package*.json extras/breaking-change-probe.js "$probe_dir"
+cd "$probe_dir" && npm ci --ignore-scripts && node breaking-change-probe.js
 ```

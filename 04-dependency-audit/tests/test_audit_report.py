@@ -480,6 +480,29 @@ class CliExtraTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("pass --trivy", err)
 
+    def test_epss_on_a_clean_report_does_not_warn(self) -> None:
+        args = [
+            self.write("e.json", '{"vulnerabilities": {}}'),
+            "--epss",
+            self.write("s.json", "{}"),
+        ]
+        code, _, err = self.run_cli(*args)
+        self.assertEqual(code, 0)
+        self.assertEqual(err, "")
+
+    def test_epss_with_cve_ids_but_no_match_does_not_warn(self) -> None:
+        trivy = self.write("trivy.json", (FIXTURES / "trivy.json").read_text(encoding="utf-8"))
+        args = [
+            str(FIXTURES / "audit_v7.json"),
+            "--trivy",
+            trivy,
+            "--epss",
+            self.write("s.json", "{}"),
+        ]
+        code, _, err = self.run_cli(*args)
+        self.assertEqual(code, 0)
+        self.assertEqual(err, "")
+
     def test_epss_fetch_failure_returns_2(self) -> None:
         trivy = self.write("trivy.json", (FIXTURES / "trivy.json").read_text(encoding="utf-8"))
         args = [str(FIXTURES / "audit_v7.json"), "--trivy", trivy, "--epss-fetch"]
