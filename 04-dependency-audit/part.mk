@@ -6,7 +6,7 @@ LINT_TARGETS += dep-audit-lint
 TEST_TARGETS += dep-audit-test
 SCAN_TARGETS += dep-audit-scan
 
-.PHONY: dep-audit-fmt dep-audit-lint dep-audit-test dep-audit-scan dep-audit-report
+.PHONY: dep-audit-fmt dep-audit-lint dep-audit-test dep-audit-scan dep-audit-trivy dep-audit-report
 
 dep-audit-fmt: ## Part 4: format the Python scripts with ruff
 	ruff format $(DEP_AUDIT_DIR)
@@ -36,6 +36,20 @@ dep-audit-scan: ## Part 4: trivy passes on fixed/ and finds issues in vulnerable
 	else \
 		echo "ERROR: trivy failed with exit code $$code, the scan did not run"; exit 1; \
 	fi
+	@trivy --version
+
+# Reruns trivy on both folders and saves JSON, text and a meta file. The meta file
+# holds the trivy version and the vulnerability database version and update time,
+# which decide the findings. Run it when you refresh the saved reports.
+dep-audit-trivy: ## Part 4: rerun trivy on both folders and save the output with its versions
+	@for pair in before:vulnerable-input after:fixed; do \
+		name=$${pair%%:*}; dir=$${pair##*:}; out=$(CURDIR)/$(DEP_AUDIT_DIR)/reports/trivy-$$name; \
+		(cd $(DEP_AUDIT_DIR)/$$dir && trivy fs --quiet --scanners vuln --include-dev-deps -f json -o $$out.json . \
+			&& trivy fs --quiet --scanners vuln --include-dev-deps -o $$out.txt .) || exit 1; \
+		{ echo "date_utc: $$(date -u +%Y-%m-%dT%H:%M:%SZ)"; \
+		  echo "cmd: trivy fs --scanners vuln --include-dev-deps (run in $$dir/)"; \
+		  trivy --version; } > $$out.meta.txt; \
+	done
 
 dep-audit-report: ## Part 4: rebuild the JSON and CSV from the saved reports
 	cd $(DEP_AUDIT_DIR)/reports && python3 ../audit_report.py npm-audit-before.json \

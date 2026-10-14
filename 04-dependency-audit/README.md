@@ -64,7 +64,7 @@ audit_report.py INPUT [--lockfile package-lock.json] [--trivy trivy.json]
 
 ## What was verified
 
-Scans run on 2026-10-13 and 2026-10-14 (npm 11.19.1, Node v26.10.0, trivy 0.75.0, Python 3.12.1, ruff 0.17.0). EPSS scores are from 2026-10-14. The trivy database version was not recorded for the saved scans:
+`npm audit` ran on 2026-10-13 and trivy on 2026-10-14 (npm 11.19.1, Node v26.10.0, trivy 0.75.0, Python 3.12.1, ruff 0.17.0). EPSS scores are from 2026-10-14. The saved trivy output was made on 2026-10-14 with vulnerability database version 2, updated 2026-10-14 13:10 UTC (see `reports/trivy-*.meta.txt`). `make dep-audit-trivy` repeats it and records the versions:
 
 - `npm audit` and `npm audit --json` on both lockfiles. Raw output is in `reports/`.
 - `trivy fs` on both lockfiles.

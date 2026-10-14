@@ -13,7 +13,7 @@ Scan dates and tool versions are the same as in the main report. Paths such as `
 - Difference in packages: npm lists 24 and trivy has findings on 21. The three extra (`mkdirp`, `mocha`, `mongodb-core`) are packages npm marks as vulnerable because their dependencies are, not because of an advisory of their own.
 - By default trivy leaves out dev dependencies. Without `--include-dev-deps` the `mocha` chain is missing. I used the flag for every saved run.
 - Trivy gives fixed versions per advisory. npm audit gives a fix per package instead.
-- The trivy database version and update time were not recorded for the saved runs. Only the trivy version was. A re-run later can differ because of that.
+- Trivy results depend on its vulnerability database, which updates daily. `reports/trivy-*.meta.txt` records the version and update time of the database used (`make dep-audit-trivy` writes them). A re-run on another day can differ.
 
 After the fix both scanners report 0.
 

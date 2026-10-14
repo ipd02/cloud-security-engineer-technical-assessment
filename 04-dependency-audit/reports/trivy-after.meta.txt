@@ -1,4 +1,11 @@
-date_utc: 2026-10-13T18:28:47Z
-trivy: 0.75.0
+date_utc: 2026-10-14T17:06:24Z
 cmd: trivy fs --scanners vuln --include-dev-deps (run in fixed/)
-note: the trivy vulnerability database version and update time were not recorded for this run.
+Version: 0.75.0
+Vulnerability DB:
+  Version: 2
+  UpdatedAt: 2026-10-14 13:10:32.349175575 +0000 UTC
+  NextUpdate: 2026-10-15 13:10:32.349175405 +0000 UTC
+  DownloadedAt: 2026-10-14 15:35:03.361411 +0000 UTC
+Check Bundle:
+  Digest: sha256:1583562f8b90ed2a071b99f0e5ffff6b57e4ceb6ca3e4796577b4e6a339eb74c
+  DownloadedAt: 2026-10-13 18:28:41.705499 +0000 UTC

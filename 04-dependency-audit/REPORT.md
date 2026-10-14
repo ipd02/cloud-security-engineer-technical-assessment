@@ -1,7 +1,7 @@
 # Dependency audit report
 
 Input: the `package.json` from the assessment, in `vulnerable-input/`. The content is as given. The task text lost its indentation, so the whitespace is reconstructed (no indentation, one trailing newline).
-All numbers and ids below come from the files in `reports/`. Scan date: 2026-10-13, npm 11.19.1, Node v26.10.0, trivy 0.75.0.
+All numbers and ids below come from the files in `reports/`. `npm audit` ran on 2026-10-13 (npm 11.19.1, Node v26.10.0). Trivy 0.75.0 ran on 2026-10-14, and its meta files record the vulnerability database version and update time. Trivy found the same 45 advisories on both days.
 The advisory databases change daily, so a re-run later will give different numbers.
 Checks beyond what the assessment asks for (second scanner, EPSS, API probes) are in [extras/](extras/README.md).
 
