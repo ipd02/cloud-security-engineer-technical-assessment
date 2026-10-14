@@ -28,10 +28,11 @@ jobs:
       - name: Install gitleaks
         run: |
           base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
-          curl -sSfL "${base}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o gitleaks.tgz
+          tgz="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL "${base}/${tgz}" -o "${tgz}"
           curl -sSfL "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" -o checksums.txt
-          sha256sum --ignore-missing -c checksums.txt
-          tar -xzf gitleaks.tgz gitleaks
+          grep " ${tgz}\$" checksums.txt | sha256sum -c -
+          tar -xzf "${tgz}" gitleaks
           ./gitleaks version
       - name: Scan history
         run: ./gitleaks detect --config .gitleaks.toml --redact --verbose
