@@ -53,6 +53,14 @@ run "hadolint Dockerfile.hardened" pass -            hadolint --failure-threshol
 run "trivy hardened.yaml"          pass -            trivy config --exit-code 1 "$cfn_hard"
 run "trivy Dockerfile.hardened"    pass -            trivy config --exit-code 1 "$dock_hard"
 
+# No scanner above rejects a wildcard such as "s3:*" in the role's policy, so
+# check it here. The policy block is the text from DataAccessPolicy to Outputs.
+# The check passes when no action in that block has a "*" in it.
+no_wildcard_actions() {
+  ! sed -n '/^  DataAccessPolicy:/,/^Outputs:/p' "$1" | grep -E '^[[:space:]]*-[[:space:]]*"[^"]*\*[^"]*"[[:space:]]*$'
+}
+run "no wildcard in role policy"   pass -            no_wildcard_actions "$cfn_hard"
+
 if [[ $failures -ne 0 ]]; then
   echo "$failures check(s) failed" >&2
   exit 1

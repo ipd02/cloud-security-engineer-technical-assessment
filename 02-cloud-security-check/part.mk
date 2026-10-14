@@ -1,9 +1,9 @@
 # Part 2: cloud security check. Recipes run from the repo root.
 CC_DIR := 02-cloud-security-check
 
-.PHONY: cloud-check-lint cloud-check-test cloud-check-scan cloud-check-build
+.PHONY: cloud-check-lint cloud-check-test cloud-check-unit cloud-check-scan cloud-check-build
 LINT_TARGETS += cloud-check-lint
-TEST_TARGETS += cloud-check-test
+TEST_TARGETS += cloud-check-test cloud-check-unit
 SCAN_TARGETS += cloud-check-scan
 
 cloud-check-lint: ## Part 2: cfn-lint and hadolint on the hardened files
@@ -12,6 +12,9 @@ cloud-check-lint: ## Part 2: cfn-lint and hadolint on the hardened files
 
 cloud-check-test: ## Part 2: originals must fail the scanners, hardened must pass
 	$(CC_DIR)/tests/assert-originals-fail.sh
+
+cloud-check-unit: ## Part 2: unit tests for the IAM finder script
+	python3 -m unittest discover -s $(CC_DIR)/tests -p 'test_*.py'
 
 cloud-check-scan: ## Part 2: checkov and trivy config on the hardened files
 	checkov -f $(CC_DIR)/cloudformation/hardened.yaml --framework cloudformation --quiet
