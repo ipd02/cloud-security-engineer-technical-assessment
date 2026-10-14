@@ -19,19 +19,6 @@ This part reviews the task's CloudFormation template and Dockerfile. It answers 
 | `PREVENTION.md` | How to stop these problems from being introduced |
 | `part.mk` | Make targets for this part |
 
-## How to run
-
-From the repository root:
-
-```sh
-make cloud-check-lint    # cfn-lint and hadolint on the improved files
-make cloud-check-scan    # checkov and trivy on the improved files
-make cloud-check-test    # originals must fail, improved files must pass
-make cloud-check-build   # build the improved image (needs docker)
-```
-
-Versions used: cfn-lint 1.57.2, checkov 3.3.20, hadolint 2.15.1, trivy 0.75.0, Docker 29.9.0, AWS CLI 2.37.13.
-
 The two secret-looking values in `docker/Dockerfile.original` are the task's own sample values.
 
 ## 1. CloudFormation: what is wrong
@@ -204,6 +191,19 @@ See `PREVENTION.md`. It follows a change through four phases (development, pull 
 ## What was checked
 
 Everything below was run while building this part. The image checks apply to the demo app, not to the task's real app. The scanners and Docker ran on a Mac. The AWS tests ran in a test AWS account on 2026-10-14, and everything created for them was deleted afterwards.
+
+### How to run the checks
+
+From the repository root:
+
+```sh
+make cloud-check-lint    # cfn-lint and hadolint on the improved files
+make cloud-check-scan    # checkov and trivy on the improved files
+make cloud-check-test    # originals must fail, improved files must pass
+make cloud-check-build   # build the improved image (needs docker)
+```
+
+Versions used: cfn-lint 1.57.2, checkov 3.3.20, hadolint 2.15.1, trivy 0.75.0, Docker 29.9.0, AWS CLI 2.37.13.
 
 ### Scanners and image
 
