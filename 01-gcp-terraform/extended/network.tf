@@ -14,11 +14,11 @@ resource "google_compute_network" "vpc" {
   depends_on = [terraform_data.validations]
 }
 
-# The public subnet is kept because the brief asks for it. A global external
-# Application Load Balancer does not live in any subnet.
-# It holds the SSH bastion (bastion.tf), the one host with its own
-# internet-reachable address. A proxy-only subnet for a regional load balancer
-# would be a separate subnet with its own purpose, not this one.
+# The brief asks for a public subnet. The SSH bastion lives here. The global
+# external Application Load Balancer does not: it is a Google-managed service,
+# not a virtual machine deployed inside your VPC, so it has no subnet. A
+# proxy-only subnet for a regional load balancer would be a separate subnet
+# with its own purpose, not this one.
 resource "google_compute_subnetwork" "public" {
   project                  = var.project_id
   name                     = "${var.name}-public"

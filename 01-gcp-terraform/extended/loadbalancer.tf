@@ -1,5 +1,7 @@
 # Global external Application Load Balancer, HTTPS only. There is no port 80
 # frontend and no redirect, so plain HTTP from the internet gets no listener.
+# It is a Google-managed service, not a virtual machine deployed inside your
+# VPC, so it is not in the public subnet or any other subnet.
 
 resource "google_compute_global_address" "lb" {
   project      = var.project_id
