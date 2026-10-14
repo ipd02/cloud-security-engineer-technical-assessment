@@ -210,6 +210,114 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 2)
 
 
+class V6FormatTests(unittest.TestCase):
+    """npm 6 'advisories' format, with a fixture written for this tool (not real npm 6 output)."""
+
+    def setUp(self) -> None:
+        self.warnings: list[str] = []
+        self.rows = ar.build_rows(load("audit_v6_cases.json"), {}, {}, self.warnings)
+
+    def row(self, source_id: int) -> dict:
+        return [r for r in self.rows if r["source_id"] == source_id][0]
+
+    def test_rows_are_sorted_by_package_then_numeric_id(self) -> None:
+        order = [(r["package"], r["source_id"]) for r in self.rows]
+        expected = [
+            ("alpha", 9),
+            ("alpha", 20),
+            ("beta", 30),
+            ("delta", 50),
+            ("gamma", "40"),
+            ("zeta", 1002),
+        ]
+        self.assertEqual(order, expected)
+
+    def test_null_entry_is_skipped(self) -> None:
+        self.assertNotIn("", [r["package"] for r in self.rows])
+        self.assertEqual(len(self.rows), 6)
+
+    def test_installed_versions_are_unique_and_skip_bad_findings(self) -> None:
+        self.assertEqual(self.row(1002)["installed_versions"], ["1.0.0", "1.5.0"])
+        self.assertEqual(self.row(20)["installed_versions"], ["0.9.0"])
+        self.assertEqual(self.row(30)["installed_versions"], [])
+
+    def test_fix_fields(self) -> None:
+        self.assertTrue(self.row(1002)["fix_available"])
+        self.assertEqual(self.row(1002)["fix_version"], ">=2.0.0")
+        self.assertFalse(self.row(20)["fix_available"])
+        self.assertEqual(self.row(20)["fix_version"], "")
+        self.assertFalse(self.row("40")["fix_available"])
+
+    def test_cwe_string_and_list(self) -> None:
+        self.assertEqual(self.row(1002)["cwe"], "CWE-79")
+        self.assertEqual(self.row(9)["cwe"], "CWE-79, CWE-80")
+        self.assertEqual(self.row(20)["cwe"], "")
+
+    def test_cves_come_from_the_advisory_or_the_trivy_map(self) -> None:
+        self.assertEqual(self.row(1002)["cve"], "CVE-2099-1002")
+        self.assertEqual(self.row(9)["cve"], "")
+        mapped = ar.build_rows(
+            load("audit_v6_cases.json"), {}, {"ghsa-zzzz-yyyy-xxxx": ["CVE-2099-9"]}
+        )
+        self.assertEqual([r for r in mapped if r["source_id"] == 9][0]["cve"], "CVE-2099-9")
+
+    def test_advisory_id_only_from_a_github_url(self) -> None:
+        self.assertEqual(self.row(9)["advisory_id"], "GHSA-zzzz-yyyy-xxxx")
+        self.assertEqual(self.row(1002)["advisory_id"], "")
+
+    def test_severities(self) -> None:
+        got = {r["source_id"]: r["severity"] for r in self.rows}
+        self.assertEqual(got[9], "critical")
+        self.assertEqual(got["40"], "moderate")
+        self.assertEqual(got[50], "info")
+        self.assertEqual(got[30], "critical")
+        self.assertEqual(self.warnings, ["unknown severity 'bogus'"])
+
+    def test_summary(self) -> None:
+        summary = ar.summarise(self.rows)
+        self.assertEqual(summary["packages_total"], 5)
+        self.assertEqual(summary["advisories_by_severity"]["critical"], 2)
+        self.assertEqual(summary["packages_by_severity"]["critical"], 2)
+        self.assertEqual(summary["packages_without_fix"], 3)
+        self.assertEqual(summary["packages_fixable_without_major_bump"], 2)
+
+    def test_package_with_one_unfixable_advisory_is_not_fixable(self) -> None:
+        rows = [r for r in self.rows if r["package"] == "alpha"]
+        self.assertEqual([r["fix_available"] for r in rows], [True, False])
+        self.assertEqual(ar.summarise(rows)["packages_without_fix"], 1)
+
+    def test_fix_class_does_not_depend_on_row_order(self) -> None:
+        def row(fix: bool, major: bool) -> dict:
+            return {
+                "kind": "advisory",
+                "package": "p",
+                "severity": "high",
+                "fix_available": fix,
+                "fix_semver_major": major,
+            }
+
+        for rows in ([row(False, False), row(True, False)], [row(True, False), row(False, False)]):
+            self.assertEqual(ar.summarise(rows)["packages_without_fix"], 1)
+        for rows in ([row(True, True), row(True, False)], [row(True, False), row(True, True)]):
+            summary = ar.summarise(rows)
+            self.assertEqual(summary["packages_fixable_with_major_bump"], 1)
+            self.assertEqual(summary["packages_fixable_without_major_bump"], 0)
+
+    def test_direct_is_unknown(self) -> None:
+        self.assertTrue(all(r["direct"] == "" for r in self.rows))
+
+    def test_cli_gate_on_a_v6_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            args = [str(FIXTURES / "audit_v6_cases.json"), "--fail-on", "critical"]
+            args += ["--json-out", str(Path(tmp) / "o.json"), "--csv-out", str(Path(tmp) / "o.csv")]
+            err = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                code = ar.main(args)
+            self.assertEqual(code, 1)
+            with open(Path(tmp) / "o.csv", encoding="utf-8", newline="") as handle:
+                self.assertEqual(len(list(csv.DictReader(handle))), 6)
+
+
 def one_advisory(source: int, severity: str = "high", **extra: object) -> dict:
     advisory = {"source": source, "title": f"t{source}", "severity": severity, "url": "u"}
     advisory.update(extra)

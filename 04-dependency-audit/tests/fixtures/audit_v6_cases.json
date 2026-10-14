@@ -1,0 +1,104 @@
+{
+  "advisories": {
+    "1002": {
+      "id": 1002,
+      "module_name": "zeta",
+      "severity": "high",
+      "title": "Zeta flaw",
+      "url": "https://npmjs.com/advisories/1002",
+      "vulnerable_versions": "<2.0.0",
+      "patched_versions": ">=2.0.0",
+      "cves": [
+        "CVE-2099-1002"
+      ],
+      "cwe": "CWE-79",
+      "findings": [
+        {
+          "version": "1.0.0",
+          "paths": [
+            "zeta"
+          ]
+        },
+        {
+          "version": "1.5.0",
+          "paths": [
+            "app>zeta"
+          ]
+        },
+        {
+          "version": "1.0.0",
+          "paths": [
+            "other>zeta"
+          ]
+        }
+      ]
+    },
+    "9": {
+      "id": 9,
+      "module_name": "alpha",
+      "severity": "critical",
+      "title": "Alpha flaw",
+      "url": "https://github.com/advisories/GHSA-zzzz-yyyy-xxxx",
+      "vulnerable_versions": "<1.0.0",
+      "patched_versions": ">=1.0.0",
+      "cves": [],
+      "cwe": [
+        "CWE-79",
+        "CWE-80"
+      ],
+      "findings": [
+        {
+          "version": "0.9.0"
+        }
+      ]
+    },
+    "12": null,
+    "20": {
+      "id": 20,
+      "module_name": "alpha",
+      "severity": "low",
+      "title": "Second alpha flaw",
+      "vulnerable_versions": "*",
+      "patched_versions": "<0.0.0",
+      "findings": [
+        {
+          "version": "0.9.0"
+        },
+        null,
+        {
+          "paths": [
+            "no-version"
+          ]
+        }
+      ]
+    },
+    "30": {
+      "id": 30,
+      "module_name": "beta",
+      "severity": "bogus",
+      "title": "Odd severity",
+      "findings": "not a list"
+    },
+    "40": {
+      "module_name": "gamma",
+      "severity": "MEDIUM",
+      "title": "No id, no patched field"
+    },
+    "50": {
+      "id": 50,
+      "module_name": "delta",
+      "severity": "info",
+      "title": "Info only",
+      "patched_versions": ">=3.1.0"
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 1,
+      "low": 1,
+      "moderate": 1,
+      "high": 1,
+      "critical": 1
+    }
+  }
+}

@@ -183,12 +183,18 @@ def rows_from_v6(report: dict, cve_map: dict, warnings: list[str] | None = None)
     """Fallback for the npm 6 'advisories' format. Fix details are limited there."""
     rows = []
     advisories = report.get("advisories") or {}
-    for key in sorted(advisories, key=str):
-        adv = advisories[key] or {}
+    for key, adv in advisories.items():
+        if not isinstance(adv, dict):
+            continue
         findings = [f for f in adv.get("findings") or [] if isinstance(f, dict)]
         versions = sorted({f.get("version") for f in findings if f.get("version")})
         row = empty_row()
         patched = adv.get("patched_versions") or ""
+        if patched == "<0.0.0":
+            patched = ""
+        cwe = adv.get("cwe") or ""
+        if isinstance(cwe, list):
+            cwe = ", ".join(cwe)
         advisory_id = ghsa_from_url(adv.get("url"))
         row.update(
             package=adv.get("module_name") or "",
@@ -200,13 +206,14 @@ def rows_from_v6(report: dict, cve_map: dict, warnings: list[str] | None = None)
             source_id=adv.get("id") or key,
             cve=", ".join(adv.get("cves") or cve_map.get(advisory_id.lower(), [])),
             title=adv.get("title") or "",
-            cwe=adv.get("cwe") or "",
+            cwe=cwe,
             vulnerable_range=adv.get("vulnerable_versions") or "",
-            fix_available=bool(patched) and patched != "<0.0.0",
+            fix_available=bool(patched),
             fix_version=patched,
             url=adv.get("url") or "",
         )
         rows.append(row)
+    rows.sort(key=lambda row: (row["package"], str(row["source_id"]).zfill(12)))
     return rows
 
 
@@ -228,32 +235,32 @@ def summarise(rows: list[dict]) -> dict:
     """Count advisories and packages by severity, and packages by fix class.
 
     Packages are counted once, as npm does. Their severity is the highest of their rows.
+    A package is fixable only if every one of its rows has a fix. It needs a major bump
+    if any of its rows does.
     """
     by_severity = dict.fromkeys(SEVERITIES, 0)
     package_severity: dict[str, str] = {}
-    package_fix: dict[str, dict] = {}
+    package_fixable: dict[str, bool] = {}
+    package_major: dict[str, bool] = {}
     for row in rows:
         if row["kind"] == "advisory":
             by_severity[row["severity"]] += 1
         name = row["package"]
         if name not in package_severity or RANK[row["severity"]] > RANK[package_severity[name]]:
             package_severity[name] = row["severity"]
-        package_fix[name] = row
+        package_fixable[name] = package_fixable.get(name, True) and bool(row["fix_available"])
+        package_major[name] = package_major.get(name, False) or bool(row["fix_semver_major"])
     packages_by_severity = dict.fromkeys(SEVERITIES, 0)
     for severity in package_severity.values():
         packages_by_severity[severity] += 1
-    fix_major = sum(1 for r in package_fix.values() if r["fix_available"] and r["fix_semver_major"])
-    fix_minor = sum(
-        1 for r in package_fix.values() if r["fix_available"] and not r["fix_semver_major"]
-    )
-    no_fix = sum(1 for r in package_fix.values() if not r["fix_available"])
+    fixable = [name for name, ok in package_fixable.items() if ok]
     return {
         "advisories_by_severity": by_severity,
         "packages_by_severity": packages_by_severity,
         "packages_total": len(package_severity),
-        "packages_fixable_without_major_bump": fix_minor,
-        "packages_fixable_with_major_bump": fix_major,
-        "packages_without_fix": no_fix,
+        "packages_fixable_without_major_bump": sum(1 for n in fixable if not package_major[n]),
+        "packages_fixable_with_major_bump": sum(1 for n in fixable if package_major[n]),
+        "packages_without_fix": len(package_fixable) - len(fixable),
     }
 
 

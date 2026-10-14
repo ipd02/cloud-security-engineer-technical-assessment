@@ -60,7 +60,7 @@ audit_report.py INPUT [--lockfile package-lock.json] [--trivy trivy.json]
 - CSV cells that start with `=`, `+`, `-`, `@`, tab or carriage return get a leading `'` so spreadsheets do not read them as formulas. The JSON is not changed. The JSON has a `meta` block with the tool, time, input name and EPSS source and date.
 - Prints counts by severity (packages and advisories) and how many packages are fixable with and without a major bump.
 - Missing fields, empty results, `null` sections and `fixAvailable` as bool or object are handled, as are an empty file, non-UTF-8 input, wrong-shaped entries and an unwritable output path. Tests cover each case.
-- The npm 6 fallback is tested only with a hand-written fixture, not with real npm 6 output.
+- The npm 6 fallback is tested with fixtures written for this tool (`tests/fixtures/audit_v6*.json`), not with real npm 6 output. Rows are sorted by package, then advisory id. A package counts as fixable only if all its advisories have a fix.
 
 ## What was verified
 
