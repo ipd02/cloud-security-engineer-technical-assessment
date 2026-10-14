@@ -20,18 +20,29 @@ dep-audit-test: ## Part 4: unit tests for audit_report.py
 
 # The fixed manifest must be clean and the original must still be caught.
 # Both need the trivy vulnerability database (network on first run).
-dep-audit-scan: ## Part 4: trivy passes on fixed/ and fails on vulnerable-input/
-	trivy fs --quiet --scanners vuln --include-dev-deps --severity HIGH,CRITICAL --exit-code 1 $(DEP_AUDIT_DIR)/fixed
-	@if trivy fs --quiet --scanners vuln --include-dev-deps --severity HIGH,CRITICAL --exit-code 1 $(DEP_AUDIT_DIR)/vulnerable-input >/dev/null; then \
-		echo "ERROR: vulnerable-input was expected to fail the scan"; exit 1; \
+# The vulnerable scan uses exit code 5, which trivy only returns for findings.
+# Any other non-zero code (bad path, no database, crash) is an error, not a pass.
+TRIVY_SCAN := trivy fs --quiet --scanners vuln --include-dev-deps --severity HIGH,CRITICAL
+VULN_EXIT := 5
+
+dep-audit-scan: ## Part 4: trivy passes on fixed/ and finds issues in vulnerable-input/
+	$(TRIVY_SCAN) --exit-code 1 $(DEP_AUDIT_DIR)/fixed
+	@$(TRIVY_SCAN) --exit-code $(VULN_EXIT) $(DEP_AUDIT_DIR)/vulnerable-input >/dev/null; code=$$?; \
+	if [ $$code -eq $(VULN_EXIT) ]; then \
+		echo "vulnerable-input has findings, as expected"; \
+	elif [ $$code -eq 0 ]; then \
+		echo "ERROR: vulnerable-input was expected to have findings"; exit 1; \
 	else \
-		echo "vulnerable-input fails the scan as expected"; \
+		echo "ERROR: trivy failed with exit code $$code, the scan did not run"; exit 1; \
 	fi
 
-dep-audit-report: ## Part 4: rebuild the JSON and CSV from the saved npm audit output
+dep-audit-report: ## Part 4: rebuild the JSON and CSV from the saved reports
 	cd $(DEP_AUDIT_DIR)/reports && python3 ../audit_report.py npm-audit-before.json \
 		--lockfile ../vulnerable-input/package-lock.json --trivy trivy-before.json \
-		--json-out vulnerabilities-before.json --csv-out vulnerabilities-before.csv
+		--epss epss-before.json \
+		--json-out vulnerabilities-before.json --csv-out vulnerabilities-before.csv \
+		> audit_report-before-summary.txt
 	cd $(DEP_AUDIT_DIR)/reports && python3 ../audit_report.py npm-audit-after.json \
 		--lockfile ../fixed/package-lock.json \
-		--json-out vulnerabilities-after.json --csv-out vulnerabilities-after.csv
+		--json-out vulnerabilities-after.json --csv-out vulnerabilities-after.csv \
+		> audit_report-after-summary.txt

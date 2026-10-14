@@ -57,7 +57,7 @@
         }
       ],
       "nodes": ["node_modules/x/node_modules/gamma", "node_modules/gamma"],
-      "fixAvailable": false
+      "fixAvailable": {"name": "gamma", "version": "3.0.0", "isSemVerMajor": true}
     },
     "delta": {
       "name": "delta",

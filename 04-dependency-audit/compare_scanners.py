@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Compare an npm audit report with a trivy fs report by GHSA id. Standard library only."""
+"""Compare an npm audit report with a trivy fs report by GHSA id. Standard library only.
+
+Exit codes: 0 compared (differences are printed, not an error), 2 bad usage or unreadable input.
+"""
 
 from __future__ import annotations
 
@@ -46,7 +49,11 @@ def main(argv: list[str]) -> int:
     if len(argv) != 3:
         print("usage: compare_scanners.py npm-audit.json trivy.json", file=sys.stderr)
         return 2
-    npm, trivy = npm_ids(argv[1]), trivy_ids(argv[2])
+    try:
+        npm, trivy = npm_ids(argv[1]), trivy_ids(argv[2])
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 2
     both = sorted(set(npm) & set(trivy))
     print(f"npm audit advisories: {len(npm)}")
     print(f"trivy findings with a GHSA id: {len(trivy)}")
