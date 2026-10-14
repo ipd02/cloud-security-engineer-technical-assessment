@@ -5,8 +5,7 @@ Get the exports with the AWS CLI, then run this script. It makes no AWS calls:
 
   aws iam generate-credential-report
   aws iam get-credential-report --query Content --output text | base64 -d > report.csv
-  aws iam get-account-authorization-details --filter User Role Group LocalManagedPolicy \
-      --output json > authz.json
+  aws iam get-account-authorization-details --filter User Role Group LocalManagedPolicy --output json > authz.json
 
 Findings, worst first. Policy findings apply to users and roles, whether the
 policy is inline, attached, or comes from a group:

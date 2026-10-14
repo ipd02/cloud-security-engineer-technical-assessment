@@ -13,6 +13,8 @@ This part reviews the task's CloudFormation template and Dockerfile. It answers 
 | `docker/app.py`, `docker/.dockerignore` | A small web service for the image to run, and a file that keeps everything else out of the build |
 | `tests/assert-originals-fail.sh` | Checks that the scanners reject the original files and accept the improved ones |
 | `scripts/find_risky_iam_users.py` | Reads two AWS exports and lists risky users, roles and root account settings |
+| `tests/test_find_risky_iam_users.py` and `tests/fixtures/` | Unit tests for that script, with made-up data |
+| `scripts/ci-install-tools.sh` | Installs the pinned scanner versions in CI |
 | `policies/` | Two example AWS policies that block the problems at account level |
 | `PREVENTION.md` | How to stop these problems from being introduced |
 | `part.mk` | Make targets for this part |
