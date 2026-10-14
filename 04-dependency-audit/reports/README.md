@@ -33,7 +33,7 @@ Only in `before/`:
 ## Why they are saved
 
 - The advisory databases change daily. The saved files fix the numbers to the scan dates.
-- Each file can be rebuilt. `make dep-audit-report` rebuilds the `audit_report.py` output from the raw `npm-audit.json` and `trivy.json`. `make dep-audit-trivy` reruns trivy and records its database version.
+- Each file can be rebuilt. `make dep-audit-report` rebuilds the `audit_report.py` output from the raw `npm-audit.json` and `trivy.json`. Only `meta.generated_at` in the JSON files changes. `make dep-audit-trivy` reruns trivy and records its database version.
 - The `.meta.txt` files record which tool versions made the numbers.
 
 Do not run whitespace fixers on this folder. The pre-commit config skips it.
