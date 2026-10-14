@@ -19,7 +19,7 @@ require (
 	github.com/aws/smithy-go v1.28.5
 	golang.org/x/sync v0.24.0
 	google.golang.org/api v0.293.0
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
