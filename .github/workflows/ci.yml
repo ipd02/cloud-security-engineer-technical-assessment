@@ -162,11 +162,36 @@ jobs:
       - name: Scan
         run: make dep-audit-scan
 
+  firewall-scanner:
+    name: firewall-scanner (golangci-lint, go test -race, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: 03-firewall-scanner/go.mod
+          cache-dependency-path: 03-firewall-scanner/go.sum
+      - name: Install golangci-lint
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Lint
+        run: make fwscan-lint
+      - name: Test with the race detector
+        run: make fwscan-test
+      - name: Build
+        run: make fwscan-build
+
   # Each part adds its own job above this one in its own branch.
   summary:
     name: summary
     if: always()
-    needs: [secrets, terraform, cloud-check, cloud-check-image, dependency-audit]
+    needs: [secrets, terraform, cloud-check, cloud-check-image, dependency-audit, firewall-scanner]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}
