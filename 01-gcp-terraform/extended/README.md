@@ -1,21 +1,28 @@
-# Part 1: Secure GCP infrastructure with Terraform
+# Extended version
 
-## What it does
+This is the base module plus security additions. Every addition is labelled `+ added` in the diagram and listed in the table below with its reason and the file that holds it. The base version, which does only what the brief asks, is in [`../base`](../base/README.md). The overview of both is in [`../README.md`](../README.md).
 
-![Architecture: request path, SSH path and what enforces each rule](docs/architecture.png)
+![Extended version: the brief plus labelled security additions](../docs/extended.png)
 
-The diagram source is `docs/architecture.svg`. The numbers and live results in it match the sections below.
+Source of the diagram: `../docs/extended.svg`.
 
-A Terraform module that builds a small web stack in one GCP project:
+## What it adds to the base
 
-- A custom-mode VPC with a public and a private subnet, both with flow logs.
-- One Compute Engine instance in the private subnet. It has no external IP.
-- A small SSH bastion in the public subnet, the only way in for a trusted public range (on by default, `enable_bastion`).
-- A global external Application Load Balancer that accepts HTTPS (443) only and sends traffic to the instance on port 80.
-- Firewall rules for 443 from the internet (at the load balancer), 22 from trusted ranges, and 80 from the load balancer, plus explicit deny-all rules.
-- Cloud Router and Cloud NAT so the private instance can fetch updates.
-- Least-privilege IAM: a dedicated service account with log and metric writer roles only.
-- Cloud Armor in front of the backend. This is an addition beyond the brief.
+| Addition | Why | Where |
+| --- | --- | --- |
+| Shielded VM, OS Login, project SSH keys blocked, serial port off, no IP forwarding, optional CMEK boot disk | Makes a compromised or mis-keyed instance harder to abuse | `compute.tf` |
+| SSH bastion in the public subnet, three SSH rules (trusted range to bastion, bastion to instance, bastion egress) | The instance has no external IP, so a trusted public range cannot reach it. The bastion gives the SSH requirement a working path | `bastion.tf`, `firewall.tf` |
+| Per-instance login bindings (`ssh_login_members`, `roles/compute.osLogin`, no sudo) and an optional IAP rule | Least privilege at resource level instead of project-wide roles | `iam.tf`, `firewall.tf` |
+| Explicit deny-all ingress (IPv4, IPv6) and deny-all egress with a narrow egress allow | Makes the default deny auditable and limits what a compromised instance can reach | `firewall.tf` |
+| Cloud Router, Cloud NAT and Private Google Access | The private instance can fetch updates and reach Google APIs without a public address | `network.tf` |
+| TLS policy, MODERN profile, minimum TLS 1.2 | Refuses old TLS versions | `loadbalancer.tf` |
+| Cloud Armor: OWASP rules, CVE rule, rate limit | Filters common web attacks at the edge | `armor.tf` |
+| Logging: VPC flow logs, firewall logs, NAT logs, load balancer and health check logs | Detection and investigation | `network.tf`, `firewall.tf`, `loadbalancer.tf` |
+| Labels, custom Checkov policies, more tests | Hygiene and guard rails | `policy/`, `tests/` |
+
+The same in both versions, because they are needed to meet the brief or are free: strict `trusted_ssh_cidrs` validation, a dedicated service account with the two writer roles, rules that target the service account, narrow instance scopes, the startup script in metadata, and the Debian 13 image.
+
+Compare the two with `diff -ru base extended`.
 
 ## How to run
 
@@ -39,7 +46,7 @@ To use the module, see `examples/basic/main.tf`. The inputs you must set are `pr
 | `network.tf` | VPC, subnets, Cloud Router, Cloud NAT |
 | `firewall.tf` | Allow rules, deny-all rules, egress posture |
 | `iam.tf` | Instance service account, project roles, per-instance login bindings |
-| `compute.tf` | Web instance and unmanaged instance group |
+| `compute.tf` | Compute Engine instance and unmanaged instance group |
 | `bastion.tf` | SSH bastion in the public subnet and its service account |
 | `loadbalancer.tf` | Address, certificate, TLS policy, health check, backend, URL map, proxy, forwarding rule |
 | `armor.tf` | Cloud Armor policy |
@@ -74,9 +81,9 @@ Observed:
 - Backend service `HEALTHY`. `https://<lb ip>/` returned 200 with the instance's page. It took a few minutes after apply, with 502 or 503 until the backend registered.
 - TLS 1.2 and TLS 1.3 negotiate. Port 80 on the load balancer address gets no answer (connection error).
 - Cloud Armor returned 403 for a SQL injection string, an XSS string, a path traversal string, a shell command string and a `${jndi:...}` header.
-- Boot image `debian-13-trixie`. The web instance has no external IP, Shielded VM on, OS Login on, scopes limited to `logging.write` and `monitoring.write`. The bastion is the only instance with an external IP.
-- SSH: from the trusted `/32` to the bastion works, and from there to the web instance works (tested with `ssh -J`-style proxying through the bastion). A direct connection to the web instance's internal address from outside times out. After changing `trusted_ssh_cidrs` to a different range, the bastion no longer answers.
-- Bastion to web instance on 22 is open, on 80 is closed. Web instance egress: 443 and 80 reach the internet through Cloud NAT (the source address was the NAT address), 8080 is refused. The bastion's egress on 8080 is refused too.
+- Boot image `debian-13-trixie`. The Compute Engine instance has no external IP, Shielded VM on, OS Login on, scopes limited to `logging.write` and `monitoring.write`. The bastion is the only instance with an external IP.
+- SSH: from the trusted `/32` to the bastion works, and from there to the Compute Engine instance works (tested with `ssh -J`-style proxying through the bastion). A direct connection to the Compute Engine instance's internal address from outside times out. After changing `trusted_ssh_cidrs` to a different range, the bastion no longer answers.
+- Bastion to Compute Engine instance on 22 is open, on 80 is closed. Compute Engine instance egress: 443 and 80 reach the internet through Cloud NAT (the source address was the NAT address), 8080 is refused. The bastion's egress on 8080 is refused too.
 - OS Login bindings exist on the two instances only. The only project-level roles held by the module's service accounts are the two writer roles on the web account. The bastion account has none.
 - Logs appeared in Cloud Logging for VPC flow, firewall (allow and deny rules), Cloud NAT, load balancer requests and health checks.
 - Cloud Armor rate limit (300 requests per 60 seconds): in one run, 637 requests were allowed and 1,613 got HTTP 429 over about 70 seconds. In an earlier run on a freshly created policy, more than 8,000 requests over roughly half an hour got no 429 at all. After I changed the rule once with `gcloud`, it enforced. I do not know why the first policy did not. Google documents the enforcement as approximate. Treat the rate limit as configured and observed once, not as a guarantee.
@@ -93,7 +100,7 @@ Not verified at all: whether the OWASP rules give false positives on a real appl
 
 ## Checkov skips
 
-One. `CKV_GCP_40` (no public IP on a Compute instance) is skipped inline on `google_compute_instance.bastion` in `bastion.tf`. The bastion is the one host with an external IP, SSH reaches it only from `trusted_ssh_cidrs`, and its service account has no roles. The web instance passes the check. Checkov reports 98 passed, 0 failed, 1 skipped.
+One. `CKV_GCP_40` (no public IP on a Compute instance) is skipped inline on `google_compute_instance.bastion` in `bastion.tf`. The bastion is the one host with an external IP, SSH reaches it only from `trusted_ssh_cidrs`, and its service account has no roles. The Compute Engine instance passes the check. Checkov reports 98 passed, 0 failed, 1 skipped.
 
 ## Design decisions
 
@@ -120,13 +127,13 @@ VPC firewall rules apply to instances, not to the load balancer, so "443 from th
 | Rule | Direction | Source or destination | Port | Target |
 | --- | --- | --- | --- | --- |
 | allow-lb-http | ingress | `130.211.0.0/22`, `35.191.0.0/16` | tcp/80 | instance service account |
-| allow-ssh-trusted | ingress | `var.trusted_ssh_cidrs` | tcp/22 | web instance service account |
+| allow-ssh-trusted | ingress | `var.trusted_ssh_cidrs` | tcp/22 | Compute Engine instance service account |
 | allow-ssh-bastion-in | ingress | `var.trusted_ssh_cidrs` | tcp/22 | bastion service account |
-| allow-ssh-bastion-to-web | ingress | source: bastion service account | tcp/22 | web instance service account |
+| allow-ssh-bastion-to-web | ingress | source: bastion service account | tcp/22 | Compute Engine instance service account |
 | allow-egress-bastion-ssh | egress | private subnet range | tcp/22 | bastion service account |
 | allow-ssh-iap (opt-in) | ingress | `35.235.240.0/20` | tcp/22 | instance service account |
 | deny-all-ingress, deny-all-ingress-v6 | ingress | `0.0.0.0/0`, `::/0` | all | all |
-| allow-egress-web | egress | `0.0.0.0/0` | tcp/80, tcp/443 | web instance and bastion service accounts |
+| allow-egress-web | egress | `0.0.0.0/0` | tcp/80, tcp/443 | Compute Engine instance and bastion service accounts |
 | deny-all-egress | egress | `0.0.0.0/0` | all | all |
 
 Allow rules use priority 1000 and deny rules 65000. Every rule has logging on. Rules target the instance service account instead of a network tag, because anyone who can edit an instance can add a tag, while a service account needs `iam.serviceAccounts.actAs`.
@@ -139,15 +146,15 @@ The egress posture allows only tcp/80 and tcp/443, for package repositories thro
 
 SSH is allowed only from `trusted_ssh_cidrs`. It is a required input with no default and a `null` value is an error. Validation accepts only canonical IPv4 CIDRs (no IPv6, no host bits, no whitespace) and rejects an empty list, `0.0.0.0/0`, any prefix shorter than /8, and a list whose entries add up to more than one /8 (16,777,216 addresses) in total, so a long list of /8s cannot rebuild the internet. IPv6 is rejected because the VPC is IPv4-only and a GCP firewall rule cannot mix IPv4 and IPv6 ranges. A looser floor would let someone paste a "mostly the internet" range, and a tighter one would block legitimate large corporate ranges. A `check` block warns on anything wider than /16.
 
-**Reachability and the bastion.** The web instance has no external IP, as the brief's "private subnet" implies. A trusted public address such as an office IP can never open a TCP connection to it directly, whatever the firewall says. The load balancer does not help: it carries only HTTP(S) and is not in a subnet. To make the SSH requirement work end to end, the module adds a small bastion VM in the public subnet (`bastion.tf`, `enable_bastion`, on by default):
+**Reachability and the bastion.** The Compute Engine instance has no external IP, as the brief's "private subnet" implies. A trusted public address such as an office IP can never open a TCP connection to it directly, whatever the firewall says. The load balancer does not help: it carries only HTTP(S) and is not in a subnet. To make the SSH requirement work end to end, the module adds a small bastion VM in the public subnet (`bastion.tf`, `enable_bastion`, on by default):
 
 1. The trusted range reaches the bastion on tcp/22 (`allow-ssh-bastion-in`). The bastion has the only external IP in the module.
-2. The bastion reaches the web instance on tcp/22 (`allow-ssh-bastion-to-web`). The source is the bastion's service account, so no other host in the VPC can use that path.
+2. The bastion reaches the Compute Engine instance on tcp/22 (`allow-ssh-bastion-to-web`). The source is the bastion's service account, so no other host in the VPC can use that path.
 3. The bastion's egress is limited to tcp/22 into the private subnet, plus tcp/80 and tcp/443 for updates.
 
-`allow-ssh-trusted` (trusted range straight to the web instance) stays. It is the literal rule from the brief and it is what makes the module work with `enable_bastion = false` when the trusted ranges reach the VPC over VPN, Interconnect or peering.
+`allow-ssh-trusted` (trusted range straight to the Compute Engine instance) stays. It is the literal rule from the brief and it is what makes the module work with `enable_bastion = false` when the trusted ranges reach the VPC over VPN, Interconnect or peering.
 
-The bastion is hardened like the web instance: dedicated service account with no project roles, Shielded VM, OS Login, project SSH keys blocked, serial port off, no IP forwarding. The one Checkov skip in the module is `CKV_GCP_40` on the bastion, because the external IP is its purpose. Cost: one e2-micro and one external IP. Users need an OS Login role on both instances, for example `roles/compute.osAdminLogin`. A connection looks like `ssh -J <os-login-user>@<bastion_external_ip> <os-login-user>@<instance_internal_ip>`, with both addresses from the module outputs. This path has not been tested live.
+The bastion is hardened like the Compute Engine instance: dedicated service account with no project roles, Shielded VM, OS Login, project SSH keys blocked, serial port off, no IP forwarding. The one Checkov skip in the module is `CKV_GCP_40` on the bastion, because the external IP is its purpose. Cost: one e2-micro and one external IP. Users need an OS Login role on both instances, for example `roles/compute.osAdminLogin`. A connection looks like `ssh -J <os-login-user>@<bastion_external_ip> <os-login-user>@<instance_internal_ip>`, with both addresses from the module outputs. This path has not been tested live.
 
 IAP TCP forwarding is the better option because it needs no public SSH exposure and ties access to IAM. It is available with `enable_iap_ssh = true` and is off by default, so the default meets the task's literal requirement. Users of IAP need `roles/iap.tunnelResourceAccessor`. With OS Login on, SSH users also need `roles/compute.osLogin` (or `roles/compute.osAdminLogin`) on the instance or project.
 
@@ -157,7 +164,7 @@ Private subnet only, no external IP. Dedicated service account, never the defaul
 
 ### IAM
 
-The web instance's service account has `roles/logging.logWriter` and `roles/monitoring.metricWriter`, nothing else. The bastion's account has no roles. Instance OAuth scopes match the two roles (`logging.write`, `monitoring.write`), never `cloud-platform`. SSH logins are granted per instance, not per project: `ssh_login_members` gets `roles/compute.osLogin` (no sudo) on the web instance and the bastion only, and `roles/iap.tunnelResourceAccessor` on the web instance when `enable_iap_ssh` is on. Nobody is granted login by default. Bindings use `google_project_iam_member`, which is non-authoritative and leaves other bindings alone. A test fails if `roles/editor` or `roles/owner` appears.
+The Compute Engine instance's service account has `roles/logging.logWriter` and `roles/monitoring.metricWriter`, nothing else. The bastion's account has no roles. Instance OAuth scopes match the two roles (`logging.write`, `monitoring.write`), never `cloud-platform`. SSH logins are granted per instance, not per project: `ssh_login_members` gets `roles/compute.osLogin` (no sudo) on the Compute Engine instance and the bastion only, and `roles/iap.tunnelResourceAccessor` on the Compute Engine instance when `enable_iap_ssh` is on. Nobody is granted login by default. Bindings use `google_project_iam_member`, which is non-authoritative and leaves other bindings alone. A test fails if `roles/editor` or `roles/owner` appears.
 
 Roles the deployer identity needs (chosen from role descriptions, not proven by a live apply, so expect to adjust after the first real run):
 
@@ -167,7 +174,7 @@ Roles the deployer identity needs (chosen from role descriptions, not proven by 
 | `roles/compute.securityAdmin` | Firewall rules, SSL policy, Cloud Armor policy |
 | `roles/compute.loadBalancerAdmin` | Backend service, URL map, proxy, forwarding rule, certificate |
 | `roles/compute.instanceAdmin.v1` | Instances, instance group, and the per-instance login bindings |
-| `roles/iap.admin` (only with `enable_iap_ssh` and `ssh_login_members`) | IAP tunnel bindings on the web instance |
+| `roles/iap.admin` (only with `enable_iap_ssh` and `ssh_login_members`) | IAP tunnel bindings on the Compute Engine instance |
 | `roles/iam.serviceAccountAdmin` | Create the instance service account |
 | `roles/iam.serviceAccountUser` | Attach that service account to the instance |
 | `roles/resourcemanager.projectIamAdmin` | Grant the two writer roles on the project |
@@ -180,7 +187,7 @@ Implemented: subnet flow logs on both subnets, firewall rule logs on every rule,
 
 Not implemented, as a short extension: Cloud Audit Logs are on by default for admin activity. Data access logs and a log sink to a locked-down bucket or a SIEM would be the next step.
 
-### Cloud Armor (addition)
+### Cloud Armor (added)
 
 The policy denies SQL injection, cross-site scripting, local file inclusion and remote code execution with the preconfigured `*-v33-stable` rule sets, adds the `cve-canary` signature rule, throttles each client IP (default 300 requests per 60 seconds, then HTTP 429), and turns on Layer 7 adaptive protection. The default rule allows. The OWASP rules can block legitimate traffic, so run them in preview mode on a real application first. This module does not do that.
 
