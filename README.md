@@ -22,7 +22,7 @@ The checks need these tools on your `PATH`. The versions are the ones CI uses.
 | Tool | Version | Used by |
 | --- | --- | --- |
 | Terraform | 1.16.5 (the modules need 1.9 or later) | Part 1 |
-| tflint | 0.64.0 | Part 1 |
+| tflint | 0.64.0, with the Google ruleset 0.40.0 (`tflint --init` downloads it) | Part 1 |
 | checkov | 3.3.20 | Parts 1 and 2 |
 | cfn-lint | 1.57.2 | Part 2 |
 | hadolint | 2.15.1 | Part 2 |
@@ -60,7 +60,3 @@ The first run needs network access to download the Terraform provider and the tr
 - **Not run:** runtime protection (Falco, EDR, admission control) is described in `PREVENTION.md` and not built.
 
 GitHub's own dependency alerts on `04-dependency-audit/vulnerable-input/` and `04-dependency-audit/tests/fixtures/custom-app/` are expected. Those folders hold deliberately vulnerable inputs.
-
-## How this was built
-
-<!-- AI-NOTE-PLACEHOLDER: wording supplied by the author at the final checkpoint. Remove this marker before publishing. -->
