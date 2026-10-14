@@ -15,6 +15,10 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: terraform
-    directory: /01-gcp-terraform
+    directory: /01-gcp-terraform/base
+    schedule:
+      interval: weekly
+  - package-ecosystem: terraform
+    directory: /01-gcp-terraform/extended
     schedule:
       interval: weekly
