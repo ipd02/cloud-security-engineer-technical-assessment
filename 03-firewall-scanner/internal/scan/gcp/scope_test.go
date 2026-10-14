@@ -386,7 +386,40 @@ func TestHierarchicalPolicyUsesDisplayName(t *testing.T) {
 	p.DisplayName = proto.String("org-policy")
 	s := &Scanner{}
 	r, ok := s.policyRule(p, "", model.TypeHierarchicalPolicy)
-	if !ok || r.Name != "org-policy" || r.Network != "1" {
+	if !ok || r.Name != "org-policy" || r.Network != "organizations/1" {
 		t.Fatalf("rule: %+v ok=%v", r, ok)
+	}
+}
+
+// Listing by an organization also returns the policies of its folders, and a
+// folder search under a folder scope returns the scope itself. Neither may
+// produce a finding twice.
+func TestHierarchicalPoliciesAreNotReportedTwice(t *testing.T) {
+	open := []string{"0.0.0.0/0"}
+	folderPolicy := policy("folder-policy", nil, policyRule(1, "allow", "INGRESS", open, l4("tcp", "8084")))
+	folderPolicy.SelfLink = proto.String("https://compute/policies/639")
+	folderPolicy.Parent = proto.String("folders/111")
+	orgPolicy := policy("org-policy", []string{"organizations/9"}, policyRule(1, "allow", "INGRESS", open, l4("tcp", "8082")))
+	orgPolicy.SelfLink = proto.String("https://compute/policies/475")
+	hier := fakeHierarchy{
+		"organizations/9": {policies: []*computepb.FirewallPolicy{orgPolicy, folderPolicy}},
+		"folders/111":     {policies: []*computepb.FirewallPolicy{folderPolicy}},
+	}
+	assets := &fakeAssets{byType: map[string][]Asset{assetFolder: {{Name: "//cloudresourcemanager.googleapis.com/folders/111"}}}}
+
+	got, err := (&Scanner{Scope: "organizations/9", Assets: assets, Hierarchy: hier}).Scan(context.Background())
+	if err != nil || len(got) != 2 {
+		t.Fatalf("org scope: got %+v, err %v", got, err)
+	}
+	for _, r := range got {
+		if r.Name == "folder-policy" && r.Network != "folders/111" {
+			t.Fatalf("an unattached policy shows where it lives: %+v", r)
+		}
+	}
+
+	// The folder scope returns itself from the folder search.
+	got, err = (&Scanner{Scope: "folders/111", Assets: assets, Hierarchy: hier}).Scan(context.Background())
+	if err != nil || len(got) != 1 || got[0].Name != "folder-policy" {
+		t.Fatalf("folder scope: got %+v, err %v", got, err)
 	}
 }

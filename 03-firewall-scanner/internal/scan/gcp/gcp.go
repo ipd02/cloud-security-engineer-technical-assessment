@@ -301,9 +301,18 @@ func (s *Scanner) policyRule(p *computepb.FirewallPolicy, project, typ string) (
 		return model.FirewallRule{}, false
 	}
 	detect.Sort(rules)
+	// A network policy lists its networks. A hierarchical policy lists what it
+	// is attached to, or where it lives when it is not attached.
 	var targets []string
 	for _, a := range p.GetAssociations() {
-		targets = append(targets, lastSegment(a.GetAttachmentTarget()))
+		if typ == model.TypeHierarchicalPolicy {
+			targets = append(targets, a.GetAttachmentTarget())
+		} else {
+			targets = append(targets, lastSegment(a.GetAttachmentTarget()))
+		}
+	}
+	if len(targets) == 0 && typ == model.TypeHierarchicalPolicy && p.GetParent() != "" {
+		targets = append(targets, p.GetParent())
 	}
 	sort.Strings(targets)
 	name := p.GetDisplayName() // hierarchical policies have a numeric name

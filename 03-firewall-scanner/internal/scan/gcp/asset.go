@@ -133,13 +133,26 @@ func (s *Scanner) hierarchicalRules(ctx context.Context) ([]model.FirewallRule, 
 	}
 	for _, f := range folders {
 		if i := strings.LastIndex(f.Name, "/folders/"); i >= 0 {
-			parents = append(parents, "folders/"+f.Name[i+len("/folders/"):])
+			if parent := "folders/" + f.Name[i+len("/folders/"):]; parent != s.Scope {
+				parents = append(parents, parent)
+			}
 		}
 	}
 	sort.Strings(parents[1:])
+	// Listing by an organization or folder also returns the policies of the
+	// folders below it, so the same policy can come back more than once.
+	seen := map[string]bool{}
 	for _, parent := range parents {
 		policies, err := s.Hierarchy.ListHierarchicalPolicies(ctx, parent)
 		for _, p := range policies {
+			key := p.GetSelfLink()
+			if key == "" {
+				key = p.GetParent() + "/" + p.GetName()
+			}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
 			if r, ok := s.policyRule(p, "", model.TypeHierarchicalPolicy); ok {
 				out = append(out, r)
 			}
