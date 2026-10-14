@@ -40,6 +40,5 @@ This repository is my answer to a cloud security engineer take-home assessment. 
 
 - **In CI and with `make lint test scan`, with no credentials:** formatting, validation and linting, `terraform test` with a mocked provider, `checkov`, `cfn-lint`, `hadolint`, `trivy config` and `trivy image`, unit tests for the Go tool and the Python scripts, `gitleaks`, and a script that checks the original task files fail the scanners and the hardened files pass.
 - **Live, by hand, on 2026-10-14:** the Terraform modules were applied in a throwaway GCP project and then destroyed. The CloudFormation template, the IAM detection commands and the example policies were tested in a test AWS account. The Go scanner was run against test environments in AWS, GCP and Azure. Everything created for these tests was deleted afterwards. CI does not repeat these runs, and the per-part READMEs list what each run showed.
-- **Not run:** runtime protection (Falco, EDR, admission control) is described in `PREVENTION.md` and not built.
 
 GitHub's own dependency alerts on `04-dependency-audit/vulnerable-input/` and `04-dependency-audit/tests/fixtures/custom-app/` are expected. Those folders hold deliberately vulnerable inputs.

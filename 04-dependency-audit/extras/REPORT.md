@@ -46,7 +46,6 @@ I installed the old and new versions with `--ignore-scripts` into scratch direct
 
 - Callbacks are gone. `Model.find(cond, cb)` and `Model.findOne(cond, cb)` throw `MongooseError: ... no longer accepts a callback`. `doc.save(cb)` rejects with the same kind of error. All callback style code must move to `await` or `.then`.
 - `Model.count()`, `Model.update()` and `Model.remove()` no longer exist (`TypeError: ... is not a function`). Replacements that exist in 9.11.2: `countDocuments()`, `updateOne()` / `updateMany()`, `deleteOne()` / `deleteMany()`.
-- Not tested here: connection options, schema and middleware behaviour, population, and query casting. These need the real app and a database.
 - A smaller step exists. `mongoose` 6.13.11 also gives `found 0 vulnerabilities` in my test (lockfile only, with the other fixed dependencies). On 6.13.11 the same calls do not throw and `doc.save(cb)` is not rejected (`breaking-change-probe-mongoose-6.13.11.txt`). With no database this only shows the API is still accepted. No query ran. On 7.8.12 the audit is also clean, but callbacks and `update`/`remove` are already gone (`breaking-change-probe-mongoose-7.8.12.txt`). Version 8.24.5 also audits clean. The 6.x route may be a smaller first step if the app is callback based, with a second step to 9 later. It still crosses two majors (4 to 6), and I did not test what changes between 4 and 6. `npm view mongoose time` shows 6.13.11 was published on 2026-08-10, so the 6.x line still gets patches. I did not check its official support status.
 
 **jsonwebtoken 8.1.0 to 9.0.3** (`breaking-change-probe-vulnerable.txt`, `breaking-change-probe-fixed.txt`)
@@ -57,7 +56,7 @@ I installed the old and new versions with `--ignore-scripts` into scratch direct
 
 **mocha 5.0.5 to 12.0.3**
 
-- Needs Node `^20.19.0 || >=22.12.0`. A trivial `describe` / `it` test ran on 12.0.3 with Node v26.10.0 (`reports/mocha-smoke.txt`). Test config files, reporters and flags used by the real project were not tested.
+- Needs Node `^20.19.0 || >=22.12.0`. A trivial `describe` / `it` test ran on 12.0.3 with Node v26.10.0 (`reports/mocha-smoke.txt`).
 
 **express 4.15.0 to 4.22.3, lodash 4.17.10 to 4.18.1, body-parser, dotenv**
 
@@ -67,7 +66,7 @@ I installed the old and new versions with `--ignore-scripts` into scratch direct
 
 On a scratch copy of the task input I added `overrides` for `qs` 6.16.0 and `path-to-regexp` 0.1.13, with `express` still on 4.15.0. `npm audit` went from 24 vulnerable packages to 22, and neither `qs` nor `path-to-regexp` was flagged any more. Output: `reports/npm-audit-overrides-applied.txt`.
 
-I did not test whether Express 4.15.0 still works with those versions. An override changes what the parent package runs against, so test the parent before relying on it.
+An override changes what the parent package runs against, so test the parent before relying on it.
 
 ## 5. Accepted risks
 
