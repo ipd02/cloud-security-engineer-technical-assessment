@@ -36,14 +36,14 @@ The two secret-looking values in `docker/Dockerfile.original` are the task's own
 
 Ranked by impact.
 
-1. **The IAM user has `Action: "*"` on `Resource: "*"`.** That is full administrator access to the whole account, through an inline policy. Checkov fails 6 IAM checks on it (CKV_AWS_62, 63, 107, 108, 109, 110, 111 are the family that fire).
+1. **The IAM user has `Action: "*"` on `Resource: "*"`.** That is full administrator access to the whole account, through an inline policy. Checkov fails 7 IAM checks on it (CKV_AWS_62, 63, 107, 108, 109, 110 and 111).
 2. **A long-lived IAM user instead of a role.** A user means access keys or a password that do not expire and must be rotated by hand. A role gives short-lived credentials from STS. The policy is also attached to the user directly (trivy AWS-0143).
-3. **The bucket is not protected from public exposure.** There is no `PublicAccessBlockConfiguration` (trivy AWS-0086, 0087, 0091, 0093, 0094, all HIGH except 0094).
+3. **The bucket does not declare any protection from public exposure.** There is no `PublicAccessBlockConfiguration` (trivy AWS-0086, 0087, 0091, 0093, 0094, all HIGH except 0094). In my sandbox test a bucket created from the original template did have all four block settings on, because S3 now turns them on for new buckets, and it refused a public bucket policy. The template still states nothing, so a bucket from an older account, another creation path or a later change is not covered.
 4. **No encryption configuration.** S3 applies SSE-S3 by default, but nothing uses a customer-managed key, so there is no key policy, no key-level audit trail and no way to revoke access by disabling the key (trivy AWS-0132).
 5. **No versioning.** An overwrite or delete cannot be undone (CKV_AWS_21, AWS-0090).
 6. **No access logging.** Nothing records who read or wrote objects (CKV_AWS_18, AWS-0089).
-7. **No TLS-only bucket policy.** Requests over plain HTTP are accepted.
-8. **No ownership controls.** Object ACLs stay possible. `BucketOwnerEnforced` turns them off.
+7. **No TLS-only bucket policy.** Requests over plain HTTP are accepted. AWS Config rule `S3_BUCKET_SSL_REQUESTS_ONLY` marked the original bucket non-compliant.
+8. **No ownership controls.** The template does not set `BucketOwnerEnforced`. In my sandbox test a new bucket from the original template already rejected ACLs, because S3 now defaults to that. Setting it in the template keeps the behaviour explicit.
 9. **No `DeletionPolicy` or `UpdateReplacePolicy` and no lifecycle rule.** A stack delete or replacement removes the bucket with its data, and old data is never expired.
 10. **Smaller points.** The user name is hard-coded, so the template cannot be deployed twice and needs `CAPABILITY_NAMED_IAM`. The policy document has no `Version`, so it uses the old policy language. The policy has no `Sid`.
 
@@ -72,6 +72,7 @@ Choices worth stating:
 - **The log bucket uses SSE-S3, not SSE-KMS.** S3 server access log delivery cannot write to a bucket encrypted with a KMS key. The template says so in a comment.
 - **One inline skip.** `CKV_AWS_18` (access logging) is skipped on `LogBucket` only. Logging the log bucket would need another log bucket, forever. The skip sits in the resource `Metadata` with its reason. There are no other skips.
 - **No `BucketName`.** CloudFormation generates a unique name, so the template can be deployed in several accounts or stacks.
+- **What the trust conditions enforce, tested in a sandbox account.** The results are in "Trust policy test" below. In short: `ExternalId` and MFA work for a direct call by the trusted user. MFA does not carry through every role chain, so `RequireMfa` is the wrong setting for a role that a workload or another role assumes. `ExternalId` is a guard against a confused deputy. It is not a secret and it does not prove who the caller is.
 - **The key policy only delegates to IAM** for this account. Access is then granted by the role policy. A stricter setup would name key administrators and key users in the key policy.
 
 Verification of this template is in "What was verified".
@@ -80,19 +81,19 @@ Verification of this template is in "What was verified".
 
 ### Finding it
 
-Each item names the primitive. The commands are real AWS CLI v2 commands. I could run only the ones that need no credentials here (see the status column).
+Each item names the primitive. The commands are AWS CLI v2 commands. The status column says what I ran in a sandbox account and what I did not.
 
 | Step | Primitive | Command | Status |
 | --- | --- | --- | --- |
-| 1 | IAM credential report: users, key age, last use | `aws iam generate-credential-report` then `aws iam get-credential-report --query Content --output text \| base64 -d` | Skeleton checked with `--generate-cli-skeleton` (prints `{}`). Call itself not executed here: no credentials. |
-| 2 | Who has an all-actions policy | `aws iam get-account-authorization-details --filter User --output json > authz.json`, then `jq -r '.UserDetailList[] \| select(.UserPolicyList[]?.PolicyDocument.Statement \| (if type=="array" then . else [.] end)[] \| select(.Action=="*" and .Resource=="*")) \| .UserName' authz.json` | AWS call not executed here. The `jq` filter ran against a hand-written sample file and printed the expected user. |
-| 3 | Access Advisor: which services the user really used | `aws iam generate-service-last-accessed-details --arn <user-arn> --granularity ACTION_LEVEL` then `aws iam get-service-last-accessed-details --job-id <id>` | Skeleton checked (prints `Arn`, `Granularity`). Not executed here. |
-| 4 | IAM Access Analyzer unused access: finds unused users, roles, keys and permissions | `aws accessanalyzer create-analyzer --analyzer-name unused --type ACCOUNT_UNUSED_ACCESS --configuration '{"unusedAccess":{"unusedAccessAge":90}}'` then `aws accessanalyzer list-findings-v2 --analyzer-arn <arn>` | Skeleton checked. Not executed here. |
-| 5 | Access Analyzer policy validation, run on the policy before deploy | `aws accessanalyzer validate-policy --policy-type IDENTITY_POLICY --policy-document file://policy.json` | `help` checked. Not executed here. |
-| 6 | AWS Config managed rules | `IAM_POLICY_NO_STATEMENTS_WITH_ADMIN_ACCESS`, `IAM_POLICY_NO_STATEMENTS_WITH_FULL_ACCESS`, `IAM_USER_UNUSED_CREDENTIALS_CHECK`, `S3_BUCKET_LEVEL_PUBLIC_ACCESS_PROHIBITED`, `S3_BUCKET_SSL_REQUESTS_ONLY`, `S3_BUCKET_VERSIONING_ENABLED`, `S3_BUCKET_LOGGING_ENABLED`. Read results with `aws configservice describe-compliance-by-config-rule`. | `help` checked. Not executed here. |
-| 7 | Security Hub CSPM controls (AWS Foundational Security Best Practices and CIS) | Controls such as IAM.1 (no `*:*` policies), IAM.2 (no user policies), S3.1 to S3.5 and S3.9 | Not executed here. |
-| 8 | CloudTrail: what has the user done | `aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=UnrestrictedUser` (90 days of management events). For longer history, query the trail in Athena or CloudTrail Lake. | `help` checked. Not executed here. |
-| 9 | Ad hoc sweep with an open-source scanner | Prowler, for example `prowler aws --services iam s3` | Prowler is not installed here. Not executed here. |
+| 1 | IAM credential report: users, key age, last use | `aws iam generate-credential-report` then `aws iam get-credential-report --query Content --output text \| base64 -d` | Run in a sandbox account. The report listed the original user with `mfa_active` false and an active key with no last use recorded. The key had been used a few minutes earlier, so the last-use columns lag. Do not read "never used" from a report generated just after the key was used. |
+| 2 | Who has an all-actions policy | `aws iam get-account-authorization-details --filter User Group LocalManagedPolicy --output json > authz.json`, then `jq -r '.UserDetailList[] \| select(.UserPolicyList[]?.PolicyDocument.Statement \| (if type=="array" then . else [.] end)[] \| select(.Action=="*" and .Resource=="*")) \| .UserName' authz.json` | Run in a sandbox account. The filter printed `UnrestrictedUser` and nothing else. It sees inline user policies only. `scripts/find_risky_iam_users.py` also covers group and managed policies. |
+| 3 | Access Advisor: which services the user really used | `aws iam generate-service-last-accessed-details --arn <user-arn> --granularity ACTION_LEVEL` then `aws iam get-service-last-accessed-details --job-id <id>` | Run in a sandbox account. The job completed and listed 200 services with no last-access time for the original user, although the user had called S3 and STS a few minutes earlier, so this data lags too. The job takes a few seconds, so poll `JobStatus` before reading it. |
+| 4 | IAM Access Analyzer unused access: finds unused users, roles, keys and permissions | `aws accessanalyzer create-analyzer --analyzer-name unused --type ACCOUNT_UNUSED_ACCESS --configuration '{"unusedAccess":{"unusedAccessAge":90}}'` then `aws accessanalyzer list-findings-v2 --analyzer-arn <arn>` | Analyzer created and queried in a sandbox account with an age of 1 day. It returned no findings, because the test identities were minutes old. The finding itself is not demonstrated. |
+| 5 | Access Analyzer policy validation, run on the policy before deploy | `aws accessanalyzer validate-policy --policy-type IDENTITY_POLICY --policy-document file://policy.json` | Run in a sandbox account. On the original policy it returned three findings: WARNING `MISSING_VERSION`, WARNING `CREATE_SLR_WITH_STAR_IN_ACTION_AND_RESOURCE` and SECURITY_WARNING `PASS_ROLE_WITH_STAR_IN_ACTION_AND_RESOURCE`. None is an ERROR, so a pipeline must fail on warnings to stop it. The hardened policy returned no findings. |
+| 6 | AWS Config managed rules | `IAM_NO_INLINE_POLICY_CHECK` and `IAM_USER_NO_POLICIES_CHECK` flag the original user. `IAM_POLICY_NO_STATEMENTS_WITH_ADMIN_ACCESS` and `IAM_POLICY_NO_STATEMENTS_WITH_FULL_ACCESS` check customer-managed policies only. Also `IAM_USER_UNUSED_CREDENTIALS_CHECK`, `S3_BUCKET_LEVEL_PUBLIC_ACCESS_PROHIBITED`, `S3_BUCKET_SSL_REQUESTS_ONLY`, `S3_BUCKET_VERSIONING_ENABLED`, `S3_BUCKET_LOGGING_ENABLED`. Read results with `aws configservice get-compliance-details-by-config-rule`. | Run in a sandbox account. The inline-policy and no-user-policies rules marked the user non-compliant. The admin-access and full-access rules did not flag it: they reported only the customer-managed policies, as compliant. The S3 rules marked the original bucket non-compliant for TLS, versioning and logging, and the hardened data bucket compliant for all four. The hardened log bucket is non-compliant for logging only, which is the checkov skip. |
+| 7 | Security Hub CSPM controls (AWS Foundational Security Best Practices and CIS) | Controls such as IAM.1 (no `*:*` policies), IAM.2 (no user policies), S3.1 to S3.5 and S3.9 | Not executed. |
+| 8 | CloudTrail: what has the user done | `aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=UnrestrictedUser` (90 days of management events). For longer history, query the trail in Athena or CloudTrail Lake. | Run in a sandbox account. It listed the user's `GetCallerIdentity` and `ListBuckets` calls. Its IAM call (`ListUsers`) was not in this region's history, so check the region where IAM events are recorded. |
+| 9 | Ad hoc sweep with an open-source scanner | Prowler, for example `prowler aws --services iam s3` | Prowler was not installed or run. |
 
 For this specific template the fastest check is step 2 and step 8 together: list who holds an all-actions policy, then see what that principal actually called.
 
@@ -200,11 +201,58 @@ Notes on these results:
 - **The 44 OS findings are in the Debian base image** (util-linux, ncurses, systemd and similar libraries). The Debian tracker lists no fix at scan time. The image digest is pinned, so a rebuild on a newer digest is how they get fixed. This is the reason the CI image gate uses `--ignore-unfixed`. A separate CI step prints all 44 so they stay visible. The results will change as the vulnerability database changes.
 - **Python findings were real and removed.** The first image scan found 4 HIGH findings in `msgpack`, `setuptools` and `urllib3`. They came from pip's vendored libraries and setuptools in the base image. The app does not need pip, so the Dockerfile removes pip, setuptools and wheel.
 
+### Trust policy test
+
+Run on 2026-10-14 in a sandbox AWS account (eu-north-1, not part of an AWS Organization). I deployed `hardened.yaml` as one stack and changed `TrustedPrincipalArn` and `RequireMfa` between runs. Callers were an IAM user with long-term keys and a virtual MFA device, a second user that is not trusted, and two roles used as chained callers (one reachable only with MFA, one reachable without). The account was empty before the test, and everything created for it was test-only.
+
+| Trusted principal | `RequireMfa` | Caller | Result |
+| --- | --- | --- | --- |
+| The user | true | Long-term keys, no MFA | Refused |
+| The user | true | Keys plus an MFA code on `assume-role` | Accepted |
+| The user | true | Credentials from `get-session-token` with MFA | Accepted |
+| The user | true | Right MFA but wrong or missing `ExternalId` | Refused |
+| The user | true | A different user | Refused |
+| The user | false | Long-term keys, right `ExternalId` | Accepted |
+| The user | false | Long-term keys, no `ExternalId` | Refused |
+| A role | true | Role reached with `get-session-token` MFA credentials | Accepted |
+| A role | true | Role reached with `assume-role` plus an MFA code | Refused (reproduced three times) |
+| A role | true | Role reached without MFA | Refused |
+| A role | false | Role reached without MFA | Accepted |
+
+What follows from this:
+
+- **MFA carries through a role chain only in one case.** The MFA flag survives when the first hop used credentials from `get-session-token` with MFA. It does not survive when the MFA code was passed to `assume-role` itself. CloudTrail shows `mfaAuthenticated` true for the caller in the first case.
+- **Workloads cannot meet an MFA condition.** A role session that nobody authenticated with MFA is refused when `RequireMfa` is `"true"`. Deploy a separate stack with `RequireMfa` set to `"false"` for workload callers, and rely on the `ExternalId`, the narrow principal and the session limit.
+- **Service principals are not covered.** `TrustedPrincipalArn` accepts only user and role ARNs, so a service cannot be the trusted principal of this template. A role that a service runs as behaves like the role cases above.
+- **Not tested:** IAM Identity Center sessions, EC2 or Lambda roles as callers, and the SCP and RCP examples in `policies/`. The account is not in an organization, so those policies cannot be attached.
+
+The same run deployed the stack with each setting without error, including the log bucket that uses SSE-S3 and the bucket policy that lets the log service write to it. The data role could put and get an object, which S3 stored with SSE-KMS and the bucket key, and was refused when it tried to list the log bucket. Log files were not checked: S3 delivers them with a delay and the test was shorter than that.
+
+### Detection and prevention test
+
+Run on 2026-10-14 in the same sandbox account. I deployed the task's original template as its own stack, gave the user an access key, and ran the detection commands from section 3 on it. I also ran the prevention checks against the hardened stack.
+
+| Check | Result |
+| --- | --- |
+| `scripts/find_risky_iam_users.py` on the real credential report and authorization details | Reported `UnrestrictedUser` as critical (inline policy `FullAccess` allows `Action *` on `Resource *`) and medium (key with no recorded use, which is the credential report lag described in section 3, step 1). Exit code 1. The other two test users, which have no wildcard policy, were not reported. |
+| Original bucket, as created | All four public access block settings on, SSE-S3, no versioning. S3 applied the block settings by default. |
+| TLS-only policy on the hardened data bucket | A `head-bucket` call over plain HTTP returned `403 Forbidden`. The same call over HTTPS worked. |
+| Public bucket policy on the hardened data bucket | Refused with `AccessDenied`. |
+| Public-read ACL on the hardened data bucket | Refused with `AccessDenied`. |
+| Same two attempts on the original bucket | Policy refused with `AccessDenied`. ACL refused with "The bucket does not allow ACLs". S3's defaults did the blocking, not the template. |
+| Account-level S3 Block Public Access | Turned on and the policy attempt repeated. It failed the same way as before, so the test cannot show what the account-level setting adds on top of the defaults. |
+| Permission boundary | A role with `AdministratorAccess` attached and a boundary that allows only `s3:ListAllMyBuckets` was refused `iam:ListUsers` and could list buckets. The same role without a boundary could list users. |
+| Requiring a boundary on role creation | An identity policy that allows `iam:CreateRole` only with the boundary in `iam:PermissionsBoundary`. Creating a role without the boundary was refused. Creating it with the boundary worked. |
+| `validate-policy` on `policies/rcp-s3-tls-only.json` | No findings. |
+| `validate-policy` on `policies/scp-deny-iam-users-and-admin.json` | The first version failed with `INVALID_ACTION`: `s3:DeleteBucketPublicAccessBlock` is not an AWS action. I removed it. The corrected file has no findings. |
+
+Not tested: attaching the SCP or RCP (the account is not in an organization), CloudFormation Hooks, Security Hub, and the remediation sequence in section 3.
+
 Verified only by static analysis or not run:
 
-- The CI workflow (`cloud-check` and `cloud-check-image` jobs) has not run on GitHub. I replayed its steps by hand: the tool installer and the Python-based checks in a clean Ubuntu amd64 container, and the image build, health run and both `trivy image` steps on the local machine. The hadolint and trivy binaries crashed under amd64 emulation in that container, so they were not exercised there.
-- The CloudFormation template was never deployed. No AWS account or credentials were used.
-- The AWS CLI detection commands were not executed against an account. Only `--generate-cli-skeleton` and `help` ran, to confirm the commands and parameters exist in CLI 2.37.13.
+- The `cloud-check` and `cloud-check-image` CI jobs ran on GitHub and passed. The repository's gitleaks job failed on that run because of a download-checksum bug in the shared scaffold, which is fixed in another branch.
+- The template was deployed only in a sandbox account for the trust policy test. It has not been deployed in an organization with SCPs or in any production-like setup.
+- Security Hub and Prowler (detection steps 7 and 9) were not run.
 - Prowler, `cfn-guard` and Conftest are not installed here and were not run.
 - The Kubernetes `securityContext` was not applied to a cluster.
 - The image was built and run locally and was not pushed anywhere.

@@ -15,9 +15,9 @@ The controls below follow the life of a change: development, pull request, deplo
 | Phase | Implemented here | Described only |
 | --- | --- | --- |
 | Development | Pre-commit config, `.dockerignore`, `.gitignore` | Editor and IDE plugins |
-| Pull request | `make cloud-check-lint`, `cloud-check-scan` and `cloud-check-test` (`tests/assert-originals-fail.sh`), run by the `cloud-check` and `cloud-check-image` jobs in `.github/workflows/ci.yml`. Signed commits. The workflow has not run on GitHub yet. | Conftest or `cfn-guard`, CODEOWNERS, branch protection and required status checks |
-| Deployment | Two example policy files in `policies/`. Both are valid JSON. Neither was tested in an AWS account. | Everything else in this phase |
-| Runtime | `scripts/find_risky_iam_users.py` with unit tests on invented data. Hardened image run with the recommended flags (see README). | Config rules, GuardDuty, CloudTrail alerts, Falco or EDR |
+| Pull request | `make cloud-check-lint`, `cloud-check-scan` and `cloud-check-test` (`tests/assert-originals-fail.sh`), run by the `cloud-check` and `cloud-check-image` jobs in `.github/workflows/ci.yml`. Signed commits. Both jobs passed on their first GitHub run. The repository's gitleaks job failed on that run, because of a scaffold bug fixed in another branch. | Conftest or `cfn-guard`, CODEOWNERS, branch protection and required status checks |
+| Deployment | Two example policy files in `policies/`. Access Analyzer `validate-policy` accepts both (it rejected an invalid action in the first SCP, now fixed). Neither was attached, because the sandbox account is not in an organization. | Everything else in this phase. A permission boundary and a TLS-only bucket policy were tested in the sandbox, as described in the Part 2 README. |
+| Runtime | `scripts/find_risky_iam_users.py`, with unit tests and a run on real exports from a sandbox account. Hardened image run with the recommended flags (see README). AWS Config rules and CloudTrail lookups run once in the sandbox. | Config rules as a standing control, GuardDuty, CloudTrail alerts, Falco or EDR |
 
 ## Which phase stops which problem
 
@@ -102,7 +102,7 @@ These controls live in the cloud. They apply to every caller, including a person
 | Admission control in the cluster: Kyverno, OPA Gatekeeper or the Sigstore policy-controller. Pod Security Admission at the `restricted` level. | Unsigned images, root users, privileged pods, `latest` tags, pods without dropped capabilities or seccomp | Applies to Kubernetes only. |
 | Separate accounts or projects for dev, staging and production, with their own roles | A mistake in one environment does not reach another | Needs the account structure to exist first. |
 
-The two policy files in `policies/` are examples of the primitive. They parse as JSON. They were not attached to an organisation or validated by AWS here. Test any SCP on a single sandbox account before attaching it higher, because a wrong deny can lock out administrators.
+The two policy files in `policies/` are examples of the primitive. Access Analyzer `validate-policy` accepts both. They were not attached to an organisation. Test any SCP on a single sandbox account before attaching it higher, because a wrong deny can lock out administrators. Validate it first: that check found an action name that does not exist in the first version of the SCP.
 
 ## 4. Runtime (after deploy)
 
@@ -116,7 +116,7 @@ Run containers with a read-only root filesystem, all capabilities dropped, `no-n
 
 | Primitive | Purpose |
 | --- | --- |
-| AWS Config rules and conformance packs, with auto-remediation through SSM Automation | Drift from the baseline after deploy |
+| AWS Config rules and conformance packs, with auto-remediation through SSM Automation. For the IAM user in this task use `IAM_NO_INLINE_POLICY_CHECK` and `IAM_USER_NO_POLICIES_CHECK`: the admin-access rules cover customer-managed policies only. | Drift from the baseline after deploy |
 | Security Hub CSPM (AWS Foundational Security Best Practices, CIS) | Aggregated findings across accounts |
 | IAM Access Analyzer: external access and unused access findings on a schedule | Exposure, and stale users and permissions |
 | `scripts/find_risky_iam_users.py` on the credential report and account authorization details | Wildcard admin, admin attachments, console users without MFA, old and unused keys, ranked by severity. It reads exports offline. |
