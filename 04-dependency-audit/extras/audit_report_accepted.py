@@ -42,7 +42,6 @@ def load_accepted(path: str) -> list[dict]:
         raise ValueError('accepted file must be an object with an "accepted" list')
     problems: list[str] = []
     seen: set[tuple[str, str]] = set()
-    checked = []
     for number, entry in enumerate(entries, start=1):
         label = f"accepted[{number}]"
         if not isinstance(entry, dict):
@@ -71,10 +70,9 @@ def load_accepted(path: str) -> list[dict]:
         if key in seen:
             problems.append(f"{label}: {advisory} for {key[1]} is listed twice")
         seen.add(key)
-        checked.append(entry)
     if problems:
         raise ValueError("accepted file is not valid:\n  " + "\n  ".join(problems))
-    return checked
+    return entries
 
 
 def matches(entry: dict, row: dict) -> bool:

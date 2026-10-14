@@ -109,6 +109,13 @@ class MatchingTests(unittest.TestCase):
 
 
 class SplitTests(unittest.TestCase):
+    def test_no_entries_changes_nothing(self) -> None:
+        for name in ("audit-npm11.json", "audit-npm6.json"):
+            data = json.loads((FIXTURE / name).read_text(encoding="utf-8"))
+            before = ar.build_rows(data, {}, {})
+            with self.subTest(name=name):
+                self.assertEqual(acc.split_rows(before, [], TODAY)[0], before)
+
     def test_accepted_finding_is_removed(self) -> None:
         remaining, accepted, expired, unused = acc.split_rows(rows(), [entry()], TODAY)
         self.assertEqual(len(accepted), 1)

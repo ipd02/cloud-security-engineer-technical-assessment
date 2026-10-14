@@ -93,7 +93,7 @@ Some findings cannot be fixed: the package is abandoned, or the only fix is a ma
 ```
 
 - Required: `advisory` (a GHSA id), `package`, `reason`, `controls` (a list, at least one entry), `owner` and `expires` (a date). Optional: `version` and `accepted_on`.
-- An entry covers one advisory in one package. If `version` is given and the report knows the installed versions, the entry does not apply to another version.
+- An entry covers one advisory in one package. The advisory is matched by GHSA id, so an advisory in npm 6 output whose URL is not a GitHub advisory link has no id and cannot be accepted. If `version` is given and the report knows the installed versions, the entry does not apply to another version.
 - A file with a missing field, an unknown field, a bad date, an empty `controls` list or a duplicate entry is rejected with exit code 2. Every problem is listed.
 
 ### What the script does

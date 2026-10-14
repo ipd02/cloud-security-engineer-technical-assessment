@@ -15,7 +15,7 @@ Read [REPORT.md](REPORT.md) for the findings, the fix and the remediation plan. 
 | `vulnerable-input/package.json` | The task input, content as given (whitespace reconstructed). Its lockfile is generated. |
 | `fixed/package.json` | Proposed upgrades, with a lockfile. |
 | `audit_report.py` | Bonus script, standard library only. |
-| `extras/` | Checks beyond the task: second scanner comparison, EPSS, API probes. See [extras/README.md](extras/README.md). |
+| `extras/` | Checks beyond the task: second scanner comparison, EPSS, API probes, a script version that honours accepted risks. See [extras/README.md](extras/README.md). |
 | `tests/` | Unit tests for `audit_report.py`, with small fixtures. |
 | `reports/` | Raw scanner output, with dates and tool versions, plus generated JSON and CSV. |
 | `part.mk` | Make targets, picked up by the root `Makefile`. |
@@ -76,7 +76,7 @@ audit_report.py INPUT [--lockfile package-lock.json] [--trivy trivy.json]
 - The audit was repeated on 2026-10-14 in scratch copies. Same 24 packages and 46 advisories.
 - `audit_report.py` was checked with single-line changes to the code (mutation checks). Each one is caught by a test.
 
-Not verified: the behaviour of a real application after the upgrades (no application code is provided), and any live database. The scan results depend on the advisory databases at that date.
+Scope: the scans cover the dependency tree in `package.json`. The task provides no application code, so the report says which upgrades change which APIs and does not claim the application runs after them. Scan results depend on the advisory databases at the scan date.
 
 ## About the input file
 
