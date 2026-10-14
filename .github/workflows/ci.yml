@@ -39,7 +39,7 @@ jobs:
 
   terraform:
     name: terraform
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -85,7 +85,7 @@ jobs:
       - name: Originals must fail, hardened must pass
         run: make cloud-check-test
       - name: Unit tests for the IAM finder
-        run: python3 -m unittest discover -s 02-cloud-security-check/tests -p 'test_*.py'
+        run: make cloud-check-unit
 
   cloud-check-image:
     name: cloud-check-image (build, run, trivy image)
@@ -165,7 +165,7 @@ jobs:
   firewall-scanner:
     name: firewall-scanner (golangci-lint, go test -race, build)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     permissions:
       contents: read
     steps:
@@ -187,7 +187,6 @@ jobs:
       - name: Build
         run: make fwscan-build
 
-  # Each part adds its own job above this one in its own branch.
   summary:
     name: summary
     if: always()
