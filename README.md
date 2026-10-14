@@ -6,12 +6,11 @@ This repository is my answer to a cloud security engineer take-home assessment. 
 
 ## How the work was done
 
-- **Same method for every part.** State the principle, then show the concrete control that implements it: a resource, a flag, a policy or a command.
-- **Breadth before polish.** All four parts are complete, and the shared checks, CI and documentation cover the whole repository.
-- **Inputs kept, fixes proven.** The task's own CloudFormation template, Dockerfile and `package.json` are kept unchanged. A test asserts that the scanners reject them and accept the hardened versions, so a scanner that stops catching a known problem fails the build.
-- **Checks that need no credentials.** `make lint test scan` runs formatting, linting, unit tests, policy checks and vulnerability scans with mocked providers and fake cloud clients. The same checks run in CI, whose actions are pinned to commit SHAs and whose tools are pinned to exact versions.
-- **Live tests by hand.** The Terraform modules, the AWS findings and the scanner were also run once against throwaway test environments, which were deleted afterwards. CI does not repeat those runs.
-- **Limits are stated.** Each README says what was verified, how, and what was not. Nothing here is claimed to be production-ready.
+- **Task inputs kept as given.** The CloudFormation template, the Dockerfile and `package.json` from the task are in the repository unchanged. A test checks that the scanners reject them and accept the hardened versions, so the fixes are shown and not only described.
+- **Checks that need no credentials.** `make lint test scan` and the CI workflow run the same checks: linting, unit tests with mocked providers and fake cloud clients, policy checks and vulnerability scans.
+- **Pinned pipeline.** CI actions are pinned to commit SHAs, tool versions are exact, and workflow permissions are read-only.
+- **Live checks by hand.** The Terraform modules, the AWS findings and the scanner were run once against throwaway test environments, which were deleted afterwards. CI does not repeat them.
+- **Stated limits.** Each README says what was verified, how, and what was not.
 
 ## Parts
 
