@@ -1,13 +1,11 @@
-# Base image pinned by digest. Tag kept for readability, the digest wins.
-# Resolved with: docker pull python:3.13-slim-trixie
+# The base image is pinned by digest. The tag is there for readability.
 FROM python:3.13-slim-trixie@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
 
-# The service uses only the standard library, so no packages are installed
-# and no build stage is needed. pip, setuptools and wheel are removed because
-# nothing in the running container needs a package installer. This also drops
-# their vendored libraries from the image.
-# Numeric non-root user with no login shell and no home directory.
-RUN python -m pip uninstall --yes pip setuptools wheel \
+# The service uses only the standard library, so no packages are installed.
+# pip is removed because nothing in the running container needs it, and the
+# libraries bundled inside it carry known vulnerabilities.
+# The user is numeric, has no login shell and no home directory.
+RUN python -m pip uninstall --yes pip \
  && groupadd --gid 10001 app \
  && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin app
 
