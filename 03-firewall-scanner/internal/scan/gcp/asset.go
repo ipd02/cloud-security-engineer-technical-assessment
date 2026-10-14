@@ -210,10 +210,15 @@ func projectFromName(name string) string {
 	return id
 }
 
-// projectID reads the project id of a project asset.
+// projectID reads the project id of a project asset: the projectId attribute,
+// else the last part of //cloudresourcemanager.googleapis.com/projects/ID. The
+// display name is the project's friendly name, not its id.
 func projectID(a Asset) string {
 	if v := a.Attributes.GetFields()["projectId"].GetStringValue(); v != "" {
 		return v
 	}
-	return a.DisplayName
+	if _, id, ok := strings.Cut(a.Name, "/projects/"); ok && !strings.Contains(id, "/") {
+		return id
+	}
+	return ""
 }

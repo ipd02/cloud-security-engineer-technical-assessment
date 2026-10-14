@@ -149,10 +149,10 @@ func TestScopeScan(t *testing.T) {
 		},
 		assetFolder: {{Name: "//cloudresourcemanager.googleapis.com/folders/222"}, {Name: "//cloudresourcemanager.googleapis.com/folders/111"}},
 		assetProject: {
-			{DisplayName: "proj-a"},
+			{Name: "//cloudresourcemanager.googleapis.com/projects/proj-a", DisplayName: "My First Project"},
 			{Attributes: mustStruct(t, map[string]any{"projectId": "proj-b"})},
-			{DisplayName: "proj-off"},
-			{},
+			{Attributes: mustStruct(t, map[string]any{"projectId": "proj-off"}), DisplayName: "Off"},
+			{DisplayName: "Only a friendly name"},
 		},
 	}}
 	open := []string{"0.0.0.0/0"}
@@ -377,5 +377,16 @@ func TestBriefDropsErrorDetails(t *testing.T) {
 	plain := errors.New("plain")
 	if brief(plain) != plain {
 		t.Fatal("an error without details must be returned unchanged")
+	}
+}
+
+func TestHierarchicalPolicyUsesDisplayName(t *testing.T) {
+	open := []string{"0.0.0.0/0"}
+	p := policy("475051228768", []string{"organizations/1"}, policyRule(1, "allow", "INGRESS", open, l4("all")))
+	p.DisplayName = proto.String("org-policy")
+	s := &Scanner{}
+	r, ok := s.policyRule(p, "", model.TypeHierarchicalPolicy)
+	if !ok || r.Name != "org-policy" || r.Network != "1" {
+		t.Fatalf("rule: %+v ok=%v", r, ok)
 	}
 }

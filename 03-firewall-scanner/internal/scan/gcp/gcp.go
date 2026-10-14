@@ -306,8 +306,12 @@ func (s *Scanner) policyRule(p *computepb.FirewallPolicy, project, typ string) (
 		targets = append(targets, lastSegment(a.GetAttachmentTarget()))
 	}
 	sort.Strings(targets)
+	name := p.GetDisplayName() // hierarchical policies have a numeric name
+	if name == "" {
+		name = p.GetName()
+	}
 	return model.FirewallRule{
-		Name:          p.GetName(),
+		Name:          name,
 		Network:       strings.Join(targets, ","),
 		Project:       project,
 		Type:          typ,
