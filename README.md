@@ -4,14 +4,6 @@
 
 This repository is my answer to a cloud security engineer take-home assessment. The task has four parts: secure infrastructure as code on GCP, a security review of a CloudFormation template and a Dockerfile, a Go tool that finds firewall rules open to the internet, and an audit of vulnerable Node.js dependencies. Each part has its own folder and README with the answers, the limits and how it was checked.
 
-## How the work was done
-
-- **Task inputs kept as given.** The CloudFormation template, the Dockerfile and `package.json` from the task are in the repository unchanged. A test checks that the scanners reject them and accept the hardened versions, so the fixes are shown and not only described.
-- **Checks that need no credentials.** `make lint test scan` and the CI workflow run the same checks: linting, unit tests with mocked providers and fake cloud clients, policy checks and vulnerability scans.
-- **Pinned pipeline.** CI actions are pinned to commit SHAs, tool versions are exact, and workflow permissions are read-only.
-- **Live checks by hand.** The Terraform modules, the AWS findings and the scanner were run once against throwaway test environments, which were deleted afterwards. CI does not repeat them.
-- **Stated limits.** Each README says what was verified, how, and what was not.
-
 ## Parts
 
 | Part | What | Where | Run (from the repository root) |
