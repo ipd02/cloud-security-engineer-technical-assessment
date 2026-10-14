@@ -58,8 +58,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install checkov
-        run: pip install checkov==3.3.20
+        run: pip install --require-hashes -r ci/scanners.txt
       - name: Init plugins
+        # The token only raises the GitHub API rate limit for the plugin download.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: tflint --init
       - name: Lint, test and scan
         run: make tf-lint tf-test tf-scan
@@ -133,7 +136,6 @@ jobs:
     permissions:
       contents: read
     env:
-      RUFF_VERSION: 0.17.0
       TRIVY_VERSION: 0.75.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,7 +144,7 @@ jobs:
       - name: Install ruff
         run: |
           python3 -m venv "${RUNNER_TEMP}/venv"
-          "${RUNNER_TEMP}/venv/bin/pip" install --quiet "ruff==${RUFF_VERSION}"
+          "${RUNNER_TEMP}/venv/bin/pip" install --quiet --require-hashes -r ci/ruff.txt
           echo "${RUNNER_TEMP}/venv/bin" >> "${GITHUB_PATH}"
       - name: Install trivy
         run: |
