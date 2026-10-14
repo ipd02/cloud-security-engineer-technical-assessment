@@ -28,19 +28,47 @@ jobs:
       - name: Install gitleaks
         run: |
           base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
-          curl -sSfL "${base}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o gitleaks.tgz
+          tgz="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL "${base}/${tgz}" -o "${tgz}"
           curl -sSfL "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" -o checksums.txt
-          sha256sum --ignore-missing -c checksums.txt
-          tar -xzf gitleaks.tgz gitleaks
+          grep " ${tgz}\$" checksums.txt | sha256sum -c -
+          tar -xzf "${tgz}" gitleaks
           ./gitleaks version
       - name: Scan history
         run: ./gitleaks detect --config .gitleaks.toml --redact --verbose
+
+  terraform:
+    name: terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.5
+          terraform_wrapper: false
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+        with:
+          tflint_version: v0.64.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install checkov
+        run: pip install checkov==3.3.20
+      - name: Init plugins
+        run: tflint --init
+      - name: Lint, test and scan
+        run: make tf-lint tf-test tf-scan
 
   # Each part adds its own job above this one in its own branch.
   summary:
     name: summary
     if: always()
-    needs: [secrets]
+    needs: [secrets, terraform]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}

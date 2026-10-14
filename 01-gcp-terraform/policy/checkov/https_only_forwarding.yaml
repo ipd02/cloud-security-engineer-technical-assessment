@@ -1,0 +1,11 @@
+metadata:
+  id: "CKV2_CUSTOM_GCP_2"
+  name: "Ensure every global forwarding rule listens on tcp/443 only"
+  category: "NETWORKING"
+definition:
+  cond_type: "attribute"
+  resource_types:
+    - "google_compute_global_forwarding_rule"
+  attribute: "port_range"
+  operator: "equals"
+  value: "443"
