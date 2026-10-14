@@ -97,6 +97,8 @@ Each item names the primitive. The commands are AWS CLI v2 commands. The status 
 
 For this specific template the fastest check is step 2 and step 8 together: list who holds an all-actions policy, then see what that principal actually called.
 
+`scripts/find_risky_iam_users.py` reads the exports from steps 1 and 2 offline and ranks users. It also reports root account keys and a root account without MFA, and it exits with code 2 and a one-line message when an input file is missing or malformed. Its limits are listed in its docstring: it checks users and the root account only, treats only the exact action `*` as admin, and does not evaluate conditions or `Deny` statements.
+
 ### Fixing it safely
 
 1. **Inventory.** Use steps 1, 3 and 8 to learn which keys exist, which services and actions the user used, and which systems hold its credentials.
