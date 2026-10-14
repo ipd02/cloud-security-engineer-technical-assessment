@@ -1,0 +1,55 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyIamUsersAndAccessKeys",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateUser",
+        "iam:CreateAccessKey",
+        "iam:CreateLoginProfile",
+        "iam:PutUserPolicy",
+        "iam:AttachUserPolicy"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalArn": "arn:aws:iam::*:role/break-glass-admin"
+        }
+      }
+    },
+    {
+      "Sid": "DenyAttachingAdministratorAccess",
+      "Effect": "Deny",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:AttachGroupPolicy",
+        "iam:AttachUserPolicy"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": "arn:aws:iam::aws:policy/AdministratorAccess"
+        },
+        "ArnNotLike": {
+          "aws:PrincipalArn": "arn:aws:iam::*:role/break-glass-admin"
+        }
+      }
+    },
+    {
+      "Sid": "DenyWeakeningS3PublicAccessBlock",
+      "Effect": "Deny",
+      "Action": [
+        "s3:PutAccountPublicAccessBlock",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:DeleteBucketPublicAccessBlock"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalArn": "arn:aws:iam::*:role/break-glass-admin"
+        }
+      }
+    }
+  ]
+}
