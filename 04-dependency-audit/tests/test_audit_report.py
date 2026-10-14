@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import collections
 import contextlib
 import csv
 import io
@@ -316,6 +317,72 @@ class V6FormatTests(unittest.TestCase):
             self.assertEqual(code, 1)
             with open(Path(tmp) / "o.csv", encoding="utf-8", newline="") as handle:
                 self.assertEqual(len(list(csv.DictReader(handle))), 6)
+
+
+class GeneratedFixtureTests(unittest.TestCase):
+    """Real `npm audit --json` output (npm 6 and 11) for a package.json written for this tool."""
+
+    DIR = FIXTURES / "custom-app"
+
+    def rows(self, name: str) -> list[dict]:
+        return ar.build_rows(json.loads((self.DIR / name).read_text(encoding="utf-8")), {}, {})
+
+    def test_npm6_rows(self) -> None:
+        rows = self.rows("audit-npm6.json")
+        self.assertEqual(len(rows), 21)
+        by_severity = collections.Counter(r["severity"] for r in rows)
+        self.assertEqual(by_severity, {"critical": 3, "high": 6, "moderate": 10, "low": 2})
+        by_package = collections.Counter(r["package"] for r in rows)
+        self.assertEqual(by_package["lodash"], 9)
+        self.assertEqual(len(by_package), 9)
+        self.assertEqual([r["package"] for r in rows], sorted(r["package"] for r in rows))
+
+    def test_npm6_fields(self) -> None:
+        rows = self.rows("audit-npm6.json")
+        self.assertTrue(all(r["advisory_id"].startswith("GHSA-") for r in rows))
+        self.assertTrue(all(r["cve"].startswith("CVE-") for r in rows))
+        self.assertTrue(all(r["direct"] == "" for r in rows))
+        lodash = [r for r in rows if r["package"] == "lodash"]
+        self.assertTrue(all(r["installed_versions"] == ["4.17.10"] for r in lodash))
+
+    def test_npm6_unpatched_advisory_has_no_fix(self) -> None:
+        rows = self.rows("audit-npm6.json")
+        no_fix = [r["package"] for r in rows if not r["fix_available"]]
+        self.assertEqual(no_fix, ["request"])
+        self.assertEqual(ar.summarise(rows)["packages_without_fix"], 1)
+
+    def test_npm11_rows(self) -> None:
+        rows = self.rows("audit-npm11.json")
+        advisories = [r for r in rows if r["kind"] == "advisory"]
+        self.assertEqual(len(advisories), 21)
+        by_severity = collections.Counter(r["severity"] for r in advisories)
+        self.assertEqual(by_severity, {"critical": 3, "high": 6, "moderate": 10, "low": 2})
+        direct = sorted({r["package"] for r in rows if r["direct"]})
+        self.assertEqual(direct, ["lodash", "minimist", "mocha", "node-fetch", "request"])
+
+    def test_npm11_fix_classes(self) -> None:
+        summary = ar.summarise(self.rows("audit-npm11.json"))
+        self.assertEqual(summary["packages_total"], 11)
+        self.assertEqual(summary["packages_fixable_without_major_bump"], 2)
+        self.assertEqual(summary["packages_fixable_with_major_bump"], 4)
+        self.assertEqual(summary["packages_without_fix"], 5)
+
+    def test_both_formats_report_the_same_advisories(self) -> None:
+        def advisories(name: str) -> set[tuple[str, str, str]]:
+            return {
+                (r["package"], r["severity"], r["advisory_id"])
+                for r in self.rows(name)
+                if r["kind"] == "advisory"
+            }
+
+        self.assertEqual(advisories("audit-npm6.json"), advisories("audit-npm11.json"))
+
+    def test_npm6_says_patched_where_npm11_says_unreachable(self) -> None:
+        """npm 6 sees a patched version. npm 11 also checks that the tree can reach it."""
+        v6 = {r["package"] for r in self.rows("audit-npm6.json") if r["fix_available"]}
+        v11_no_fix = {r["package"] for r in self.rows("audit-npm11.json") if not r["fix_available"]}
+        self.assertIn("qs", v6)
+        self.assertIn("qs", v11_no_fix)
 
 
 def one_advisory(source: int, severity: str = "high", **extra: object) -> dict:

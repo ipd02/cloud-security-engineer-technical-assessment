@@ -20,7 +20,7 @@ Read [REPORT.md](REPORT.md) for the findings, the fix and the remediation plan. 
 | `reports/` | Raw scanner output, with dates and tool versions, plus generated JSON and CSV. |
 | `part.mk` | Make targets, picked up by the root `Makefile`. |
 
-GitHub dependency alerts on `vulnerable-input/` are expected. The folder is the test input and is left out of `dependabot.yml`, which stops version update PRs. If Dependabot security updates are switched on for the repository, GitHub can still open security PRs for it. Keep them off, or dismiss the alerts.
+GitHub dependency alerts on `vulnerable-input/` and `tests/fixtures/custom-app/` are expected. The folder is the test input and is left out of `dependabot.yml`, which stops version update PRs. If Dependabot security updates are switched on for the repository, GitHub can still open security PRs for it. Keep them off, or dismiss the alerts.
 
 ## Run it
 
@@ -60,7 +60,8 @@ audit_report.py INPUT [--lockfile package-lock.json] [--trivy trivy.json]
 - CSV cells that start with `=`, `+`, `-`, `@`, tab or carriage return get a leading `'` so spreadsheets do not read them as formulas. The JSON is not changed. The JSON has a `meta` block with the tool, time, input name and EPSS source and date.
 - Prints counts by severity (packages and advisories) and how many packages are fixable with and without a major bump.
 - Missing fields, empty results, `null` sections and `fixAvailable` as bool or object are handled, as are an empty file, non-UTF-8 input, wrong-shaped entries and an unwritable output path. Tests cover each case.
-- The npm 6 fallback is tested with fixtures written for this tool (`tests/fixtures/audit_v6*.json`), not with real npm 6 output. Rows are sorted by package, then advisory id. A package counts as fixable only if all its advisories have a fix.
+- The npm 6 reader is tested with real `npm audit --json` output from npm 6.14.18 and npm 11.19.1 for a `package.json` written for this tool (`tests/fixtures/custom-app/`). Both outputs list the same 21 advisories, and the tests check that our parser gives the same package, severity and advisory id for each. Hand-written files (`tests/fixtures/audit_v6*.json`) cover malformed shapes. Rows are sorted by package, then advisory id. A package counts as fixable only if all its advisories have a fix.
+- In the npm 6 format a fix means the advisory has a patched version. npm 7 and later also check that the dependency tree can reach it, so the same input gives more packages without a fix. In `custom-app`, npm 6 shows 1 package without a fix and npm 11 shows 5.
 
 ## What was verified
 
