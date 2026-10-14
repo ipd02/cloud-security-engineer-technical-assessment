@@ -14,7 +14,7 @@ Review of the task's CloudFormation template and Dockerfile. The originals are k
 | `tests/assert-originals-fail.sh` | Proves the scanners reject the originals and accept the hardened files |
 | `PREVENTION.md` | How to stop these mistakes from being introduced, by phase |
 | `policies/` | Example AWS SCP and RCP (valid JSON, not tested in an account) |
-| `scripts/find_risky_iam_users.py` | Offline finder for risky IAM users from the credential report and authorization details, with tests in `tests/` |
+| `scripts/find_risky_iam_users.py` | Offline finder for risky IAM users, roles and the root account, from the credential report and authorization details, with tests in `tests/` |
 | `part.mk` | Make targets for this part |
 
 ## How to run
@@ -86,7 +86,7 @@ Each item names the primitive. The commands are AWS CLI v2 commands. The status 
 | Step | Primitive | Command | Status |
 | --- | --- | --- | --- |
 | 1 | IAM credential report: users, key age, last use | `aws iam generate-credential-report` then `aws iam get-credential-report --query Content --output text \| base64 -d` | Run in a sandbox account. The report listed the original user with `mfa_active` false and an active key with no last use recorded. The key had been used a few minutes earlier, so the last-use columns lag. Do not read "never used" from a report generated just after the key was used. |
-| 2 | Who has an all-actions policy | `aws iam get-account-authorization-details --filter User Group LocalManagedPolicy --output json > authz.json`, then `jq -r '.UserDetailList[] \| select(.UserPolicyList[]?.PolicyDocument.Statement \| (if type=="array" then . else [.] end)[] \| select(.Action=="*" and .Resource=="*")) \| .UserName' authz.json` | Run in a sandbox account. The filter printed `UnrestrictedUser` and nothing else. It sees inline user policies only. `scripts/find_risky_iam_users.py` also covers group and managed policies. |
+| 2 | Who has an all-actions policy | `aws iam get-account-authorization-details --filter User Group LocalManagedPolicy --output json > authz.json`, then `jq -r '.UserDetailList[] \| select(.UserPolicyList[]?.PolicyDocument.Statement \| (if type=="array" then . else [.] end)[] \| select(.Action=="*" and .Resource=="*")) \| .UserName' authz.json` | Run in a sandbox account. The filter printed `UnrestrictedUser` and nothing else. It sees inline user policies only. `scripts/find_risky_iam_users.py` also covers roles, group policies and attached managed policies. |
 | 3 | Access Advisor: which services the user really used | `aws iam generate-service-last-accessed-details --arn <user-arn> --granularity ACTION_LEVEL` then `aws iam get-service-last-accessed-details --job-id <id>` | Run in a sandbox account. The job completed and listed 200 services with no last-access time for the original user, although the user had called S3 and STS a few minutes earlier, so this data lags too. The job takes a few seconds, so poll `JobStatus` before reading it. |
 | 4 | IAM Access Analyzer unused access: finds unused users, roles, keys and permissions | `aws accessanalyzer create-analyzer --analyzer-name unused --type ACCOUNT_UNUSED_ACCESS --configuration '{"unusedAccess":{"unusedAccessAge":90}}'` then `aws accessanalyzer list-findings-v2 --analyzer-arn <arn>` | Analyzer created and queried in a sandbox account with an age of 1 day. It returned no findings, because the test identities were minutes old. The finding itself is not demonstrated. |
 | 5 | Access Analyzer policy validation, run on the policy before deploy | `aws accessanalyzer validate-policy --policy-type IDENTITY_POLICY --policy-document file://policy.json` | Run in a sandbox account. On the original policy it returned three findings: WARNING `MISSING_VERSION`, WARNING `CREATE_SLR_WITH_STAR_IN_ACTION_AND_RESOURCE` and SECURITY_WARNING `PASS_ROLE_WITH_STAR_IN_ACTION_AND_RESOURCE`. None is an ERROR, so a pipeline must fail on warnings to stop it. The hardened policy returned no findings. |
@@ -97,7 +97,17 @@ Each item names the primitive. The commands are AWS CLI v2 commands. The status 
 
 For this specific template the fastest check is step 2 and step 8 together: list who holds an all-actions policy, then see what that principal actually called.
 
-`scripts/find_risky_iam_users.py` reads the exports from steps 1 and 2 offline and ranks users. It also reports root account keys and a root account without MFA, and it exits with code 2 and a one-line message when an input file is missing or malformed. Its limits are listed in its docstring: it checks users and the root account only, treats only the exact action `*` as admin, and does not evaluate conditions or `Deny` statements.
+`scripts/find_risky_iam_users.py` reads the exports from steps 1 and 2 offline and ranks users, roles and the root account. Add `Role` to the `--filter` list of step 2 so that roles are in the export. It reports an all-actions wildcard or `AdministratorAccess` as critical, `iam:*` or `IAMFullAccess` as high, other `service:*` wildcards on all resources as medium, console users without MFA, old and unused keys, and root account keys or a root account without MFA. It exits with code 2 and a one-line message when an input file is missing or malformed. The role and wildcard rules are covered by unit tests only. I ran an earlier version of the script, without them, on a real account (see "Detection and prevention test").
+
+### What these checks cannot see
+
+The jq filter, the finder and the Config rules read policies as written. They do not work out what a principal can really do. Three things change that answer:
+
+- **Conditions and `Deny` statements.** A wildcard allow that a `Deny` cancels is still reported.
+- **Permission boundaries.** A boundary caps what the identity policies grant. The authorization export lists each user's and role's boundary, and the finder does not read it. The sandbox test showed the effect: a role with `AdministratorAccess` could not list IAM users once a boundary was set.
+- **Service control policies.** An SCP caps every principal in an account and lives in AWS Organizations, so it is not in the IAM exports at all. The sandbox account was not in an organization, so no SCP was tested.
+
+To get the effective permissions of one principal, use the IAM policy simulator (`aws iam simulate-principal-policy`) or IAM Access Analyzer. I ran the `validate-policy` command and created an unused-access analyzer in the sandbox (steps 4 and 5). I did not run the policy simulator or Access Analyzer custom policy checks, so what they report for these templates is not shown here. Treat a finder result as a list of leads to confirm with one of them.
 
 ### Fixing it safely
 
@@ -236,7 +246,7 @@ Run on 2026-10-14 in the same sandbox account. I deployed the task's original te
 
 | Check | Result |
 | --- | --- |
-| `scripts/find_risky_iam_users.py` on the real credential report and authorization details | Reported `UnrestrictedUser` as critical (inline policy `FullAccess` allows `Action *` on `Resource *`) and medium (key with no recorded use, which is the credential report lag described in section 3, step 1). Exit code 1. The other two test users, which have no wildcard policy, were not reported. |
+| `scripts/find_risky_iam_users.py` (first version, users only) on the real credential report and authorization details | Reported `UnrestrictedUser` as critical (inline policy `FullAccess` allows `Action *` on `Resource *`) and medium (key with no recorded use, which is the credential report lag described in section 3, step 1). Exit code 1. The other two test users, which have no wildcard policy, were not reported. |
 | Original bucket, as created | All four public access block settings on, SSE-S3, no versioning. S3 applied the block settings by default. |
 | TLS-only policy on the hardened data bucket | A `head-bucket` call over plain HTTP returned `403 Forbidden`. The same call over HTTPS worked. |
 | Public bucket policy on the hardened data bucket | Refused with `AccessDenied`. |

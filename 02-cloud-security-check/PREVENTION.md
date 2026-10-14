@@ -17,7 +17,7 @@ The controls below follow the life of a change: development, pull request, deplo
 | Development | Pre-commit config, `.dockerignore`, `.gitignore` | Editor and IDE plugins |
 | Pull request | `make cloud-check-lint`, `cloud-check-scan` and `cloud-check-test` (`tests/assert-originals-fail.sh`), run by the `cloud-check` and `cloud-check-image` jobs in `.github/workflows/ci.yml`. Signed commits. Both jobs passed on their first GitHub run. The repository's gitleaks job failed on that run, because of a scaffold bug fixed in another branch. | Conftest or `cfn-guard`, CODEOWNERS, branch protection and required status checks |
 | Deployment | Two example policy files in `policies/`. Access Analyzer `validate-policy` accepts both (it rejected an invalid action in the first SCP, now fixed). Neither was attached, because the sandbox account is not in an organization. | Everything else in this phase. A permission boundary and a TLS-only bucket policy were tested in the sandbox, as described in the Part 2 README. |
-| Runtime | `scripts/find_risky_iam_users.py`, with unit tests and a run on real exports from a sandbox account. Hardened image run with the recommended flags (see README). AWS Config rules and CloudTrail lookups run once in the sandbox. | Config rules as a standing control, GuardDuty, CloudTrail alerts, Falco or EDR |
+| Runtime | `scripts/find_risky_iam_users.py`, with unit tests and a run of its first version on real exports from a sandbox account. Hardened image run with the recommended flags (see README). AWS Config rules and CloudTrail lookups run once in the sandbox. | Config rules as a standing control, GuardDuty, CloudTrail alerts, Falco or EDR |
 
 ## Which phase stops which problem
 
@@ -119,7 +119,7 @@ Run containers with a read-only root filesystem, all capabilities dropped, `no-n
 | AWS Config rules and conformance packs, with auto-remediation through SSM Automation. For the IAM user in this task use `IAM_NO_INLINE_POLICY_CHECK` and `IAM_USER_NO_POLICIES_CHECK`: the admin-access rules cover customer-managed policies only. | Drift from the baseline after deploy |
 | Security Hub CSPM (AWS Foundational Security Best Practices, CIS) | Aggregated findings across accounts |
 | IAM Access Analyzer: external access and unused access findings on a schedule | Exposure, and stale users and permissions |
-| `scripts/find_risky_iam_users.py` on the credential report and account authorization details | Wildcard admin, admin attachments, console users without MFA, old and unused keys, ranked by severity. It reads exports offline. |
+| `scripts/find_risky_iam_users.py` on the credential report and account authorization details | Wildcard admin, admin attachments, console users without MFA, old and unused keys, root account keys, for users and roles, ranked by severity. It reads exports offline and does not evaluate conditions, `Deny` statements, permission boundaries or SCPs. |
 | Scheduled image rescans (`trivy image`) and rebuilds on a new base digest | New CVEs in images that are already deployed |
 
 ### Detection and response
