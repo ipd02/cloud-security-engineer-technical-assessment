@@ -1,0 +1,14 @@
+Resources:
+  MyBucket:
+    Type: AWS::S3::Bucket
+  MyIAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: "UnrestrictedUser"
+      Policies:
+        - PolicyName: "FullAccess"
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: "*"
+                Resource: "*"

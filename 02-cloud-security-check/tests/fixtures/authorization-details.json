@@ -1,0 +1,213 @@
+{
+  "UserDetailList": [
+    {
+      "UserName": "UnrestrictedUser",
+      "GroupList": [],
+      "AttachedManagedPolicies": [],
+      "UserPolicyList": [
+        {
+          "PolicyName": "FullAccess",
+          "PolicyDocument": {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": "*",
+                "Resource": "*"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "UserName": "group-admin-user",
+      "GroupList": [
+        "admins"
+      ],
+      "AttachedManagedPolicies": [],
+      "UserPolicyList": []
+    },
+    {
+      "UserName": "no-mfa-user",
+      "GroupList": [],
+      "UserPolicyList": [],
+      "AttachedManagedPolicies": [
+        {
+          "PolicyName": "ReadOnlyBucket",
+          "PolicyArn": "arn:aws:iam::111111111111:policy/ReadOnlyBucket"
+        }
+      ]
+    },
+    {
+      "UserName": "healthy-user",
+      "GroupList": [],
+      "AttachedManagedPolicies": [],
+      "UserPolicyList": []
+    }
+  ],
+  "GroupDetailList": [
+    {
+      "GroupName": "admins",
+      "GroupPolicyList": [],
+      "AttachedManagedPolicies": [
+        {
+          "PolicyName": "AdministratorAccess",
+          "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"
+        }
+      ]
+    }
+  ],
+  "Policies": [
+    {
+      "Arn": "arn:aws:iam::111111111111:policy/ReadOnlyBucket",
+      "PolicyVersionList": [
+        {
+          "IsDefaultVersion": true,
+          "Document": {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:GetObject"
+                ],
+                "Resource": "arn:aws:s3:::example-bucket/*"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "Arn": "arn:aws:iam::111111111111:policy/AdministratorAccess",
+      "PolicyVersionList": [
+        {
+          "IsDefaultVersion": true,
+          "Document": {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::example-bucket/*"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "RoleDetailList": [
+    {
+      "RoleName": "ci-deployer",
+      "Path": "/",
+      "AttachedManagedPolicies": [],
+      "RolePolicyList": [
+        {
+          "PolicyName": "all",
+          "PolicyDocument": {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": "*",
+                "Resource": "*"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "RoleName": "ops-admin",
+      "Path": "/",
+      "RolePolicyList": [],
+      "AttachedManagedPolicies": [
+        {
+          "PolicyName": "AdministratorAccess",
+          "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"
+        }
+      ]
+    },
+    {
+      "RoleName": "iam-manager",
+      "Path": "/",
+      "AttachedManagedPolicies": [],
+      "RolePolicyList": [
+        {
+          "PolicyName": "mixed",
+          "PolicyDocument": {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": "IAM:*",
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "ec2:*"
+                ],
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": "s3:*",
+                "Resource": "arn:aws:s3:::example-bucket/*"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "RoleName": "iam-full",
+      "Path": "/",
+      "RolePolicyList": [],
+      "AttachedManagedPolicies": [
+        {
+          "PolicyName": "IAMFullAccess",
+          "PolicyArn": "arn:aws:iam::aws:policy/IAMFullAccess"
+        }
+      ]
+    },
+    {
+      "RoleName": "AWSServiceRoleForExample",
+      "Path": "/aws-service-role/example.amazonaws.com/",
+      "RolePolicyList": [],
+      "AttachedManagedPolicies": [
+        {
+          "PolicyName": "AdministratorAccess",
+          "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"
+        }
+      ]
+    },
+    {
+      "RoleName": "lookalike",
+      "Path": "/",
+      "RolePolicyList": [],
+      "AttachedManagedPolicies": [
+        {
+          "PolicyName": "AdministratorAccess",
+          "PolicyArn": "arn:aws:iam::111111111111:policy/AdministratorAccess"
+        }
+      ]
+    },
+    {
+      "RoleName": "read-only",
+      "Path": "/",
+      "AttachedManagedPolicies": [],
+      "RolePolicyList": [
+        {
+          "PolicyName": "read",
+          "PolicyDocument": {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::example-bucket/*"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

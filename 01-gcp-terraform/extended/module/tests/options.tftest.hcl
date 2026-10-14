@@ -1,0 +1,93 @@
+mock_provider "google" {}
+
+variables {
+  project_id        = "test-project-123"
+  trusted_ssh_cidrs = ["203.0.113.0/24"]
+  domains           = ["www.example.com"]
+}
+
+run "iap_ssh_is_opt_in" {
+  command = plan
+
+  variables {
+    enable_iap_ssh = true
+  }
+
+  assert {
+    condition     = google_compute_firewall.allow_ssh_iap[0].source_ranges == toset(["35.235.240.0/20"])
+    error_message = "IAP rule must use the IAP range only."
+  }
+}
+
+run "existing_certificate_instead_of_domains" {
+  command = plan
+
+  variables {
+    domains                     = []
+    existing_ssl_certificate_id = "projects/test-project-123/global/sslCertificates/existing"
+  }
+
+  assert {
+    condition     = length(google_compute_managed_ssl_certificate.this) == 0
+    error_message = "No managed certificate when an existing one is supplied."
+  }
+}
+
+run "cmek_is_passed_to_boot_disk" {
+  command = plan
+
+  variables {
+    kms_key_self_link = "projects/test-project-123/locations/europe-west1/keyRings/r/cryptoKeys/k"
+  }
+
+  assert {
+    condition     = google_compute_instance.web.boot_disk[0].kms_key_self_link == "projects/test-project-123/locations/europe-west1/keyRings/r/cryptoKeys/k"
+    error_message = "CMEK key must reach the boot disk."
+  }
+}
+
+run "cloud_armor_has_owasp_and_rate_limit" {
+  command = plan
+
+  assert {
+    condition     = length([for r in google_compute_security_policy.edge.rule : r if r.action == "throttle"]) == 1
+    error_message = "Exactly one rate limit rule expected."
+  }
+}
+
+run "bastion_is_optional" {
+  command = apply
+
+  variables {
+    enable_bastion = false
+  }
+
+  assert {
+    condition     = length(google_compute_instance.bastion) == 0 && length(google_service_account.bastion) == 0 && length(google_compute_firewall.allow_ssh_trusted_bastion) == 0 && length(google_compute_firewall.allow_ssh_bastion_to_web) == 0 && length(google_compute_firewall.allow_egress_bastion_ssh) == 0
+    error_message = "enable_bastion = false must remove every bastion resource."
+  }
+
+  assert {
+    condition     = google_compute_firewall.allow_ssh_trusted.source_ranges == toset(["203.0.113.0/24"]) && length(google_compute_instance.web.network_interface[0].access_config) == 0
+    error_message = "The direct trusted-range rule and the private web instance remain."
+  }
+
+  assert {
+    condition     = google_compute_firewall.allow_egress_web.target_service_accounts == toset([google_service_account.web.email])
+    error_message = "Without a bastion, egress is allowed for the web instance only."
+  }
+}
+
+run "iap_login_is_bound_to_the_web_instance_only" {
+  command = apply
+
+  variables {
+    enable_iap_ssh    = true
+    ssh_login_members = ["user:alice@example.com"]
+  }
+
+  assert {
+    condition     = google_iap_tunnel_instance_iam_member.iap_web["user:alice@example.com"].role == "roles/iap.tunnelResourceAccessor" && google_iap_tunnel_instance_iam_member.iap_web["user:alice@example.com"].instance == google_compute_instance.web.name
+    error_message = "IAP tunnel access is bound to the web instance."
+  }
+}

@@ -28,14 +28,103 @@ jobs:
       - name: Install gitleaks
         run: |
           base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
-          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -sSfL "${base}/${archive}" -o "${archive}"
+          tgz="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL "${base}/${tgz}" -o "${tgz}"
           curl -sSfL "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" -o checksums.txt
-          grep " ${archive}\$" checksums.txt | sha256sum -c -
-          tar -xzf "${archive}" gitleaks
+          grep " ${tgz}\$" checksums.txt | sha256sum -c -
+          tar -xzf "${tgz}" gitleaks
           ./gitleaks version
       - name: Scan history
         run: ./gitleaks detect --config .gitleaks.toml --redact --verbose
+
+  terraform:
+    name: terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.5
+          terraform_wrapper: false
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+        with:
+          tflint_version: v0.64.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install checkov
+        run: pip install checkov==3.3.20
+      - name: Init plugins
+        run: tflint --init
+      - name: Lint, test and scan
+        run: make tf-lint tf-test tf-scan
+
+  cloud-check:
+    name: cloud-check (cfn-lint, checkov, hadolint, trivy config, tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned tools
+        run: |
+          02-cloud-security-check/scripts/ci-install-tools.sh python hadolint trivy
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Lint the hardened files
+        run: make cloud-check-lint
+      - name: Scan the hardened files
+        run: make cloud-check-scan
+      - name: Originals must fail, hardened must pass
+        run: make cloud-check-test
+      - name: Unit tests for the IAM finder
+        run: python3 -m unittest discover -s 02-cloud-security-check/tests -p 'test_*.py'
+
+  cloud-check-image:
+    name: cloud-check-image (build, run, trivy image)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install trivy
+        run: |
+          02-cloud-security-check/scripts/ci-install-tools.sh trivy
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Build the hardened image
+        run: make cloud-check-build
+      - name: Run with the recommended flags until healthy
+        run: |
+          docker run -d --name cloud-check --read-only --cap-drop=ALL \
+            --security-opt no-new-privileges -p 8080:8080 cloud-check-hardened:local
+          for _ in $(seq 1 30); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' cloud-check)"
+            echo "health: ${status}"
+            [ "${status}" = healthy ] && break
+            sleep 2
+          done
+          [ "${status}" = healthy ]
+          curl -sSf http://127.0.0.1:8080/healthz
+      - name: Image findings, all HIGH and CRITICAL (report only)
+        run: trivy image --severity HIGH,CRITICAL --exit-code 0 cloud-check-hardened:local
+      - name: Image findings with a fix available (gate)
+        # Debian lists no fixed version for the remaining HIGH findings in the
+        # base image, so the gate ignores unfixed ones. The step above shows
+        # them. A rebuild on a newer base digest is how they get fixed.
+        run: trivy image --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 cloud-check-hardened:local
+      - name: Remove the container
+        if: always()
+        run: docker rm -f cloud-check
 
   dependency-audit:
     name: dependency audit (ruff, tests, trivy)
@@ -77,7 +166,7 @@ jobs:
   summary:
     name: summary
     if: always()
-    needs: [secrets, dependency-audit]
+    needs: [secrets, terraform, cloud-check, cloud-check-image, dependency-audit]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}

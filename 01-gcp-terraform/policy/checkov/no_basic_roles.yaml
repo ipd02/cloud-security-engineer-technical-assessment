@@ -1,0 +1,20 @@
+metadata:
+  id: "CKV2_CUSTOM_GCP_1"
+  name: "Ensure no project IAM binding or member grants roles/editor or roles/owner"
+  category: "IAM"
+definition:
+  cond_type: "attribute"
+  resource_types:
+    - "google_project_iam_member"
+    - "google_project_iam_binding"
+    - "google_compute_instance_iam_member"
+    - "google_compute_instance_iam_binding"
+    - "google_folder_iam_member"
+    - "google_folder_iam_binding"
+    - "google_organization_iam_member"
+    - "google_organization_iam_binding"
+  attribute: "role"
+  operator: "not_within"
+  value:
+    - "roles/editor"
+    - "roles/owner"

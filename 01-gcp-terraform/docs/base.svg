@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="830" viewBox="0 0 1700 830" font-family="-apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif">
+<defs><filter id="sh" x="-10%" y="-10%" width="125%" height="135%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.10"/></filter>
+<marker id="arblue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/></marker>
+<marker id="argreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#22a05a"/></marker>
+<marker id="arorange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker>
+<marker id="argray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/></marker>
+</defs>
+<rect width="1700" height="830" fill="#f4f6fa"/>
+<text x="40" y="58" font-size="32" font-weight="800" fill="#0f172a" text-anchor="start">Base version</text>
+<text x="40" y="88" font-size="15.5" font-weight="400" fill="#475569" text-anchor="start">The complete solution to the brief.</text>
+<text x="1210" y="46" font-size="12.5" font-weight="700" fill="#64748b" text-anchor="start">Enforced by</text>
+<rect x="1210.0" y="61" width="117.0" height="26" rx="13" fill="#dbe8ff" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="1268.5" y="79" font-size="12.5" font-weight="700" fill="#1d4ed8" text-anchor="middle">Load balancer</text>
+<rect x="1341.0" y="61" width="117.0" height="26" rx="13" fill="#d9f2e3" stroke="#22a05a" stroke-width="1.2"/>
+<text x="1399.5" y="79" font-size="12.5" font-weight="700" fill="#166534" text-anchor="middle">Firewall rule</text>
+<rect x="40" y="230" width="170" height="90" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6" filter="url(#sh)"/>
+<text x="125" y="268" font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">Visitors</text>
+<text x="125" y="292" font-size="13" font-weight="400" fill="#64748b" text-anchor="middle">from the internet</text>
+<rect x="40" y="712" width="170" height="100" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6" filter="url(#sh)"/>
+<text x="125" y="750" font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">Admin</text>
+<text x="125" y="774" font-size="13" font-weight="400" fill="#64748b" text-anchor="middle">on a trusted</text>
+<text x="125" y="792" font-size="13" font-weight="400" fill="#64748b" text-anchor="middle">IP range</text>
+<rect x="300" y="140" width="350" height="352" rx="18" fill="#eaf1ff" stroke="#5b8def" stroke-width="2"/>
+<text x="322" y="170" font-size="16" font-weight="800" fill="#1e3a8a" text-anchor="start">Google edge</text>
+<text x="322" y="190" font-size="13" font-weight="400" fill="#3b5aa8" text-anchor="start">Global HTTP load balancer</text>
+<rect x="318" y="206" width="314" height="76" rx="12" fill="#ffffff" stroke="#3b82f6" stroke-width="1.6" filter="url(#sh)"/>
+<rect x="318" y="206" width="6" height="76" rx="3" fill="#3b82f6"/>
+<text x="338" y="233" font-size="15.5" font-weight="700" fill="#0f172a" text-anchor="start">Forwarding rule</text>
+<circle cx="344" cy="255.5" r="3.6" fill="#3b82f6"/>
+<text x="358" y="260" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">tcp/443 only</text>
+<rect x="318" y="292" width="314" height="76" rx="12" fill="#ffffff" stroke="#3b82f6" stroke-width="1.6" filter="url(#sh)"/>
+<rect x="318" y="292" width="6" height="76" rx="3" fill="#3b82f6"/>
+<text x="338" y="319" font-size="15.5" font-weight="700" fill="#0f172a" text-anchor="start">HTTPS proxy</text>
+<circle cx="344" cy="341.5" r="3.6" fill="#3b82f6"/>
+<text x="358" y="346" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">Managed or supplied certificate</text>
+<rect x="318" y="378" width="314" height="98" rx="12" fill="#ffffff" stroke="#3b82f6" stroke-width="1.6" filter="url(#sh)"/>
+<rect x="318" y="378" width="6" height="98" rx="3" fill="#3b82f6"/>
+<text x="338" y="405" font-size="15.5" font-weight="700" fill="#0f172a" text-anchor="start">Backend service</text>
+<circle cx="344" cy="427.5" r="3.6" fill="#3b82f6"/>
+<text x="358" y="432" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">Routes to the instance</text>
+<circle cx="344" cy="449.5" r="3.6" fill="#3b82f6"/>
+<text x="358" y="454" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">Health check on port 80</text>
+<text x="322" y="522" font-size="12.5" font-weight="400" fill="#64748b" text-anchor="start">A Google-managed service, not a virtual</text>
+<text x="322" y="540" font-size="12.5" font-weight="400" fill="#64748b" text-anchor="start">machine in your VPC: it has no subnet.</text>
+<rect x="700" y="120" width="810" height="570" rx="20" fill="#ffffff" stroke="#475569" stroke-width="2.2" stroke-dasharray="9 6"/>
+<text x="722" y="150" font-size="17" font-weight="800" fill="#0f172a" text-anchor="start">Custom VPC</text>
+<rect x="728" y="172" width="754" height="252" rx="16" fill="#effaf3" stroke="#22a05a" stroke-width="2"/>
+<text x="748" y="200" font-size="15" font-weight="800" fill="#14532d" text-anchor="start">Private subnet  10.10.1.0/24</text>
+<rect x="748" y="214" width="336" height="186" rx="12" fill="#ffffff" stroke="#22a05a" stroke-width="1.6" filter="url(#sh)"/>
+<rect x="748" y="214" width="6" height="186" rx="3" fill="#22a05a"/>
+<text x="768" y="241" font-size="15.5" font-weight="700" fill="#0f172a" text-anchor="start">Compute Engine instance</text>
+<circle cx="774" cy="263.5" r="3.6" fill="#22a05a"/>
+<text x="788" y="268" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">Private subnet, no external IP</text>
+<circle cx="774" cy="285.5" r="3.6" fill="#22a05a"/>
+<text x="788" y="290" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">Own service account</text>
+<circle cx="774" cy="307.5" r="3.6" fill="#22a05a"/>
+<text x="788" y="312" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">Roles: log and metric writer</text>
+<circle cx="774" cy="329.5" r="3.6" fill="#22a05a"/>
+<text x="788" y="334" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">Serves a page on port 80</text>
+<rect x="1108" y="214" width="350" height="186" rx="12" fill="#ffffff" stroke="#22a05a" stroke-width="1.6" filter="url(#sh)"/>
+<rect x="1108" y="214" width="6" height="186" rx="3" fill="#22a05a"/>
+<text x="1128" y="241" font-size="15.5" font-weight="700" fill="#0f172a" text-anchor="start">Firewall rules</text>
+<circle cx="1134" cy="263.5" r="3.6" fill="#22a05a"/>
+<text x="1148" y="268" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">tcp/80 from the load balancer</text>
+<circle cx="1134" cy="285.5" r="3.6" fill="#22a05a"/>
+<text x="1148" y="290" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">tcp/22 from the bastion</text>
+<circle cx="1134" cy="307.5" r="3.6" fill="#22a05a"/>
+<text x="1148" y="312" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">tcp/22 to the bastion from trusted ranges</text>
+<rect x="728" y="452" width="454" height="214" rx="16" fill="#fff7ec" stroke="#f59e0b" stroke-width="2"/>
+<text x="748" y="480" font-size="15" font-weight="800" fill="#7c2d12" text-anchor="start">Public subnet  10.10.0.0/24</text>
+<rect x="748" y="494" width="414" height="120" rx="12" fill="#ffffff" stroke="#f59e0b" stroke-width="1.6" filter="url(#sh)"/>
+<rect x="748" y="494" width="6" height="120" rx="3" fill="#f59e0b"/>
+<text x="768" y="521" font-size="15.5" font-weight="700" fill="#0f172a" text-anchor="start">SSH bastion</text>
+<circle cx="774" cy="543.5" r="3.6" fill="#f59e0b"/>
+<text x="788" y="548" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">Public subnet, external IP</text>
+<circle cx="774" cy="565.5" r="3.6" fill="#f59e0b"/>
+<text x="788" y="570" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">SSH from the trusted range only</text>
+<circle cx="774" cy="587.5" r="3.6" fill="#f59e0b"/>
+<text x="788" y="592" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start">Own service account, no roles</text>
+<path d="M210,275 L298,275" fill="none" stroke="#3b82f6" stroke-width="3.2" stroke-linejoin="round" marker-end="url(#arblue)"/>
+<rect x="209.5" y="237" width="89.0" height="26" rx="13" fill="#dbe8ff" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="254" y="255" font-size="12.5" font-weight="700" fill="#1d4ed8" text-anchor="middle">HTTPS 443</text>
+<path d="M632,427.0 L714,427.0 L714,312 L746,312" fill="none" stroke="#22a05a" stroke-width="3.2" stroke-linejoin="round" marker-end="url(#argreen)"/>
+<rect x="630.5" y="390.0" width="75.0" height="26" rx="13" fill="#d9f2e3" stroke="#22a05a" stroke-width="1.2"/>
+<text x="668" y="408.0" font-size="12.5" font-weight="700" fill="#166534" text-anchor="middle">HTTP 80</text>
+<path d="M210,762 L850,762 L850,616" fill="none" stroke="#22a05a" stroke-width="3.2" stroke-linejoin="round" marker-end="url(#argreen)"/>
+<rect x="706.0" y="725" width="68.0" height="26" rx="13" fill="#d9f2e3" stroke="#22a05a" stroke-width="1.2"/>
+<text x="740" y="743" font-size="12.5" font-weight="700" fill="#166534" text-anchor="middle">SSH 22</text>
+<path d="M940,492 L940,412" fill="none" stroke="#22a05a" stroke-width="3.2" stroke-linejoin="round" marker-end="url(#argreen)"/>
+<rect x="976.0" y="427" width="68.0" height="26" rx="13" fill="#d9f2e3" stroke="#22a05a" stroke-width="1.2"/>
+<text x="1010" y="445" font-size="12.5" font-weight="700" fill="#166534" text-anchor="middle">SSH 22</text>
+</svg>
