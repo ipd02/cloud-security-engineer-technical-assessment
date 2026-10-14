@@ -1,31 +1,59 @@
 # Prevention: stopping these misconfigurations from being introduced
 
-The two inputs have the same root causes: a wildcard admin identity, a long-lived credential, a public-capable unencrypted bucket, a root container and secrets in the image. Each layer below names the primitive that blocks one or more of them. A mistake that slips past one layer should hit the next.
+The two inputs share five root causes:
 
-This repository demonstrates the developer machine, pull request and pipeline layers through its own pre-commit config and CI. The other layers are described here. They are not implemented in this repository.
+1. A wildcard admin identity (`Action: *` on `Resource: *`).
+2. A long-lived IAM user instead of a role.
+3. A public-capable, unencrypted, unlogged bucket.
+4. A container that runs as root on an end-of-life base image.
+5. Secrets baked into the image.
 
-## 1. Developer machine
+The controls below follow the life of a change: development, pull request, deployment, runtime. Each phase has two kinds of control. Checks find a problem and report it. Policies make the problem impossible or refuse the change. Policies are stronger, because a person cannot skip them. Checks are cheaper and give earlier feedback. Use both.
+
+## What this repository implements
+
+| Phase | Implemented here | Described only |
+| --- | --- | --- |
+| Development | Pre-commit config, `.dockerignore`, `.gitignore` | Editor and IDE plugins |
+| Pull request | `make cloud-check-lint`, `cloud-check-scan` and `cloud-check-test` (`tests/assert-originals-fail.sh`), run by the `cloud-check` and `cloud-check-image` jobs in `.github/workflows/ci.yml`. Signed commits. The workflow has not run on GitHub yet. | Conftest or `cfn-guard`, CODEOWNERS, branch protection and required status checks |
+| Deployment | Two example policy files in `policies/`. Both are valid JSON. Neither was tested in an AWS account. | Everything else in this phase |
+| Runtime | `scripts/find_risky_iam_users.py` with unit tests on invented data. Hardened image run with the recommended flags (see README). | Config rules, GuardDuty, CloudTrail alerts, Falco or EDR |
+
+## Which phase stops which problem
+
+| Problem | Development | Pull request | Deployment | Runtime |
+| --- | --- | --- | --- | --- |
+| Wildcard admin policy | Hook warning | Policy as code fails the PR | CloudFormation Hook rejects the stack. Permission boundary caps the role. SCP blocks `AdministratorAccess`. | Access Analyzer and Config flag it. The script lists it. |
+| IAM user and access keys | Hook warning | Policy as code fails the PR | SCP denies `iam:CreateUser` and `iam:CreateAccessKey` | Credential report, key age and unused-key checks |
+| Public or unencrypted bucket | cfn-lint, checkov locally | checkov and `trivy config` fail the PR | Account-level Block Public Access. RCP forces TLS. Hook rejects the stack. | Config rules, Security Hub controls |
+| Root container, old base image | hadolint locally | hadolint, `trivy config`, `trivy image` fail the PR | Admission control rejects root and unsigned images | Read-only filesystem, dropped capabilities, runtime sensor |
+| Secrets in the image | gitleaks pre-commit, `.dockerignore` | gitleaks on full history | Registry scan on push | Rotate any leaked value, secret manager at run time |
+
+## 1. Development (developer machine)
+
+Local checks give feedback in seconds. A developer can skip them, so each one is repeated in the next phase.
 
 | Primitive | Catches |
 | --- | --- |
 | `pre-commit` with `gitleaks` | Hardcoded secrets such as the `ENV` values, before they enter history |
 | `hadolint` hook | Root user, missing `--no-install-recommends`, shell-form `CMD`, secrets in `ENV` |
 | `cfn-lint` hook | Invalid or deprecated CloudFormation |
-| `tflint` and `terraform fmt` hooks | Same for Terraform (Part 1) |
+| `tflint` and `terraform fmt` hooks | The same for Terraform (Part 1) |
 | `detect-private-key`, `check-added-large-files` | Keys and stray artifacts |
 | `.dockerignore` and `.gitignore` | `.env`, keys and `.git` copied into an image |
 
-This repo's `.pre-commit-config.yaml` carries these hooks. Local checks are advisory, since a developer can skip them, so every one is repeated in the next layer.
+## 2. Pull request (review and merge)
 
-## 2. Pull request
+Checks here are required, so a failing change cannot merge.
 
 | Primitive | Catches |
 | --- | --- |
-| Required status checks: cfn-lint, hadolint, `checkov`, `trivy config`, gitleaks | The same issues, enforced and not skippable |
+| Required status checks: cfn-lint, hadolint, `checkov`, `trivy config`, `trivy image`, gitleaks | The same issues, enforced and not skippable |
 | Policy as code: Open Policy Agent with Conftest, or AWS CloudFormation Guard (`cfn-guard`) | Custom rules such as "no IAM statement with `Action: *`", "every bucket has a public access block", "image must not run as root" |
 | `CODEOWNERS` on `**/iam*`, `cloudformation/`, `Dockerfile*`, `.github/workflows/` plus required reviews | A second person reads every security-sensitive change |
 | Signed commits and protected branches | Attribution, and no direct push to the main branch |
-| `iam:` policy checks in CI with IAM Access Analyzer `validate-policy` and `check-no-new-access` | New access that a change would grant |
+| IAM Access Analyzer `validate-policy` and `check-no-new-access` in CI | New access that a change would grant |
+| A regression test such as `tests/assert-originals-fail.sh` | A scanner or rule that stops catching a known bad input |
 
 A `cfn-guard` rule for this template would look like this:
 
@@ -40,7 +68,11 @@ rule no_wildcard_iam_actions {
 
 It is shown as an example of the primitive. It was not run here, because `cfn-guard` is not installed.
 
-## 3. Pipeline
+## 3. Deployment (pipeline and cloud gate)
+
+Two things happen here. The pipeline decides who may deploy and what it deploys. Then the cloud accepts or refuses the change, whatever the pipeline did.
+
+### 3a. Pipeline
 
 | Primitive | Catches |
 | --- | --- |
@@ -50,42 +82,55 @@ It is shown as an example of the primitive. It was not run here, because `cfn-gu
 | Protected deployment environments with required reviewers | A human approves production changes |
 | Actions pinned to a full commit SHA | Tag hijack of a third-party action |
 | Dependabot or Renovate for actions, base images and packages | Stale base images and tools |
-| `docker build` followed by `trivy image` and a failing threshold | Known CVEs in the image before it ships |
-
-## 4. Artifact
-
-| Primitive | Catches |
-| --- | --- |
-| Pin base images by digest | Silent base image changes |
+| Base images pinned by digest | Silent base image changes |
 | Sign images with Sigstore Cosign (keyless, OIDC identity) and attach provenance (SLSA attestation, SBOM from `trivy` or `syft`) | Images that did not come from the pipeline |
-| Admission control in the cluster: Kyverno, OPA Gatekeeper or the Sigstore policy-controller | Rejects unsigned images, root users, privileged pods, `latest` tags |
 | Private registry with immutable tags and scanning on push (ECR, Artifact Registry) | Tag overwrite and unscanned images |
-| Pod Security Admission at the `restricted` level | Pods without a non-root user, dropped capabilities or seccomp |
 
-## 5. Cloud guardrails
+### 3b. Cloud gate (policies)
 
-| Primitive | Catches |
+These controls live in the cloud. They apply to every caller, including a person with admin rights in a member account.
+
+| Primitive | What it refuses | Limit |
+| --- | --- | --- |
+| AWS Organizations Service Control Policy. Example: `policies/scp-deny-iam-users-and-admin.json` | `iam:CreateUser`, `CreateAccessKey`, `CreateLoginProfile`, `PutUserPolicy` and `AttachUserPolicy` outside a break-glass role. Attaching `AdministratorAccess`. Weakening S3 Block Public Access. | An SCP cannot read inside a policy document, so it cannot ban `Action: *` in a new policy. It does not apply to the management account. |
+| AWS Resource Control Policy. Example: `policies/rcp-s3-tls-only.json` | S3 requests over plain HTTP, whatever the bucket policy says | Supported services are limited. Check the AWS list before relying on one. |
+| IAM permission boundaries on roles that teams can create | A role that grants more than the boundary allows, including a wildcard admin role | Must be required on every role-creation path, with a condition on `iam:CreateRole` and `iam:PutRolePermissionsBoundary`. |
+| S3 account-level Block Public Access (`aws s3control put-public-access-block`) | Public buckets regardless of bucket settings | S3 only. |
+| CloudFormation Hooks (a Guard or Lambda hook) | A stack with `Action: *`, an IAM user, or a bucket without a public access block, before it is created. This is the only control in this table that reads template content. | Covers CloudFormation deploys only. |
+| AWS Organizations declarative policies | Settings enforced by the service itself. They began with EC2, VPC and EBS. Check the AWS list for S3 support. | Small set of services and attributes. |
+| GCP Organization Policy constraints, for example `iam.disableServiceAccountKeyCreation` and `storage.publicAccessPrevention` | The GCP equivalent of the same classes of mistake | GCP only. |
+| Admission control in the cluster: Kyverno, OPA Gatekeeper or the Sigstore policy-controller. Pod Security Admission at the `restricted` level. | Unsigned images, root users, privileged pods, `latest` tags, pods without dropped capabilities or seccomp | Applies to Kubernetes only. |
+| Separate accounts or projects for dev, staging and production, with their own roles | A mistake in one environment does not reach another | Needs the account structure to exist first. |
+
+The two policy files in `policies/` are examples of the primitive. They parse as JSON. They were not attached to an organisation or validated by AWS here. Test any SCP on a single sandbox account before attaching it higher, because a wrong deny can lock out administrators.
+
+## 4. Runtime (after deploy)
+
+Something still gets through: a drifted setting, an old key, a new CVE in a pinned base. Runtime controls limit the damage and find what the earlier phases missed.
+
+### Hardening of the running workload
+
+Run containers with a read-only root filesystem, all capabilities dropped, `no-new-privileges` and the default seccomp profile. Add an AppArmor or SELinux profile where the host supports it. In Kubernetes, enforce this through the `securityContext` and Pod Security Admission. `README.md` shows the flags and a manifest. They were tested with Docker only.
+
+### Drift and exposure detection
+
+| Primitive | Purpose |
 | --- | --- |
-| AWS Organizations Service Control Policies. Examples: deny `iam:CreateUser` and `iam:CreateAccessKey` outside a break-glass role, deny `s3:PutBucketPublicAccessBlock` changes that disable it, deny leaving the approved regions | Makes the original template impossible to deploy even with admin rights in a member account |
-| GCP Organization Policy constraints (for example `iam.disableServiceAccountKeyCreation`, `storage.publicAccessPrevention`) | The GCP equivalent of the same classes of mistake |
-| S3 account-level Block Public Access (`aws s3control put-public-access-block`) | Public buckets regardless of bucket settings |
 | AWS Config rules and conformance packs, with auto-remediation through SSM Automation | Drift from the baseline after deploy |
 | Security Hub CSPM (AWS Foundational Security Best Practices, CIS) | Aggregated findings across accounts |
-| CloudFormation Hooks (for example a Guard hook) and Service Catalog | Rejects a non-compliant stack at deploy time |
-| Separate accounts or projects for dev, staging and production, with their own roles | A mistake in one environment does not reach another |
-| IAM permission boundaries on roles that teams can create | Developers cannot grant themselves more than the boundary allows |
+| IAM Access Analyzer: external access and unused access findings on a schedule | Exposure, and stale users and permissions |
+| `scripts/find_risky_iam_users.py` on the credential report and account authorization details | Wildcard admin, admin attachments, console users without MFA, old and unused keys, ranked by severity. It reads exports offline. |
+| Scheduled image rescans (`trivy image`) and rebuilds on a new base digest | New CVEs in images that are already deployed |
 
-## 6. Runtime
-
-Run containers with a read-only root filesystem, all capabilities dropped, `no-new-privileges` and the default seccomp profile. Add an AppArmor or SELinux profile where the host supports it. In Kubernetes, enforce this through the `securityContext` and Pod Security Admission. For detection, use a runtime sensor such as Falco rules (shell in a container, write below `/etc`, unexpected outbound connection) or an EDR agent on the nodes. This repository does not implement runtime detection. `README.md` shows only the flags and a manifest.
-
-## 7. Detection and response
+### Detection and response
 
 | Primitive | Purpose |
 | --- | --- |
 | CloudTrail organisation trail in a dedicated log archive account, with log file validation and S3 Object Lock | Immutable audit record |
 | GCP Cloud Audit Logs with a locked log bucket sink | Same on GCP |
 | EventBridge rules or CloudWatch metric filters on `CreateUser`, `CreateAccessKey`, `AttachUserPolicy`, `PutUserPolicy`, `DeleteTrail`, `StopLogging` | Alert on privilege changes within minutes |
-| GuardDuty (credential and anomaly findings) and Access Analyzer external-access findings | Compromise and exposure detection |
-| IAM Access Analyzer unused access findings on a schedule | Retires stale users and permissions |
-| Runbooks: disable the key (`aws iam update-access-key --status Inactive`), attach a deny-all policy, review CloudTrail, rotate | A tested response when a key leaks |
+| GuardDuty (credential and anomaly findings) | Compromise detection |
+| A runtime sensor such as Falco rules (shell in a container, write below `/etc`, unexpected outbound connection) or an EDR agent on the nodes | Attacks inside a running container or host |
+| Runbook: disable the key (`aws iam update-access-key --status Inactive`), attach a deny-all policy, review CloudTrail, rotate | A tested response when a key leaks |
+
+This repository does not implement runtime detection or response.

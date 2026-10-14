@@ -12,7 +12,9 @@ Review of the task's CloudFormation template and Dockerfile. The originals are k
 | `docker/Dockerfile.hardened` | Hardened Dockerfile (pinned by digest) |
 | `docker/app.py`, `docker/.dockerignore` | Small service and build-context filter for the hardened image |
 | `tests/assert-originals-fail.sh` | Proves the scanners reject the originals and accept the hardened files |
-| `PREVENTION.md` | How to stop these mistakes from being introduced, by layer |
+| `PREVENTION.md` | How to stop these mistakes from being introduced, by phase |
+| `policies/` | Example AWS SCP and RCP (valid JSON, not tested in an account) |
+| `scripts/find_risky_iam_users.py` | Offline finder for risky IAM users from the credential report and authorization details, with tests in `tests/` |
 | `part.mk` | Make targets for this part |
 
 ## How to run
@@ -164,7 +166,7 @@ Kubernetes ignores the Dockerfile `HEALTHCHECK`, so the probe is set in the mani
 
 ## 5. Prevention
 
-See `PREVENTION.md`. It is organised by layer: developer machine, pull request, pipeline, artifact, cloud guardrails, runtime, and detection and response.
+See `PREVENTION.md`. It is organised by phase: development, pull request, deployment (pipeline and cloud policies), and runtime. It says which controls this repository implements and which it only describes.
 
 ## What was verified
 
@@ -195,11 +197,12 @@ Live runs:
 Notes on these results:
 
 - **cfn-lint passes the original template.** It validates syntax and resource schema, and the original is a valid template. It is not a security scanner, so `assert-originals-fail.sh` asserts cfn-lint only on the hardened file. Checkov and trivy are the tools that reject the original.
-- **The 44 OS findings are in the Debian base image** (util-linux, ncurses, systemd and similar libraries). The Debian tracker lists no fix at scan time. The image digest is pinned, so a rebuild on a newer digest is how they get fixed. This is the reason CI scans with `--ignore-unfixed`. The results will change as the vulnerability database changes.
+- **The 44 OS findings are in the Debian base image** (util-linux, ncurses, systemd and similar libraries). The Debian tracker lists no fix at scan time. The image digest is pinned, so a rebuild on a newer digest is how they get fixed. This is the reason the CI image gate uses `--ignore-unfixed`. A separate CI step prints all 44 so they stay visible. The results will change as the vulnerability database changes.
 - **Python findings were real and removed.** The first image scan found 4 HIGH findings in `msgpack`, `setuptools` and `urllib3`. They came from pip's vendored libraries and setuptools in the base image. The app does not need pip, so the Dockerfile removes pip, setuptools and wheel.
 
 Verified only by static analysis or not run:
 
+- The CI workflow (`cloud-check` and `cloud-check-image` jobs) has not run on GitHub. I replayed its steps by hand: the tool installer and the Python-based checks in a clean Ubuntu amd64 container, and the image build, health run and both `trivy image` steps on the local machine. The hadolint and trivy binaries crashed under amd64 emulation in that container, so they were not exercised there.
 - The CloudFormation template was never deployed. No AWS account or credentials were used.
 - The AWS CLI detection commands were not executed against an account. Only `--generate-cli-skeleton` and `help` ran, to confirm the commands and parameters exist in CLI 2.37.13.
 - Prowler, `cfn-guard` and Conftest are not installed here and were not run.
