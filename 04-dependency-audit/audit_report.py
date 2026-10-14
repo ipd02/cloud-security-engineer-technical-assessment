@@ -422,9 +422,10 @@ def run(args: argparse.Namespace) -> int:
             epss_source = "file:" + args.epss.replace("\\", "/").rsplit("/", 1)[-1]
         else:
             wanted = sorted({c for row in rows for c in row_cves(row)})
-            epss_map = fetch_epss(wanted)
+            epss_map = fetch_epss(wanted) if wanted else {}
             epss_source = EPSS_API
-        apply_epss(rows, epss_map)
+        if apply_epss(rows, epss_map) == 0:
+            warnings.append("no EPSS scores were added: npm audit has no CVE ids, pass --trivy")
         epss_dates = {v["date"] for v in epss_map.values() if v["date"]}
     floor = RANK[args.min_severity]
     rows = [r for r in rows if RANK[r["severity"]] >= floor]

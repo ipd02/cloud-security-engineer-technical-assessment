@@ -474,6 +474,12 @@ class CliExtraTests(unittest.TestCase):
             ar.parse_args(["x.json", "--epss", "e.json", "--min-epss", "5"])
         self.assertEqual(ctx.exception.code, 2)
 
+    def test_epss_without_cve_ids_warns_and_skips_the_lookup(self) -> None:
+        with mock.patch("urllib.request.urlopen", side_effect=AssertionError("no call")):
+            code, _, err = self.run_cli(str(FIXTURES / "audit_v7.json"), "--epss-fetch")
+        self.assertEqual(code, 0)
+        self.assertIn("pass --trivy", err)
+
     def test_epss_fetch_failure_returns_2(self) -> None:
         trivy = self.write("trivy.json", (FIXTURES / "trivy.json").read_text(encoding="utf-8"))
         args = [str(FIXTURES / "audit_v7.json"), "--trivy", trivy, "--epss-fetch"]
