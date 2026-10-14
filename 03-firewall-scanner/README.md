@@ -39,6 +39,8 @@ fwscan --fail-on-findings --output report.json --gcp-project my-project --azure-
 | `--timeout` | `60s` | Overall scan timeout. |
 | `--include-ipv6` | off | Also report `::/0` sources (an extension, see below). |
 | `--aws-regions` | configured region | Comma separated regions, or `all` (uses `DescribeRegions`). |
+| `--aws-org` | off | Scan every active account of the AWS organization. Run it as an IAM user or role of the management account (not the root user), or of a delegated administrator. |
+| `--aws-role-name` | `fwscan-reader` | Role assumed in each account with `--aws-org`. It must exist in every account, including the management account. |
 | `--gcp-org` | none | GCP organization number. Scans every project under it through Cloud Asset Inventory. |
 | `--gcp-folder` | none | GCP folder number. Same as `--gcp-org` for one folder and its subfolders. |
 | `--gcp-project` | none | GCP project ids, comma separated. Reads the Compute API directly, in real time. |
@@ -65,7 +67,7 @@ The JSON follows the example in the task. The example is not valid JSON as print
 
 - `port` is always a string: `"8080"`, `"1000-2000"`, `"all"` (AWS, GCP) or `"*"` (Azure).
 - Only resources with at least one insecure rule are listed.
-- Extra fields, all additive: `region` (AWS), `project` (GCP), `location` (Azure), `rule_id` (Azure rule name, or the priority of a GCP policy rule), `type` (GCP, only for policy rules: `network_firewall_policy` or `hierarchical_firewall_policy`), and a top-level `errors` list.
+- Extra fields, all additive: `region` (AWS), `account` (AWS, only with `--aws-org`), `project` (GCP), `location` (Azure), `rule_id` (Azure rule name, or the priority of a GCP policy rule), `type` (GCP, only for policy rules: `network_firewall_policy` or `hierarchical_firewall_policy`), and a top-level `errors` list.
 - For a GCP policy rule, `network` lists the networks the policy is attached to, or the folder or organization for a hierarchical policy. `project` is empty for a hierarchical policy.
 - `errors` is always present. A provider that fails does not hide the other providers. Partial results from a provider that failed halfway are kept, and the error is listed.
 - A provider that was not selected is omitted. A selected provider with no findings has an empty list.
@@ -113,7 +115,7 @@ Things to know:
 - GCP scope: `--gcp-org` and `--gcp-folder` read the Cloud Asset Inventory index. It lags behind real changes. In a test, a rule created seconds earlier was missing from the first run and present about 30 seconds later. `--gcp-project` reads the Compute API directly. Projects are scanned one after another, and a project whose Compute API is off is skipped without an error.
 - GCP: regional network firewall policies come from the project-wide list. Hierarchical policies are read for the organization or folder and its subfolders. A folder you pass with `--gcp-folder` is not checked for policies of its parents.
 - AWS: temporary credentials issued by the global STS endpoint are rejected in opt-in regions. With `--aws-regions all` that region fails with `AuthFailure`, the other regions still report, and the exit code is 2. Use a regional STS endpoint (`AWS_STS_REGIONAL_ENDPOINTS=regional`) or long-lived role credentials.
-- AWS: it scans one account. It reads security groups only, not network ACLs or AWS Network Firewall.
+- AWS: without `--aws-org` it scans the account of the credentials. With `--aws-org` it scans the active accounts of the organization, and accounts that are suspended or closing are skipped. A role that cannot be assumed in one account is reported in `errors`, and the other accounts still report. Only the `aws` partition is supported. It reads security groups only, not network ACLs or AWS Network Firewall.
 - Azure: it scans one subscription. It reads NSGs only, not Azure Firewall, application security groups or Virtual Network Manager security admin rules.
 - AWS: it does not check whether the group is attached to anything. Only IPv4 and (optionally) IPv6 ranges are checked. Prefix lists and referenced security groups are not expanded.
 - Several protocol and port entries in one rule produce several findings, one each.
@@ -125,6 +127,7 @@ The tool never changes anything. Give it a read-only identity.
 | Cloud | Permission needed | Notes |
 | --- | --- | --- |
 | AWS | `ec2:DescribeSecurityGroups`, plus `ec2:DescribeRegions` for `--aws-regions all` | Allow only these two actions on `*` (the Describe actions do not support resource-level scoping). |
+| AWS, `--aws-org` | The caller needs `organizations:ListAccounts` and `sts:AssumeRole` on the role in each account. The role in each account holds the two EC2 actions above. | The role must trust the caller. The root user cannot assume roles. |
 | GCP, project scope, `--gcp-policies=false` | `compute.firewalls.list` on each project | A custom role with this one permission is the tightest option. `roles/compute.networkViewer` also works and is broader. `roles/compute.securityAdmin` is too broad. |
 | GCP, project scope, default | add `compute.firewallPolicies.list` on each project | Network firewall policies. Not in `roles/compute.networkViewer`. |
 | GCP, org or folder scope | `cloudasset.assets.searchAllResources` on the scope, `compute.firewallPolicies.list` on the organization, on each folder and on each project | The Cloud Asset API must be enabled in the project the credentials bill against. `roles/cloudasset.viewer` includes the first one and is broad. Use a custom role. |
@@ -136,7 +139,7 @@ The tool never changes anything. Give it a read-only identity.
 cmd/fwscan/            flags, concurrency, exit codes
 internal/model/        report types (JSON shape)
 internal/detect/       pure functions: is this rule open to the world
-internal/scan/aws/     EC2 adapter behind a small interface, paginator, multi-region
+internal/scan/aws/     EC2 adapter behind a small interface, paginator, multi-region, organization accounts
 internal/scan/gcp/     compute and Cloud Asset clients behind small interfaces (VPC rules, policies, org scope)
 internal/scan/azure/   armnetwork SecurityGroupsClient pager behind an interface
 internal/report/       JSON writer

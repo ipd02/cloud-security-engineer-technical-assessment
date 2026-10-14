@@ -17,7 +17,8 @@ type InsecureRule struct {
 type SecurityGroup struct {
 	ID            string         `json:"id"`
 	Name          string         `json:"name"`
-	Region        string         `json:"region,omitempty"` // additive
+	Region        string         `json:"region,omitempty"`  // additive
+	Account       string         `json:"account,omitempty"` // additive, set when an organization is scanned
 	InsecureRules []InsecureRule `json:"insecure_rules"`
 }
 

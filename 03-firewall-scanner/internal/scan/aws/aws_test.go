@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"errors"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -10,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/organizations"
+	orgtypes "github.com/aws/aws-sdk-go-v2/service/organizations/types"
 
 	"github.com/ipd02/cloud-security-engineer-technical-assessment/03-firewall-scanner/internal/model"
 )
@@ -203,5 +206,126 @@ func TestScanHonoursContext(t *testing.T) {
 	cancel()
 	if _, err := s.Scan(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v; want context.Canceled", err)
+	}
+}
+
+type fakeOrg struct {
+	pages [][]orgtypes.Account // page i is returned for token "i"
+	err   error
+	calls int
+}
+
+func (f *fakeOrg) ListAccounts(_ context.Context, in *organizations.ListAccountsInput, _ ...func(*organizations.Options)) (*organizations.ListAccountsOutput, error) {
+	f.calls++
+	if f.err != nil {
+		return nil, f.err
+	}
+	idx := 0
+	if in.NextToken != nil {
+		idx = int((*in.NextToken)[0] - '0')
+	}
+	out := &organizations.ListAccountsOutput{Accounts: f.pages[idx]}
+	if idx+1 < len(f.pages) {
+		out.NextToken = aws.String(string(rune('0' + idx + 1)))
+	}
+	return out, nil
+}
+
+func account(id string, status orgtypes.AccountStatus) orgtypes.Account {
+	return orgtypes.Account{Id: aws.String(id), Status: status}
+}
+
+func TestScanOrg(t *testing.T) {
+	boom := errors.New("not authorized to assume")
+	org := &fakeOrg{pages: [][]orgtypes.Account{
+		{account("333333333333", orgtypes.AccountStatusActive), account("999999999999", orgtypes.AccountStatusSuspended)},
+		{account("111111111111", orgtypes.AccountStatusActive), account("222222222222", orgtypes.AccountStatusActive), account("444444444444", orgtypes.AccountStatusPendingClosure)},
+	}}
+	byAccount := map[string]*fakeEC2{
+		"111111111111": {pages: [][]types.SecurityGroup{{sg("sg-b", "b", perm("tcp", 22, 22, "0.0.0.0/0")), sg("sg-closed", "c", perm("tcp", 22, 22, "10.0.0.0/8"))}}},
+		"333333333333": {pages: [][]types.SecurityGroup{{sg("sg-a", "a", perm("-1", 0, 0, "0.0.0.0/0"))}}},
+	}
+	var asked []string
+	var mu sync.Mutex
+	s := &Scanner{
+		Org:           org,
+		Regions:       []string{"eu-west-1", "eu-north-1"},
+		DefaultRegion: "eu-west-1",
+		AccountFactory: func(_ context.Context, id string) (ClientFactory, error) {
+			mu.Lock()
+			asked = append(asked, id)
+			mu.Unlock()
+			if id == "222222222222" {
+				return nil, boom
+			}
+			return func(string) EC2API { return byAccount[id] }, nil
+		},
+	}
+	got, err := s.Scan(context.Background())
+	if !errors.Is(err, boom) || !strings.Contains(err.Error(), "account 222222222222") {
+		t.Fatalf("err = %v", err)
+	}
+	if org.calls != 2 {
+		t.Fatalf("ListAccounts calls = %d; want 2 pages", org.calls)
+	}
+	sort.Strings(asked)
+	if strings.Join(asked, ",") != "111111111111,222222222222,333333333333" {
+		t.Fatalf("accounts scanned: %v (suspended and closing accounts must be skipped)", asked)
+	}
+	// Two regions share one fake per account, so each account reports its group once per region.
+	var keys []string
+	for _, g := range got {
+		keys = append(keys, g.Account+"/"+g.Region+"/"+g.ID)
+	}
+	want := []string{
+		"111111111111/eu-north-1/sg-b", "111111111111/eu-west-1/sg-b",
+		"333333333333/eu-north-1/sg-a", "333333333333/eu-west-1/sg-a",
+	}
+	if strings.Join(keys, " ") != strings.Join(want, " ") {
+		t.Fatalf("got %v; want %v", keys, want)
+	}
+}
+
+func TestScanOrgListError(t *testing.T) {
+	boom := errors.New("organizations:ListAccounts denied")
+	s := &Scanner{Org: &fakeOrg{err: boom}, AccountFactory: func(context.Context, string) (ClientFactory, error) {
+		t.Fatal("no account may be scanned when the list fails")
+		return nil, nil
+	}}
+	got, err := s.Scan(context.Background())
+	if !errors.Is(err, boom) || len(got) != 0 {
+		t.Fatalf("got %+v, err %v", got, err)
+	}
+}
+
+// One account whose regions partly fail keeps its other groups, tagged with the account.
+func TestScanOrgKeepsPartialAccountResults(t *testing.T) {
+	boom := errors.New("region blocked")
+	org := &fakeOrg{pages: [][]orgtypes.Account{{account("111111111111", orgtypes.AccountStatusActive)}}}
+	s := &Scanner{
+		Org:           org,
+		Regions:       []string{"eu-west-1", "eu-north-1"},
+		DefaultRegion: "eu-west-1",
+		AccountFactory: func(context.Context, string) (ClientFactory, error) {
+			return func(region string) EC2API {
+				if region == "eu-north-1" {
+					return &fakeEC2{pages: [][]types.SecurityGroup{{}}, failAt: 1, err: boom}
+				}
+				return &fakeEC2{pages: [][]types.SecurityGroup{{sg("sg-1", "one", perm("tcp", 22, 22, "0.0.0.0/0"))}}}
+			}, nil
+		},
+	}
+	got, err := s.Scan(context.Background())
+	if !errors.Is(err, boom) || !strings.Contains(err.Error(), "account 111111111111: region eu-north-1") {
+		t.Fatalf("err = %v", err)
+	}
+	if len(got) != 1 || got[0].Account != "111111111111" || got[0].Region != "eu-west-1" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestNewOrgNeedsRole(t *testing.T) {
+	if _, err := New(context.Background(), Options{Org: true}); err == nil {
+		t.Fatal("want an error without a role name")
 	}
 }
