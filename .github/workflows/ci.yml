@@ -64,11 +64,73 @@ jobs:
       - name: Lint, test and scan
         run: make tf-lint tf-test tf-scan
 
+  cloud-check:
+    name: cloud-check (cfn-lint, checkov, hadolint, trivy config, tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned tools
+        run: |
+          02-cloud-security-check/scripts/ci-install-tools.sh python hadolint trivy
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Lint the hardened files
+        run: make cloud-check-lint
+      - name: Scan the hardened files
+        run: make cloud-check-scan
+      - name: Originals must fail, hardened must pass
+        run: make cloud-check-test
+      - name: Unit tests for the IAM finder
+        run: python3 -m unittest discover -s 02-cloud-security-check/tests -p 'test_*.py'
+
+  cloud-check-image:
+    name: cloud-check-image (build, run, trivy image)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install trivy
+        run: |
+          02-cloud-security-check/scripts/ci-install-tools.sh trivy
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Build the hardened image
+        run: make cloud-check-build
+      - name: Run with the recommended flags until healthy
+        run: |
+          docker run -d --name cloud-check --read-only --cap-drop=ALL \
+            --security-opt no-new-privileges -p 8080:8080 cloud-check-hardened:local
+          for _ in $(seq 1 30); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' cloud-check)"
+            echo "health: ${status}"
+            [ "${status}" = healthy ] && break
+            sleep 2
+          done
+          [ "${status}" = healthy ]
+          curl -sSf http://127.0.0.1:8080/healthz
+      - name: Image findings, all HIGH and CRITICAL (report only)
+        run: trivy image --severity HIGH,CRITICAL --exit-code 0 cloud-check-hardened:local
+      - name: Image findings with a fix available (gate)
+        # Debian lists no fixed version for the remaining HIGH findings in the
+        # base image, so the gate ignores unfixed ones. The step above shows
+        # them. A rebuild on a newer base digest is how they get fixed.
+        run: trivy image --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 cloud-check-hardened:local
+      - name: Remove the container
+        if: always()
+        run: docker rm -f cloud-check
+
   # Each part adds its own job above this one in its own branch.
   summary:
     name: summary
     if: always()
-    needs: [secrets, terraform]
+    needs: [secrets, terraform, cloud-check, cloud-check-image]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}
