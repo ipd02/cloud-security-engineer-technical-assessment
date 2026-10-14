@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"sync"
@@ -69,8 +70,9 @@ const (
 type Options struct {
 	Regions     string // comma separated list, "all", or empty for the configured default region
 	IncludeIPv6 bool
-	Scope       string // ScopeAuto (also when empty), ScopeOrg or ScopeAccount
-	RoleName    string // role assumed in the other accounts of an organization
+	Scope       string    // ScopeAuto (also when empty), ScopeOrg or ScopeAccount
+	RoleName    string    // role assumed in the other accounts of an organization
+	Warn        io.Writer // receives a one-line warning when the caller is the root user
 }
 
 // orgRegion is the region of the Organizations and STS clients. Both are
@@ -97,11 +99,13 @@ func New(ctx context.Context, o Options) (*Scanner, error) {
 	}
 	orgCfg := cfg.Copy()
 	orgCfg.Region = orgRegion
+	var warnOnce sync.Once
 	s.CallerAccount = func(ctx context.Context) (string, error) {
 		out, err := sts.NewFromConfig(orgCfg).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 		if err != nil {
 			return "", fmt.Errorf("get caller identity: %w", err)
 		}
+		warnOnce.Do(func() { warnIfRoot(o.Warn, aws.ToString(out.Arn)) })
 		return aws.ToString(out.Account), nil
 	}
 	s.Mode = o.Scope
@@ -125,6 +129,13 @@ func New(ctx context.Context, o Options) (*Scanner, error) {
 		}
 	}
 	return s, nil
+}
+
+// warnIfRoot tells the user that the scan runs as the account's root user.
+func warnIfRoot(w io.Writer, arn string) {
+	if w != nil && strings.HasSuffix(arn, ":root") {
+		_, _ = fmt.Fprintln(w, "fwscan: warning: running as the AWS root user; use a role with only ec2:DescribeSecurityGroups and ec2:DescribeRegions")
+	}
 }
 
 // maxParallelRegions bounds concurrent region scans.

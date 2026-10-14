@@ -49,6 +49,7 @@ type options struct {
 	azureSub    string
 	azureAll    bool
 	showVersion bool
+	stderr      io.Writer // for warnings from the scanners
 }
 
 func main() {
@@ -120,6 +121,7 @@ func runWith(args []string, stdout, stderr io.Writer, sc scanners) int {
 		_, _ = fmt.Fprintln(stderr, "fwscan:", err)
 		return exitError
 	}
+	o.stderr = stderr
 	if o.showVersion {
 		_, _ = fmt.Fprintln(stdout, "fwscan", version)
 		return exitOK
@@ -220,6 +222,7 @@ func scanAWS(ctx context.Context, o options) ([]model.SecurityGroup, error) {
 		Regions:     o.awsRegions,
 		IncludeIPv6: o.includeIPv6,
 		Scope:       o.awsScope,
+		Warn:        o.stderr,
 		RoleName:    strings.TrimSpace(o.awsRole),
 	})
 	if err != nil {

@@ -146,6 +146,14 @@ The tool never changes anything. Give it a read-only identity.
 | GCP, org or folder scope | `cloudasset.assets.searchAllResources` on the scope, `compute.firewallPolicies.list` on the organization, on each folder and on each project | The Cloud Asset API must be enabled in the project the credentials bill against. `roles/cloudasset.viewer` includes the first one and is broad. Use a custom role. |
 | Azure | `Microsoft.Network/networkSecurityGroups/read` on each subscription | Built-in `Reader` on the subscription covers this. A custom role with that one action is tighter. `Network Contributor` is too broad. `--azure-all-subscriptions` lists the subscriptions where the identity holds a role, so it needs no extra permission. |
 
+## Running in CI
+
+- Name the providers with `--providers`. A provider without credentials makes the run exit 2.
+- Use `--fail-on-findings` to gate on findings, and a larger `--timeout` for big organizations. A scan that is cut short exits 2.
+- Prefer keyless credentials: OIDC to an AWS role, workload identity federation for GCP, a federated credential for an Azure app. The default credential chains accept them.
+- Give the identity only the permissions in the table above. The AWS role in each account should trust the scanner's own role, not the whole account. The tool warns on stderr when it runs as the AWS root user.
+- The output names accounts, projects, resources and open ports. Write it to a file (`--output`) and keep it as a protected artifact.
+
 ## Layout
 
 ```

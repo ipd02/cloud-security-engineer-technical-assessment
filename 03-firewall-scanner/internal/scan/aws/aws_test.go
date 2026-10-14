@@ -422,3 +422,18 @@ func TestScanOrgUsesOwnCredentialsForTheCallersAccount(t *testing.T) {
 		t.Fatalf("got %+v, err %v, assumed %v", got, err, assumed)
 	}
 }
+
+func TestWarnIfRoot(t *testing.T) {
+	var b strings.Builder
+	warnIfRoot(&b, "arn:aws:iam::111111111111:root")
+	if !strings.Contains(b.String(), "root user") || strings.Count(b.String(), "\n") != 1 {
+		t.Fatalf("warning = %q", b.String())
+	}
+	b.Reset()
+	warnIfRoot(&b, "arn:aws:sts::111111111111:assumed-role/fwscan-reader/fwscan")
+	warnIfRoot(&b, "arn:aws:iam::111111111111:user/ci")
+	warnIfRoot(nil, "arn:aws:iam::111111111111:root") // no writer: no output and no panic
+	if b.Len() != 0 {
+		t.Fatalf("no warning expected, got %q", b.String())
+	}
+}
