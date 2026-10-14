@@ -4,7 +4,7 @@ The task gives a `package.json` with six dependencies and one dev dependency. Th
 
 The sections below follow the order of the task. [REPORT.md](REPORT.md) has the full tables.
 
-## 1. What we found, and with which tools
+## 1. What I found, and with which tools
 
 The input has **24 vulnerable packages with 46 advisories**.
 
@@ -27,7 +27,7 @@ After the proposed upgrades both scanners report 0.
 
 ## 2. Detected vulnerabilities (high and critical)
 
-25 advisories: 7 critical and 18 high, in 12 packages.
+25 advisories: 7 critical and 18 high, in 13 packages.
 
 | Package | Installed | Critical | High | Types |
 |---|---|---|---|---|
@@ -73,7 +73,7 @@ Upgrade the five direct dependencies. This clears all 46 advisories.
 
 `body-parser` and `dotenv` only get a higher minimum version, because they have no advisory.
 
-The task suggests "upgrade lodash to 4.17.21". We use 4.18.1, because one of the five lodash advisories is only fixed from 4.18.0.
+The task suggests "upgrade lodash to 4.17.21". I use 4.18.1, because one of the five lodash advisories is only fixed from 4.18.0.
 
 The proposed manifest is [`fixed/package.json`](fixed/package.json) with its lockfile. `npm audit` and `trivy` report 0 on it.
 

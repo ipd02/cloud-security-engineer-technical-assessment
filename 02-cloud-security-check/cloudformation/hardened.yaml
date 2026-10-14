@@ -21,6 +21,11 @@ Parameters:
     MaxLength: 128
     AllowedPattern: "^[A-Za-z0-9+=,.@:/_-]+$"
     ConstraintDescription: "16 to 128 characters from A-Z a-z 0-9 and the symbols + = , . @ : / _ -"
+  Environment:
+    Type: String
+    Description: Environment label added as a tag to every resource that supports tags.
+    AllowedValues: [dev, staging, prod]
+    Default: dev
   RequireMfa:
     Type: String
     Description: Require MFA in the session that assumes the role (human callers).
@@ -51,6 +56,13 @@ Resources:
     UpdateReplacePolicy: Retain
     Properties:
       Description: Encrypts objects in the data bucket
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Purpose
+          Value: data-bucket-encryption
       EnableKeyRotation: true
       KeyPolicy:
         Version: "2012-10-17"
@@ -86,6 +98,13 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Purpose
+          Value: access-logs
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerEnforced
@@ -148,6 +167,13 @@ Resources:
             ServerSideEncryptionByDefault:
               SSEAlgorithm: aws:kms
               KMSMasterKeyID: !GetAtt DataKey.Arn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Purpose
+          Value: data
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerEnforced
@@ -193,6 +219,13 @@ Resources:
     Properties:
       Description: Short-lived read and write access to the data bucket
       MaxSessionDuration: 3600
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Purpose
+          Value: data-access
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:

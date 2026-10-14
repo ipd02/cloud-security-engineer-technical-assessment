@@ -5,8 +5,6 @@
 # against a SHA-256 before it is used.
 set -euo pipefail
 
-CFN_LINT_VERSION=1.57.2
-CHECKOV_VERSION=3.3.20
 HADOLINT_VERSION=2.15.1
 # The hadolint release publishes no checksum file. This value was computed
 # from the v2.15.1 release asset when it was pinned here.
@@ -21,8 +19,9 @@ trap 'rm -rf "$work"' EXIT
 install_python_tools() {
   local venv="$HOME/.cloud-check-venv"
   python3 -m venv "$venv"
-  "$venv/bin/pip" install --quiet --disable-pip-version-check \
-    "cfn-lint==${CFN_LINT_VERSION}" "checkov==${CHECKOV_VERSION}"
+  # ci/scanners.txt pins cfn-lint, checkov and every dependency by hash.
+  "$venv/bin/pip" install --quiet --disable-pip-version-check --require-hashes \
+    -r "$(dirname "${BASH_SOURCE[0]}")/../../ci/scanners.txt"
   ln -sf "$venv/bin/cfn-lint" "$BIN_DIR/cfn-lint"
   ln -sf "$venv/bin/checkov" "$BIN_DIR/checkov"
 }

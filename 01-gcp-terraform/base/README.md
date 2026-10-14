@@ -72,7 +72,7 @@ Files are in `module/`.
 | Check | Result |
 | --- | --- |
 | `terraform fmt -check`, `init -backend=false -lockfile=readonly`, `validate` | clean, modules and example |
-| `tflint` (recommended preset) | no issues |
+| `tflint` (recommended preset and the Google ruleset) | no issues |
 | `terraform test` (mocked provider) | 34 passed, 0 failed |
 | `checkov` with the three shared custom policies | 43 passed, 0 failed, 11 documented skips |
 

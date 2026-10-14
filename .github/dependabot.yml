@@ -1,24 +1,31 @@
 version: 2
 # Dependabot does not cover 04-dependency-audit/vulnerable-input on purpose.
 # That folder holds deliberately outdated packages and would open endless PRs.
+# The pip entry covers ci/, where the CI Python tools are pinned with hashes.
 updates:
   - package-ecosystem: github-actions
     directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /ci
     schedule:
       interval: weekly
   - package-ecosystem: gomod
     directory: /03-firewall-scanner
     schedule:
       interval: weekly
-  - package-ecosystem: pip
-    directory: /04-dependency-audit
-    schedule:
-      interval: weekly
+  # Each Terraform folder has its own lock file, so each is listed.
+  # Major provider bumps are left out: the modules pin hashicorp/google to ~> 7.0
+  # and a major upgrade needs a manual review and a new live check.
   - package-ecosystem: terraform
-    directory: /01-gcp-terraform/base/module
+    directories:
+      - /01-gcp-terraform/base/module
+      - /01-gcp-terraform/base/examples/basic
+      - /01-gcp-terraform/extended/module
+      - /01-gcp-terraform/extended/examples/basic
     schedule:
       interval: weekly
-  - package-ecosystem: terraform
-    directory: /01-gcp-terraform/extended/module
-    schedule:
-      interval: weekly
+    ignore:
+      - dependency-name: hashicorp/google
+        update-types: ["version-update:semver-major"]

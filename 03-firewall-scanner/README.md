@@ -192,6 +192,8 @@ make fwscan-lint      # golangci-lint with the root .golangci.yml
 
 ### Scan real clouds
 
+Without `--mock`, `fwscan` uses the cloud credentials already on your machine and reads every account, project and subscription they can see. Name the providers and a scope first, for example `--providers aws --aws-scope account`.
+
 ```sh
 fwscan                                                  # everything the credentials can see, in all three clouds
 fwscan --providers aws --aws-regions eu-west-1,eu-north-1 --aws-scope account
