@@ -54,6 +54,7 @@ The issues are listed in the order they appear in the template: the bucket first
 | Ownership (6) | `BucketOwnerEnforced`, so ACLs are off. |
 | Deletion and cleanup (7) | The buckets and the key use `DeletionPolicy: Retain`, so deleting the stack does not delete the data. Old versions are removed after 90 days, logs after 365 days (both can be changed), and unfinished uploads after 7 days. |
 | Parameters | Each parameter has a type, a description and limits on what it accepts. |
+| Tags | The key, both buckets and the role carry `Environment` (a parameter), `ManagedBy` and `Purpose` tags, so owners and environments can be found in audits and cost reports. |
 
 A few choices need an explanation:
 
