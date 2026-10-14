@@ -3,7 +3,9 @@ package azure
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
@@ -133,5 +135,31 @@ func TestScanErrorKeepsEarlierPages(t *testing.T) {
 func TestNewRequiresSubscription(t *testing.T) {
 	if _, err := New("", false); err == nil {
 		t.Fatal("want error for empty subscription")
+	}
+}
+
+// ctxTransport fails like a real HTTP transport when the request context is done.
+type ctxTransport struct{}
+
+func (ctxTransport) Do(r *http.Request) (*http.Response, error) {
+	if err := r.Context().Err(); err != nil {
+		return nil, err
+	}
+	return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}},
+		Body: io.NopCloser(strings.NewReader(`{"value":[]}`)), Request: r}, nil
+}
+
+// The context given to Scan reaches the SDK call.
+func TestScanHonoursContext(t *testing.T) {
+	s, err := NewWithCredential("sub", &azfake.TokenCredential{}, false, &arm.ClientOptions{
+		ClientOptions: policy.ClientOptions{Transport: ctxTransport{}, Retry: policy.RetryOptions{MaxRetries: -1}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := s.Scan(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v; want context.Canceled", err)
 	}
 }

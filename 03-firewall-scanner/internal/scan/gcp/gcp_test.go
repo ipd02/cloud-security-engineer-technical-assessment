@@ -6,7 +6,9 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	compute "cloud.google.com/go/compute/apiv1"
 	"cloud.google.com/go/compute/apiv1/computepb"
@@ -134,5 +136,72 @@ func TestClientListerHTTPError(t *testing.T) {
 	s := &Scanner{Project: "p", Lister: ClientLister{Client: c}}
 	if _, err := s.Scan(context.Background()); err == nil {
 		t.Fatal("want error")
+	}
+}
+
+// A failure after some rules were listed keeps those rules and returns the error.
+func TestScanKeepsPartialResults(t *testing.T) {
+	boom := errors.New("page 2 failed")
+	open := []string{"0.0.0.0/0"}
+	s := &Scanner{Project: "p", Lister: fakeLister{err: boom, fws: []*computepb.Firewall{
+		fw("one", "INGRESS", false, open, allow("tcp", "22")),
+	}}}
+	got, err := s.Scan(context.Background())
+	if !errors.Is(err, boom) {
+		t.Fatalf("err = %v", err)
+	}
+	if len(got) != 1 || got[0].Name != "one" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+// The SDK ignores the context for in-flight HTTP calls, so ClientLister must
+// stop waiting itself when the context expires.
+func TestClientListerTimesOutOnSlowServer(t *testing.T) {
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		<-release
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	defer close(release)
+	c, err := compute.NewFirewallsRESTClient(context.Background(), option.WithEndpoint(srv.URL), option.WithoutAuthentication())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The client is not closed: the abandoned call still uses it.
+	var abandoned atomic.Bool
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	s := &Scanner{Project: "p", Lister: ClientLister{Client: c, Abandoned: &abandoned}}
+	if _, err := s.Scan(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v; want context.DeadlineExceeded", err)
+	}
+	if d := time.Since(start); d > 2*time.Second {
+		t.Fatalf("returned after %v", d)
+	}
+	if !abandoned.Load() {
+		t.Fatal("Abandoned was not set")
+	}
+}
+
+// The context given to Scan reaches the SDK call: a cancelled context fails the list.
+func TestClientListerHonoursContext(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	c, err := compute.NewFirewallsRESTClient(context.Background(), option.WithEndpoint(srv.URL), option.WithoutAuthentication())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	s := &Scanner{Project: "p", Lister: ClientLister{Client: c}}
+	if _, err := s.Scan(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v; want context.Canceled", err)
 	}
 }

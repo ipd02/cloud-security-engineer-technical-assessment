@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync/atomic"
 
 	compute "cloud.google.com/go/compute/apiv1"
 	"cloud.google.com/go/compute/apiv1/computepb"
@@ -38,36 +39,68 @@ func New(ctx context.Context, project string, includeIPv6 bool) (*Scanner, func(
 	if err != nil {
 		return nil, nil, fmt.Errorf("create gcp firewalls client: %w", err)
 	}
-	return &Scanner{Lister: ClientLister{Client: c}, Project: project, IncludeIPv6: includeIPv6}, c.Close, nil
+	abandoned := &atomic.Bool{}
+	closeFn := func() error {
+		if abandoned.Load() {
+			return nil // a timed-out call may still use the client
+		}
+		return c.Close()
+	}
+	return &Scanner{Lister: ClientLister{Client: c, Abandoned: abandoned}, Project: project, IncludeIPv6: includeIPv6}, closeFn, nil
 }
 
 // ClientLister adapts the SDK client to Lister.
 type ClientLister struct {
 	Client *compute.FirewallsClient
+	// Abandoned, when set, is switched on if a call is left running after its
+	// context expired. The owner must not close the client then.
+	Abandoned *atomic.Bool
 }
 
-// ListFirewalls reads all pages from the SDK iterator.
+// ListFirewalls reads all pages from the SDK iterator. The SDK builds its HTTP
+// requests without the caller's context, so a cancelled or expired context does
+// not stop a call in flight. The list runs in a goroutine and the context is
+// checked here, so --timeout holds. After a timeout the abandoned call ends
+// with the process.
 func (l ClientLister) ListFirewalls(ctx context.Context, project string) ([]*computepb.Firewall, error) {
-	it := l.Client.List(ctx, &computepb.ListFirewallsRequest{Project: project})
-	var out []*computepb.Firewall
-	for {
-		fw, err := it.Next()
-		if errors.Is(err, iterator.Done) {
-			return out, nil
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	type result struct {
+		fws []*computepb.Firewall
+		err error
+	}
+	done := make(chan result, 1)
+	go func() {
+		it := l.Client.List(ctx, &computepb.ListFirewallsRequest{Project: project})
+		var out []*computepb.Firewall
+		for {
+			fw, err := it.Next()
+			if errors.Is(err, iterator.Done) {
+				done <- result{out, nil}
+				return
+			}
+			if err != nil {
+				done <- result{out, err}
+				return
+			}
+			out = append(out, fw)
 		}
-		if err != nil {
-			return out, err
+	}()
+	select {
+	case r := <-done:
+		return r.fws, r.err
+	case <-ctx.Done():
+		if l.Abandoned != nil {
+			l.Abandoned.Store(true)
 		}
-		out = append(out, fw)
+		return nil, ctx.Err()
 	}
 }
 
 // Scan returns firewall rules that have insecure entries.
 func (s *Scanner) Scan(ctx context.Context) ([]model.FirewallRule, error) {
-	fws, err := s.Lister.ListFirewalls(ctx, s.Project)
-	if err != nil {
-		return nil, fmt.Errorf("list firewalls in project %s: %w", s.Project, err)
-	}
+	fws, listErr := s.Lister.ListFirewalls(ctx, s.Project)
 	var out []model.FirewallRule
 	for _, fw := range fws {
 		r := detect.GCPRule{
@@ -91,6 +124,9 @@ func (s *Scanner) Scan(ctx context.Context) ([]model.FirewallRule, error) {
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	if listErr != nil {
+		return out, fmt.Errorf("list firewalls in project %s: %w", s.Project, listErr)
+	}
 	return out, nil
 }
 

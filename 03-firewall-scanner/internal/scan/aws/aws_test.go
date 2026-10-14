@@ -184,3 +184,24 @@ func TestConvertKeepsModelShape(t *testing.T) {
 		t.Fatalf("got %+v", g)
 	}
 }
+
+// ctxEC2 fails like the real SDK when its context is already done.
+type ctxEC2 struct{ fakeEC2 }
+
+func (c *ctxEC2) DescribeSecurityGroups(ctx context.Context, in *ec2.DescribeSecurityGroupsInput, o ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return c.fakeEC2.DescribeSecurityGroups(ctx, in, o...)
+}
+
+// The context given to Scan reaches the SDK call.
+func TestScanHonoursContext(t *testing.T) {
+	f := &ctxEC2{fakeEC2{pages: [][]types.SecurityGroup{{sg("sg-1", "a", perm("tcp", 22, 22, "0.0.0.0/0"))}}}}
+	s := &Scanner{Factory: func(string) EC2API { return f }, DefaultRegion: "eu-west-1"}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := s.Scan(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v; want context.Canceled", err)
+	}
+}

@@ -33,7 +33,7 @@ fwscan --fail-on-findings --output report.json --gcp-project my-project --azure-
 | --- | --- | --- |
 | `--providers` | `aws,gcp,azure` | Providers to scan, comma separated. |
 | `--mock` | off | Use built-in fixtures. No credentials, no network. |
-| `--output` | `-` | Output file, or `-` for stdout. The file mode is 0600. |
+| `--output` | `-` | Output file, or `-` for stdout. A new file is created with mode 0600. An existing file is overwritten and keeps its mode. |
 | `--fail-on-findings` | off | Exit 1 when at least one insecure rule is found. |
 | `--timeout` | `60s` | Overall scan timeout. |
 | `--include-ipv6` | off | Also report `::/0` sources (an extension, see below). |

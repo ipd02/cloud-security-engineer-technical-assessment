@@ -93,6 +93,11 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
+	return runWith(args, stdout, stderr, defaultScanners)
+}
+
+// runWith is run with replaceable scanners, so tests can drive exit codes and the timeout.
+func runWith(args []string, stdout, stderr io.Writer, sc scanners) int {
 	o, err := parseFlags(args, stderr)
 	if errors.Is(err, flag.ErrHelp) {
 		return exitOK
@@ -108,7 +113,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
 	defer cancel()
-	rep := scanAll(ctx, o, defaultScanners)
+	rep := scanAll(ctx, o, sc)
 
 	if err := writeOutput(o.output, stdout, rep); err != nil {
 		_, _ = fmt.Fprintln(stderr, "fwscan:", err)

@@ -25,6 +25,7 @@ func OpenCIDR(cidr string, includeIPv6 bool) (string, bool) {
 	if err != nil || p.Bits() != 0 {
 		return "", false
 	}
+	p = p.Masked() // 0.0.0.1/0 covers the whole internet too
 	a := p.Addr()
 	switch {
 	case a.Is4() && a.IsUnspecified():
