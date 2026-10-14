@@ -153,23 +153,13 @@ The issues are listed in the order they appear in the Dockerfile. Severity uses 
 
 The fixes are in `docker/Dockerfile.hardened`. The numbers match the table above.
 
-**1. Base image.** Use a base that still gets security updates, and pin it by digest. The improved Dockerfile uses `python:3.13-slim-trixie@sha256:...`. The app is Python, so this image already contains Python and no `apt` step is needed. `ubuntu:24.04` would also work. The digest makes every build use exactly the same image. Someone has to update it on purpose to pick up new fixes.
+**1. Base image.** Use `python:3.13-slim-trixie`, pinned by digest. From the Dockerfile, the app only needs Python (`CMD python3 app.py`), and this image already has it, so no `apt` step is needed. The digest makes every build use the same image. Someone has to update it on purpose to get new fixes.
 
-The task gives the Dockerfile but not the app. The only clue is `CMD python3 app.py`. The improved Dockerfile therefore runs a small demo app. A full check needs the real app, to answer these questions:
+The task does not include the app, so the improved Dockerfile runs a small demo app. If the real app needs something different, change the base like this:
 
-- **Does it run on a newer Python?** Ubuntu 18.04 ships Python 3.6. Some code written for it breaks on 3.13, because some modules were removed and some behavior changed. Run the app's tests on the new version.
-- **Does it install Python packages?** The task has no `requirements.txt`. If there is one, install it in a first build stage, pin the versions, and copy only the result into the final image.
-- **Does it use any of the removed tools?** See issue 3.
-- **Does it depend on anything specific to Ubuntu?** If so, use `ubuntu:24.04` as the base, install `python3` in one `apt` step (see issue 4), and keep the other fixes.
-- **Do the scanners still pass?** Build the image with the real app and run the same checks as in "What was checked".
-
-If an older Python version has to stay, take these steps in this order:
-
-1. **Upgrade the app first.** This is the real fix. An old Python version gets no security fixes, whatever the base image is. Check which versions still get fixes on python.org, and move to one of them.
-2. **If the upgrade is not possible yet, pin and shrink the risk.** Use the official image for that exact version, pinned by digest. Keep every other fix: non-root user, read-only files, no secrets, no extra tools.
-3. **Limit what the container can reach.** Use the run flags in issue 2, and allow only the network connections it needs.
-4. **Scan on a schedule and set a deadline.** Run `trivy image` regularly, because the findings will not be fixed. Write down who owns the upgrade and by when.
-5. **If the old Ubuntu release itself must stay,** Ubuntu offers paid extended security updates for 18.04 (Ubuntu Pro). That keeps the system packages patched. It does not patch the app's own libraries.
+- **An older Python version** (an old library or tool needs it, or any other reason). Use the official image for that version, pinned by digest. The risk is that old versions get no security fixes, so known vulnerabilities stay open. Keep every other fix, run it with the flags in issue 2, allow only the network connections it needs, scan with `trivy image` on a schedule, and plan the upgrade with an owner and a date.
+- **Ubuntu** (the app needs an Ubuntu package or tool). Use a release that is still supported, such as `ubuntu:24.04`, pinned by digest. Install `python3` and only what the app needs in one `apt` step (see issue 4). The risk is a bigger base with more packages to patch, so rebuild and scan often. If 18.04 itself has to stay, Ubuntu Pro sells security updates for the system packages. They do not cover the app's own libraries.
+- **In every case,** run the real app's tests and the same scanner checks on the new image. Code written for Python 3.6 can break on 3.13. If the app has a `requirements.txt`, install it in a first build stage, pin the versions, and copy only the result into the final image.
 
 **2. Root user.** Create a user with a number (`10001`), no shell and no home folder, and switch to it with `USER`. Also start the container with settings that limit what it can do:
 
