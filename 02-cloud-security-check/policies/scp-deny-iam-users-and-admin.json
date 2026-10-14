@@ -41,8 +41,7 @@
       "Effect": "Deny",
       "Action": [
         "s3:PutAccountPublicAccessBlock",
-        "s3:PutBucketPublicAccessBlock",
-        "s3:DeleteBucketPublicAccessBlock"
+        "s3:PutBucketPublicAccessBlock"
       ],
       "Resource": "*",
       "Condition": {
