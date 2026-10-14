@@ -4,7 +4,23 @@ The complete solution to the brief. Every requirement is met, including the IAM 
 
 ![Base version diagram](../docs/base.png)
 
+## Usage
+
+```hcl
+module "web" {
+  source = "./module" # path to this folder's module
+
+  project_id        = "my-project"
+  trusted_ssh_cidrs = ["203.0.113.0/24"] # your office or VPN egress range
+  domains           = ["www.example.com"]
+}
+```
+
+Then run `terraform init`, `plan` and `apply` with your own credentials. Point DNS for `domains` at the `load_balancer_ip` output. A full caller is in [`examples/basic`](examples/basic/main.tf). The code is in `module/`, and the folder tree is in the [overview](../README.md#layout).
+
 ## The brief, requirement by requirement
+
+Files are in `module/`.
 
 | Requirement | What implements it | File |
 | --- | --- | --- |
@@ -31,9 +47,25 @@ The complete solution to the brief. Every requirement is met, including the IAM 
 
 **Strict range validation.** `trusted_ssh_cidrs` must hold "not 0.0.0.0/0" in effect, because `0.0.0.0/1` plus `128.0.0.0/1` is the same thing. It accepts only canonical IPv4 CIDRs. It rejects null, an empty list, IPv6, host bits, whitespace, `0.0.0.0/0`, prefixes shorter than /8, and lists that add up to more than one /8.
 
-## Inputs
+## Inputs and outputs
 
-Set `project_id`, `trusted_ssh_cidrs`, and either `domains` or `existing_ssl_certificate_id`. See `examples/basic/main.tf`.
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `project_id` | required | Project that receives all resources |
+| `trusted_ssh_cidrs` | required | IPv4 ranges allowed to SSH to the bastion. Strictly validated |
+| `domains` or `existing_ssl_certificate_id` | `[]` or `null` | Set exactly one: a Google-managed certificate for the domains, or an existing certificate |
+| `name` | `secure-web` | Prefix for every resource, 20 characters at most |
+| `region`, `zone` | `europe-west1`, `europe-west1-b` | The zone must be inside the region |
+| `public_subnet_cidr`, `private_subnet_cidr` | `10.10.0.0/24`, `10.10.1.0/24` | Must not overlap |
+| `machine_type`, `bastion_machine_type` | `e2-small`, `e2-micro` | |
+| `boot_image` | Debian 13 family | Image family for both instances |
+
+| Output | Use |
+| --- | --- |
+| `load_balancer_ip` | Point DNS for `domains` here |
+| `bastion_external_ip`, `instance_internal_ip` | The two addresses for an SSH hop through the bastion |
+| `instance_name`, `instance_service_account`, `bastion_service_account` | Names and accounts |
+| `vpc_id`, `public_subnet_id`, `private_subnet_id` | Network ids for other modules |
 
 ## Verification
 

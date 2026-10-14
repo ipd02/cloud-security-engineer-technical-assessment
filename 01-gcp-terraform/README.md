@@ -68,12 +68,18 @@ It runs `terraform fmt -check`, `validate`, `tflint`, `terraform test` (mocked p
 
 ## Layout
 
-| Path | Content |
-| --- | --- |
-| `base/`, `extended/` | Module, tests, example and README each |
-| `policy/checkov/` | Three custom Checkov policies for both modules |
-| `docs/` | Diagrams, PNG and SVG source |
-| `part.mk` | Make targets for both modules |
+```text
+01-gcp-terraform/
+├── README.md           this overview
+├── docs/               diagrams (PNG and SVG source)
+├── base/
+│   ├── README.md
+│   ├── examples/basic/
+│   └── module/         the Terraform module, with tests/ and scripts/
+├── extended/           same shape as base
+├── policy/checkov/     three custom Checkov policies for both versions
+└── part.mk             make targets for both versions
+```
 
 ## Limits
 

@@ -21,7 +21,7 @@ module "web_dev" {
 
   project_id        = "example-dev-project"
   name              = "web-dev"
-  trusted_ssh_cidrs = ["203.0.113.0/24"] # documentation range. The instance has no external IP, so use ranges that reach the VPC over VPN, Interconnect or peering.
+  trusted_ssh_cidrs = ["203.0.113.0/24"] # documentation range, replace with your office or VPN egress range
   domains           = ["dev.example.com"]
 
   # Granted roles/compute.osLogin on the two instances only, never project-wide.

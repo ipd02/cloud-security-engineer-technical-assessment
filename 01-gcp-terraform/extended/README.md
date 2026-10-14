@@ -4,6 +4,21 @@ The [base version](../base/README.md) already meets the whole brief. This versio
 
 ![Extended version diagram](../docs/extended.png)
 
+## Usage
+
+```hcl
+module "web" {
+  source = "./module" # path to this folder's module
+
+  project_id        = "my-project"
+  trusted_ssh_cidrs = ["203.0.113.0/24"] # your office or VPN egress range
+  domains           = ["www.example.com"]
+  ssh_login_members = ["user:admin@example.com"]
+}
+```
+
+The inputs are the base's plus the extras below. A full caller is in [`examples/basic`](examples/basic/main.tf). The code is in `module/`, and the folder tree is in the [overview](../README.md#layout).
+
 ## What it adds to the base
 
 | Addition | Why | File |
@@ -19,6 +34,19 @@ The [base version](../base/README.md) already meets the whole brief. This versio
 | Custom Checkov policies, more tests | Guard rails a unit test cannot give | `policy/`, `tests/` |
 
 Identical in both versions: the bastion SSH path, strict `trusted_ssh_cidrs` validation, the service accounts and their roles, rules that target service accounts, narrow instance scopes, the startup script in metadata, and the Debian 13 image. The explanations of the load balancer and the 443 rule are in the [base README](../base/README.md#design-notes).
+
+## Extra inputs and outputs
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `ssh_login_members` | `[]` | IAM members who get `roles/compute.osLogin` on the two instances |
+| `enable_bastion` | `true` | Turn the bastion off when the trusted ranges reach the VPC privately |
+| `enable_iap_ssh` | `false` | Add the IAP rule and the IAP bindings |
+| `kms_key_self_link` | `null` | Customer-managed key for the boot disks |
+| `rate_limit_requests_per_minute` | `300` | Cloud Armor limit per client IP |
+| `boot_disk_size_gb`, `labels` | `20`, `{}` | Disk size and extra labels |
+
+One extra output: `security_policy_id`. Files are in `module/`.
 
 ## Firewall rules
 

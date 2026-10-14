@@ -18,8 +18,7 @@ module "web" {
 
   project_id = "example-project"
   name       = "web"
-  # Documentation range. The instance has no external IP, so use ranges that
-  # reach the VPC over VPN, Interconnect or peering.
+  # Documentation range. Replace it with your office or VPN egress range.
   trusted_ssh_cidrs = ["203.0.113.0/24"]
   domains           = ["www.example.com"]
 }
