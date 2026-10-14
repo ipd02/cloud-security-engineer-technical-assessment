@@ -1,46 +1,39 @@
 #!/usr/bin/env python3
-"""Find risky IAM users and roles from two read-only AWS exports.
+"""Find risky IAM users, roles and root account settings from two AWS exports.
 
-Inputs (produce them with the AWS CLI, then run this script offline):
+Get the exports with the AWS CLI, then run this script. It makes no AWS calls:
 
   aws iam generate-credential-report
   aws iam get-credential-report --query Content --output text | base64 -d > report.csv
   aws iam get-account-authorization-details --filter User Role Group LocalManagedPolicy \
       --output json > authz.json
 
-Rules, highest severity first. Policy rules apply to users and roles, whether
-the policy is inline, attached, or inherited from a group:
+Findings, worst first. Policy findings apply to users and roles, whether the
+policy is inline, attached, or comes from a group:
 
-  critical  an Allow statement with Action "*" on Resource "*"
+  critical  a policy that allows Action "*" on Resource "*"
   critical  the AWS managed policy AdministratorAccess is attached
   critical  the root account has an active access key
-  high      an Allow statement with Action "iam:*" on Resource "*"
+  high      a policy that allows "iam:*" on Resource "*"
   high      the AWS managed policy IAMFullAccess is attached
-  high      console password enabled and no MFA
+  high      a console password without MFA
   high      the root account has no MFA device
-  medium    an Allow statement with another "service:*" action on Resource "*"
-  medium    active access key older than --max-key-age days
-  medium    active access key never used, or unused for --unused-days
-  low       console password unused for --unused-days
+  medium    a policy that allows another "service:*" action on Resource "*"
+  medium    an active access key older than --max-key-age days
+  medium    an active access key never used, or unused for --unused-days
+  low       a console password unused for --unused-days
 
-A finding is a lead, not a verdict. Check what uses the identity before
-you disable or delete it. The credential report lags: a key used a few
-minutes ago can still show no last use.
+A finding is a lead to check, not a verdict. The credential report lags: a key
+used a few minutes ago can still show no last use.
 
-Limits:
-  - Policies are read as written. Conditions, Deny statements, permission
-    boundaries and SCPs are not evaluated, so a policy that something else
-    cancels is still reported, and a limit that applies elsewhere is not
-    seen. To get the effective permissions of one principal, use the IAM
-    policy simulator or IAM Access Analyzer.
-  - Wildcards inside an action name, such as "s3:Get*" or "iam:Put*", are
-    not flagged.
-  - Only AdministratorAccess and IAMFullAccess are recognised by name.
-    Service-linked roles are skipped.
-  - Input must be the AWS CLI v2 output, which merges paginated results.
+The script reads policies as they are written. It does not combine them with
+Deny statements, conditions, permission boundaries or SCPs. To see the real
+permissions of one principal, use the IAM policy simulator or IAM Access
+Analyzer. Service-linked roles are skipped. The input is the AWS CLI v2 output,
+which already joins long results into one document.
 
-Exit code is 1 when a finding at or above --fail-on exists, 2 when an
-input file is missing or malformed, otherwise 0.
+Exit code: 1 if a finding at or above --fail-on exists, 2 if an input file
+cannot be read or is the wrong kind of file, otherwise 0.
 """
 
 import argparse
