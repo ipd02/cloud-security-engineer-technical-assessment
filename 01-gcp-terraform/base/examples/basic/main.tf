@@ -14,7 +14,7 @@ provider "google" {
 }
 
 module "web" {
-  source = "../.."
+  source = "../../module"
 
   project_id = "example-project"
   name       = "web"

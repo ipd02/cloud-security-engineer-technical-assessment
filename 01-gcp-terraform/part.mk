@@ -1,7 +1,7 @@
 # Part 1: Secure GCP infrastructure with Terraform. Recipes run from the repo root.
 # Two standalone modules: base (the brief only) and extended (base plus labelled hardening).
 TF_DIR  := 01-gcp-terraform
-TF_MODS := $(TF_DIR)/base $(TF_DIR)/extended
+TF_MODS := $(TF_DIR)/base/module $(TF_DIR)/extended/module
 
 FMT_TARGETS  += tf-fmt
 LINT_TARGETS += tf-lint
