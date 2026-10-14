@@ -46,7 +46,7 @@ These checks give an answer in seconds. A developer can skip them, so the pull r
 
 ## 2. Pull request (review and merge)
 
-These checks are required, so a failing change cannot be merged.
+These checks should be required, so that a failing change cannot be merged. This repository does not enforce that: its main branch has no protection rules.
 
 | Control | What it stops |
 | --- | --- |

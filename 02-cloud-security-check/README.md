@@ -1,17 +1,17 @@
 # Part 2: Cloud security check
 
-This part reviews the task's CloudFormation template and Dockerfile. It answers the task questions in the task's order: what is wrong, an improved version, how to find and fix the existing user, and how to prevent the problems. The two original files are kept unchanged.
+This part reviews the task's CloudFormation template and Dockerfile. It answers the task questions in the task's order: what is wrong, an hardened version, how to find and fix the existing user, and how to prevent the problems. The two original files are kept unchanged.
 
 ## What is in this folder
 
 | Path | What it is |
 | --- | --- |
 | `cloudformation/original.yaml` | The task template, unchanged |
-| `cloudformation/hardened.yaml` | The improved template |
+| `cloudformation/hardened.yaml` | The hardened template |
 | `docker/Dockerfile.original` | The task Dockerfile, unchanged |
-| `docker/Dockerfile.hardened` | The improved Dockerfile |
+| `docker/Dockerfile.hardened` | The hardened Dockerfile |
 | `docker/app.py`, `docker/.dockerignore` | A small demo web service for the image to run (the task gives no app code), and a file that keeps everything else out of the build |
-| `tests/assert-originals-fail.sh` | Checks that the scanners reject the original files and accept the improved ones |
+| `tests/assert-originals-fail.sh` | Checks that the scanners reject the original files and accept the hardened ones |
 | `scripts/find_risky_iam_users.py` | Reads two AWS exports and lists risky users, roles and root account settings |
 | `tests/test_find_risky_iam_users.py` and `tests/fixtures/` | Unit tests for that script, with made-up data |
 | `scripts/ci-install-tools.sh` | Installs the pinned scanner versions in CI |
@@ -38,11 +38,11 @@ The issues are listed in the order they appear in the template: the bucket first
 | 9 | IAM user | A user instead of a role | A user has access keys that do not expire and must be rotated by hand. A role gives short-lived credentials. | High |
 | 10 | IAM user | Fixed user name, no policy `Version`, no `Sid` | The template cannot be deployed twice and needs the extra `CAPABILITY_NAMED_IAM`. The policy uses the old policy language. | Low |
 
-## 2. CloudFormation: the improved template
+## 2. CloudFormation: the hardened template
 
 `cloudformation/hardened.yaml` replaces the user with a role and sets every bucket protection explicitly.
 
-| Problem | What the improved template does |
+| Problem | What the hardened template does |
 | --- | --- |
 | User with full access (8, 9) | A role, `DataAccessRole`, that people or other roles assume. A separate policy lists the allowed actions: read and write objects in this bucket, and use this one key. |
 | Who may use the role | One principal, set with the `TrustedPrincipalArn` parameter. The caller must also give the `ExternalId` value, and by default must have signed in with MFA (`RequireMfa`). A session lasts at most one hour. |
@@ -80,8 +80,8 @@ Each row is one way to find a user like this. The result column says what happen
 | 2 | Find users that have a policy allowing everything | `aws iam get-account-authorization-details --filter User Group LocalManagedPolicy --output json > authz.json`, then `jq -r '.UserDetailList[] \| select(.UserPolicyList[]?.PolicyDocument.Statement \| (if type=="array" then . else [.] end)[] \| select(.Action=="*" and .Resource=="*")) \| .UserName' authz.json` | Printed `UnrestrictedUser` and nothing else. This filter reads inline user policies only. |
 | 3 | Access Advisor: which services a user actually used | `aws iam generate-service-last-accessed-details --arn <user-arn> --granularity ACTION_LEVEL` then `aws iam get-service-last-accessed-details --job-id <id>` | The job finished after a few seconds. Its data also lags, so it showed no use for a user that had just called S3 and STS. |
 | 4 | Access Analyzer unused access: users, roles and keys nobody uses | `aws accessanalyzer create-analyzer --analyzer-name unused --type ACCOUNT_UNUSED_ACCESS --configuration '{"unusedAccess":{"unusedAccessAge":90}}'` then `aws accessanalyzer list-findings-v2 --analyzer-arn <arn>` | Created and queried. It reports identities that have been unused for the set number of days, so it has nothing to report for identities that are minutes old. |
-| 5 | Access Analyzer policy check, before deploying a policy | `aws accessanalyzer validate-policy --policy-type IDENTITY_POLICY --policy-document file://policy.json` | The original policy got three warnings (no policy `Version`, a wildcard that allows creating service-linked roles, a wildcard on `iam:PassRole`) and no errors. The improved policy got none. A pipeline has to fail on warnings to stop the original. |
-| 6 | AWS Config rules: continuous checks | `IAM_NO_INLINE_POLICY_CHECK` and `IAM_USER_NO_POLICIES_CHECK` find the user. `IAM_POLICY_NO_STATEMENTS_WITH_ADMIN_ACCESS` only looks at customer-managed policies, so it does not. Bucket rules: `S3_BUCKET_LEVEL_PUBLIC_ACCESS_PROHIBITED`, `S3_BUCKET_SSL_REQUESTS_ONLY`, `S3_BUCKET_VERSIONING_ENABLED`, `S3_BUCKET_LOGGING_ENABLED`. Read results with `aws configservice get-compliance-details-by-config-rule`. | The two user rules marked the user non-compliant. The bucket rules marked the original bucket non-compliant for HTTPS, versioning and logging, and the improved data bucket compliant for all four. |
+| 5 | Access Analyzer policy check, before deploying a policy | `aws accessanalyzer validate-policy --policy-type IDENTITY_POLICY --policy-document file://policy.json` | The original policy got three warnings (no policy `Version`, a wildcard that allows creating service-linked roles, a wildcard on `iam:PassRole`) and no errors. The hardened policy got none. A pipeline has to fail on warnings to stop the original. |
+| 6 | AWS Config rules: continuous checks | `IAM_NO_INLINE_POLICY_CHECK` and `IAM_USER_NO_POLICIES_CHECK` find the user. `IAM_POLICY_NO_STATEMENTS_WITH_ADMIN_ACCESS` only looks at customer-managed policies, so it does not. Bucket rules: `S3_BUCKET_LEVEL_PUBLIC_ACCESS_PROHIBITED`, `S3_BUCKET_SSL_REQUESTS_ONLY`, `S3_BUCKET_VERSIONING_ENABLED`, `S3_BUCKET_LOGGING_ENABLED`. Read results with `aws configservice get-compliance-details-by-config-rule`. | The two user rules marked the user non-compliant. The bucket rules marked the original bucket non-compliant for HTTPS, versioning and logging, and the hardened data bucket compliant for all four. |
 | 7 | CloudTrail: what the user did | `aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=UnrestrictedUser` | Listed the user's S3 and STS calls. The user's IAM call did not show up in this region's history. |
 
 At larger scale, AWS Security Hub (controls IAM.1 and IAM.2) and the open-source scanner Prowler do the same checks across many accounts.
@@ -142,7 +142,7 @@ The fixes are in `docker/Dockerfile.hardened`. The numbers match the table above
 
 **1. Base image.** Use `python:3.13-slim-trixie`, pinned by digest. From the Dockerfile, the app only needs Python (`CMD python3 app.py`), and this image already has it, so no `apt` step is needed. The digest makes every build use the same image. Someone has to update it on purpose to get new fixes.
 
-The task does not include the app, so the improved Dockerfile runs a small demo app. If the real app needs something different, change the base like this:
+The task does not include the app, so the hardened Dockerfile runs a small demo app. If the real app needs something different, change the base like this:
 
 - **An older Python version** (an old library or tool needs it, or any other reason). Use the official image for that version, pinned by digest. The risk is that old versions get no security fixes, so known vulnerabilities stay open. Keep every other fix, run it with the flags in issue 2, allow only the network connections it needs, scan with `trivy image` on a schedule, and plan the upgrade with an owner and a date.
 - **Ubuntu** (the app needs an Ubuntu package or tool). Use a release that is still supported, such as `ubuntu:24.04`, pinned by digest. Install `python3` and only what the app needs in one `apt` step (see issue 4). The risk is a bigger base with more packages to patch, so rebuild and scan often. If 18.04 itself has to stay, Ubuntu Pro sells security updates for the system packages. They do not cover the app's own libraries.
@@ -164,7 +164,7 @@ In Kubernetes the same settings are `runAsNonRoot: true`, `allowPrivilegeEscalat
 
 **3. Extra tools.** The demo app needs none of them, so nothing is installed, and pip is removed because nothing in the running container needs it. The health check uses Python instead of `curl`. If the real app does need a tool, such as `curl` or `dig`, add back only that package. Do not add back `vim`. The demo app has no build step, so the Dockerfile has one stage. With packages to install, use a first stage as described in issue 1.
 
-**4. `apt` options.** The improved Dockerfile has no `apt` step, so there is nothing to fix. If one is needed, install with `--no-install-recommends`, pin versions where practical, and remove the package lists (`rm -rf /var/lib/apt/lists/*`) in the same `RUN` step.
+**4. `apt` options.** The hardened Dockerfile has no `apt` step, so there is nothing to fix. If one is needed, install with `--no-install-recommends`, pin versions where practical, and remove the package lists (`rm -rf /var/lib/apt/lists/*`) in the same `RUN` step.
 
 **5. Secrets.** The image holds no secret. Give the secret to the running container instead:
 
@@ -197,10 +197,10 @@ Everything below was run while building this part. The image checks apply to the
 From the repository root:
 
 ```sh
-make cloud-check-lint    # cfn-lint and hadolint on the improved files
-make cloud-check-scan    # checkov and trivy on the improved files
-make cloud-check-test    # originals must fail, improved files must pass
-make cloud-check-build   # build the improved image (needs docker)
+make cloud-check-lint    # cfn-lint and hadolint on the hardened files
+make cloud-check-scan    # checkov and trivy on the hardened files
+make cloud-check-test    # originals must fail, hardened files must pass
+make cloud-check-build   # build the hardened image (needs docker)
 ```
 
 Versions used: cfn-lint 1.57.2, checkov 3.3.20, hadolint 2.15.1, trivy 0.75.0, Docker 29.9.0, AWS CLI 2.37.13.
@@ -217,7 +217,7 @@ Versions used: cfn-lint 1.57.2, checkov 3.3.20, hadolint 2.15.1, trivy 0.75.0, D
 | `checkov` on the originals | `original.yaml`: 3 passed, 13 failed. `Dockerfile.original`: 7 passed, 2 failed. |
 | `trivy config` on the originals | `original.yaml`: 9 findings (5 high). `Dockerfile.original`: 5 findings (2 critical, 2 high). |
 | `hadolint` on `Dockerfile.original` | 8 findings |
-| `tests/assert-originals-fail.sh` | 11 checks, all held. Each "must fail" check also looks for a named rule, so a crash does not count. |
+| `tests/assert-originals-fail.sh` | 12 checks, all held. Each "must fail" check also looks for a named rule, so a crash does not count. One check fails if the role policy gets an action with a `*`, because no scanner here catches that. |
 | Image build and run with the flags in issue 2 | Healthy within seconds, `/healthz` returns 200, runs as user 10001 with no capabilities, and writing to `/app` fails (read-only). |
 | Secret file | With `DB_PASSWORD_FILE` pointing at a mounted file, the app logs that it read the file. The value is never in the logs or in a response. |
 | `docker history` of the image | No password or key in it |
@@ -226,7 +226,7 @@ Versions used: cfn-lint 1.57.2, checkov 3.3.20, hadolint 2.15.1, trivy 0.75.0, D
 
 Two notes on these results:
 
-- **cfn-lint accepts the original template.** It checks that a template is valid, and the original is valid. It is not a security scanner, so the test script runs it only on the improved template. Checkov and trivy are the tools that reject the original.
+- **cfn-lint accepts the original template.** It checks that a template is valid, and the original is valid. It is not a security scanner, so the test script runs it only on the hardened template. Checkov and trivy are the tools that reject the original.
 - **The 44 high findings are in the Debian base image** (system libraries such as util-linux and systemd). Debian has not published fixes for them. The image is pinned by digest, so building on a newer digest picks up fixes when they appear. CI fails only on findings that have a fix, and a separate CI step prints all 44.
 
 ### Trust policy test
@@ -257,15 +257,15 @@ The data role could put and get an object (S3 stored it encrypted with the KMS k
 
 ### Detection and prevention test
 
-I deployed the task's original template as its own stack in the same account and ran the commands from section 3. I ran the prevention checks against the improved stack.
+I deployed the task's original template as its own stack in the same account and ran the commands from section 3. I ran the prevention checks against the hardened stack.
 
 | Check | Result |
 | --- | --- |
 | Finder script on the real exports | Reported `UnrestrictedUser` as critical (a policy allowing every action on every resource) and listed its key as never used (the report lags, see step 1). The other two test users, which have no wildcard policy, were not reported. |
 | The original bucket as created | All four public access block settings on, S3-managed encryption, no versioning. |
-| HTTPS rule on the improved bucket | A request over plain HTTP returned `403 Forbidden`. The same request over HTTPS worked. |
-| Public bucket policy on the improved bucket | Refused |
-| Public ACL on the improved bucket | Refused |
+| HTTPS rule on the hardened bucket | A request over plain HTTP returned `403 Forbidden`. The same request over HTTPS worked. |
+| Public bucket policy on the hardened bucket | Refused |
+| Public ACL on the hardened bucket | Refused |
 | The same two attempts on the original bucket | Both refused. S3's defaults did the blocking, not the template. |
 | Permission boundary | A role with `AdministratorAccess` and a boundary that allows only `s3:ListAllMyBuckets` could not list IAM users, but could list buckets. Without the boundary it could list users. |
 | Requiring a boundary when roles are created | An identity policy that allows `iam:CreateRole` only with the boundary set. Creating a role without it was refused. With it, the role was created. |
