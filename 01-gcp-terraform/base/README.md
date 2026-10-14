@@ -77,22 +77,22 @@ Files are in `module/`.
 | `checkov` with the three shared custom policies | 43 passed, 0 failed, 11 documented skips |
 | `examples/basic` | validates |
 
-### Live run, 2026-10-14
+### Live runs, 2026-10-14
 
-Applied in a throwaway project (23 resources) with a self-signed certificate, then destroyed. A listing showed nothing left behind.
+Applied twice in a throwaway project with a self-signed certificate, and destroyed each time. A listing showed nothing left behind. The first run had no bastion (20 resources). The second has the final code (23 resources).
 
-| Check | Result |
-| --- | --- |
-| Backend service | `HEALTHY` |
-| `https://<lb ip>/` | 200 |
-| TLS | 1.2 and 1.3 negotiate |
-| Port 80 on the load balancer address | no answer |
-| Instance | private subnet, no external IP |
-| SSH: trusted range, bastion, instance | works |
-| SSH straight to the instance | times out |
-| Bastion to instance | tcp/22 open, tcp/80 closed |
-| Bastion with another range in `trusted_ssh_cidrs` | times out |
-| Project roles of the module's accounts | only the two writer roles, on the instance account |
+| Check | Result | Run |
+| --- | --- | --- |
+| Backend service | `HEALTHY` | both |
+| `https://<lb ip>/` | 200 | both |
+| TLS | 1.2 and 1.3 negotiate | first |
+| Port 80 on the load balancer address | no answer | both |
+| Instance | private subnet, no external IP | both |
+| SSH: trusted range, bastion, instance | works | second |
+| SSH straight to the instance | times out | second |
+| Bastion to instance | tcp/22 open, tcp/80 closed | second |
+| Bastion with another range in `trusted_ssh_cidrs` | times out | second |
+| Project roles of the module's accounts | only the two writer roles, on the instance account | second |
 
 Not verified: the Google-managed certificate and TLS 1.1 refusal.
 

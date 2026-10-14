@@ -31,7 +31,8 @@ The inputs are the base's plus the extras below. A full caller is in [`examples/
 | Cloud Armor: OWASP rules, CVE rule, rate limit | Common web attacks filtered at the edge | `armor.tf` |
 | Logs: VPC flow, firewall, NAT, load balancer, health check | Detection and investigation | `network.tf`, `firewall.tf`, `loadbalancer.tf` |
 | `enable_bastion` switch and a direct trusted-range rule | For ranges that reach the VPC over VPN, Interconnect or peering | `bastion.tf`, `firewall.tf` |
-| Custom Checkov policies, more tests | Guard rails a unit test cannot give | `policy/`, `tests/` |
+| A `check` that warns when a trusted range is wider than /16 | Flags broad ranges that still pass validation | `validations.tf` |
+| Labels on resources, custom Checkov policies, more tests | Hygiene and guard rails a unit test cannot give | `network.tf`, `policy/`, `tests/` |
 
 Identical in both versions: the bastion SSH path, strict `trusted_ssh_cidrs` validation, the service accounts and their roles, rules that target service accounts, narrow instance scopes, the startup script in metadata, and the Debian 13 image. The explanations of the load balancer and the 443 rule are in the [base README](../base/README.md#design-notes).
 

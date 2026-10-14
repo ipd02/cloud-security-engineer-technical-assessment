@@ -1,13 +1,7 @@
 #!/bin/bash
 # Serves a static page on port 80 so the load balancer path can be tested end
-# to end. Runs as a dynamic unprivileged user and binds only the low port, nothing else.
+# to end. Runs as a dynamic unprivileged user and binds only port 80.
 set -euo pipefail
-
-# Debian 13 GCE images may not ship python3. Install it through Cloud NAT if missing.
-if ! command -v python3 >/dev/null; then
-  apt-get update
-  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3-minimal
-fi
 
 install -d -m 0755 /srv/www
 hostname > /srv/www/index.html
