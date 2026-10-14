@@ -38,12 +38,12 @@ dep-audit-scan: ## Part 4: trivy passes on fixed/ and finds issues in vulnerable
 	fi
 	@trivy --version
 
-# Reruns trivy on both folders and saves JSON, text and a meta file. The meta file
-# holds the trivy version and the vulnerability database version and update time,
-# which decide the findings. Run it when you refresh the saved reports.
+# Reruns trivy on both folders and saves JSON, text and a meta file in reports/before and
+# reports/after. The meta file holds the trivy version and the vulnerability database
+# version and update time, which decide the findings. Run it when you refresh the saved reports.
 dep-audit-trivy: ## Part 4: rerun trivy on both folders and save the output with its versions
 	@for pair in before:vulnerable-input after:fixed; do \
-		name=$${pair%%:*}; dir=$${pair##*:}; out=$(CURDIR)/$(DEP_AUDIT_DIR)/reports/trivy-$$name; \
+		name=$${pair%%:*}; dir=$${pair##*:}; out=$(CURDIR)/$(DEP_AUDIT_DIR)/reports/$$name/trivy; \
 		(cd $(DEP_AUDIT_DIR)/$$dir && trivy fs --quiet --scanners vuln --include-dev-deps -f json -o $$out.json . \
 			&& trivy fs --quiet --scanners vuln --include-dev-deps -o $$out.txt .) || exit 1; \
 		{ echo "date_utc: $$(date -u +%Y-%m-%dT%H:%M:%SZ)"; \
@@ -51,13 +51,13 @@ dep-audit-trivy: ## Part 4: rerun trivy on both folders and save the output with
 		  trivy --version; } > $$out.meta.txt; \
 	done
 
-dep-audit-report: ## Part 4: rebuild the JSON and CSV from the saved reports
-	cd $(DEP_AUDIT_DIR)/reports && python3 ../audit_report.py npm-audit-before.json \
-		--lockfile ../vulnerable-input/package-lock.json --trivy trivy-before.json \
-		--epss epss-before.json \
-		--json-out vulnerabilities-before.json --csv-out vulnerabilities-before.csv \
-		> audit_report-before-summary.txt
-	cd $(DEP_AUDIT_DIR)/reports && python3 ../audit_report.py npm-audit-after.json \
-		--lockfile ../fixed/package-lock.json \
-		--json-out vulnerabilities-after.json --csv-out vulnerabilities-after.csv \
-		> audit_report-after-summary.txt
+dep-audit-report: ## Part 4: rebuild the JSON, CSV and summaries from the saved reports
+	cd $(DEP_AUDIT_DIR)/reports/before && python3 ../../audit_report.py npm-audit.json \
+		--lockfile ../../vulnerable-input/package-lock.json --trivy trivy.json --epss epss.json \
+		--json-out vulnerabilities.json --csv-out vulnerabilities.csv > summary.txt
+	cd $(DEP_AUDIT_DIR)/reports/before && python3 ../../audit_report.py npm-audit.json \
+		--lockfile ../../vulnerable-input/package-lock.json --trivy trivy.json --epss epss.json \
+		--min-severity high --json-out high-critical.json --csv-out high-critical.csv > /dev/null
+	cd $(DEP_AUDIT_DIR)/reports/after && python3 ../../audit_report.py npm-audit.json \
+		--lockfile ../../fixed/package-lock.json \
+		--json-out vulnerabilities.json --csv-out vulnerabilities.csv > summary.txt

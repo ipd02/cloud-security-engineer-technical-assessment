@@ -1,8 +1,8 @@
 {
   "meta": {
     "tool": "audit_report.py",
-    "generated_at": "2026-10-14T15:37:36Z",
-    "input": "npm-audit-after.json",
+    "generated_at": "2026-10-14T18:31:09Z",
+    "input": "npm-audit.json",
     "audit_report_version": 2,
     "epss_source": "",
     "epss_date": "",

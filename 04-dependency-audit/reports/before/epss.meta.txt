@@ -1,0 +1,4 @@
+date_utc: 2026-10-14
+source: https://api.first.org/data/v1/epss?cve=<the 44 CVE ids in before/vulnerabilities.json>
+cmd: curl -s "https://api.first.org/data/v1/epss?cve=..." (public API, no key; file epss.json is the raw response)
+note: EPSS scores are dated 2026-10-14. The npm audit run is from 2026-10-13. The trivy run is from 2026-10-14. Scores change daily.

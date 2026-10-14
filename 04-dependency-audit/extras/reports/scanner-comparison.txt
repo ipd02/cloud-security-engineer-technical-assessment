@@ -1,5 +1,5 @@
-# date_utc: 2026-10-14T15:37:45Z
-# cmd: python3 ../compare_scanners.py npm-audit-before.json trivy-before.json
+# date_utc: 2026-10-14T18:32:40Z
+# cmd: python3 extras/compare_scanners.py reports/before/npm-audit.json reports/before/trivy.json
 # python: Python 3.12.1
 npm audit advisories: 46
 trivy findings with a GHSA id: 45

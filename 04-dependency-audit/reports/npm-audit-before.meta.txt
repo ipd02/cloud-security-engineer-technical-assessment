@@ -1,4 +1,0 @@
-date_utc: 2026-10-13T18:27:33Z
-npm: 11.19.1
-node: v26.10.0
-cmd: npm audit --json (file npm-audit-before.json is the raw output)

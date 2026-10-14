@@ -1,7 +1,7 @@
 # Dependency audit report
 
 Input: the `package.json` from the assessment, in `vulnerable-input/`. The content is as given. The task text lost its indentation, so the whitespace is reconstructed (no indentation, one trailing newline).
-All numbers and ids below come from the files in `reports/`. `npm audit` ran on 2026-10-13 (npm 11.19.1, Node v26.10.0). Trivy 0.75.0 ran on 2026-10-14, and its meta files record the vulnerability database version and update time. Trivy found the same 45 advisories on both days.
+This is the detailed report. [README.md](README.md) gives the answer in the order of the task. All numbers and ids below come from the files in `reports/`. `npm audit` ran on 2026-10-13 (npm 11.19.1, Node v26.10.0). Trivy 0.75.0 ran on 2026-10-14, and its meta files record the vulnerability database version and update time. Trivy found the same 45 advisories on both days.
 The advisory databases change daily, so a re-run later will give different numbers.
 Checks beyond what the assessment asks for (second scanner, EPSS, API probes) are in [extras/](extras/README.md).
 
@@ -16,7 +16,7 @@ Checks beyond what the assessment asks for (second scanner, EPSS, API probes) ar
 | Critical / high / moderate / low (advisories) | 7 / 18 / 15 / 6 | 0 / 0 / 0 / 0 |
 | `trivy fs` findings (all severities, dev deps included) | 45 | 0 |
 
-Sources: `reports/npm-audit-before.txt`, `npm-audit-before.json`, `npm-audit-after.txt`, `npm-audit-after.json`, `trivy-before.json`, `trivy-after.txt`, and the summaries `audit_report-before-summary.txt` and `audit_report-after-summary.txt`.
+Sources: `reports/before/npm-audit.json`, `reports/after/npm-audit.json`, `reports/before/trivy.json`, `reports/after/trivy.json`, and the summaries `reports/before/summary.txt` and `reports/after/summary.txt`.
 
 How npm counts: a package is "vulnerable" if it has an advisory or depends on a vulnerable package, and its severity is the highest of its advisories. So 24 packages carry 46 advisories. Three of the 24 (`mkdirp`, `mocha`, `mongodb-core`) are listed only because they depend on something vulnerable.
 
@@ -24,7 +24,7 @@ Direct dependencies that are vulnerable: `express`, `lodash`, `jsonwebtoken`, `m
 
 ## 2. High and critical findings
 
-25 advisories (7 critical, 18 high), one row each, generated from `reports/vulnerabilities-before.json` by `audit_report.py`.
+25 advisories (7 critical, 18 high), one row each, generated from `reports/before/vulnerabilities.json` by `audit_report.py`.
 "Fixed in" is the patched version of that package as trivy lists it. "Upgrade that fixes it" is what npm audit proposes for the direct dependency that owns the package.
 The vulnerability class is the advisory title. CVE ids come from trivy through the GHSA id. Two advisories have no CVE. `GHSA-mh5c-679w-hh4r` (mongodb) is in trivy under its GHSA id and has no CVE. `GHSA-h8hf-x3f4-xwgp` (mongoose) is not in trivy at all, so it has no CVE and no trivy fixed version.
 
@@ -56,20 +56,20 @@ The vulnerability class is the advisory title. CVE ids come from trivy through t
 | high | qs | 6.3.1 | transitive | GHSA-gqgv-6jq5-jjj9<br>CVE-2017-1000048 | Prototype Pollution Protection Bypass in qs | 6.0.4, 6.1.2, 6.2.3, 6.3.2 | `express@4.22.3` same major |
 | high | qs | 6.3.1 | transitive | GHSA-hrpp-h998-j3pp<br>CVE-2022-24999 | qs vulnerable to Prototype Pollution | 6.10.3, 6.9.7, 6.8.3, 6.7.3, 6.6.1, 6.5.3, 6.4.1, 6.3.3, 6.2.4 | `express@4.22.3` same major |
 
-Other severities (15 moderate and 6 low advisories) are in `reports/vulnerabilities-before.csv`.
+Other severities (15 moderate and 6 low advisories) are in `reports/before/vulnerabilities.csv`.
 
 ## 3. How many can be fixed
 
 | Method | Packages fixed (of 24) | Evidence |
 |---|---|---|
-| `npm audit fix` | 0 | `reports/npm-audit-fix-applied.txt`: package.json and lockfile unchanged, still 24 |
-| `npm audit fix` after changing only the `express` and `lodash` pins to caret ranges | 12 | `reports/npm-audit-fix-carets-applied.txt`: 12 vulnerabilities remain (1 low, 2 moderate, 2 high, 7 critical) |
-| `npm audit fix --force` | 24 | `reports/npm-audit-fix-force-applied.txt`: "found 0 vulnerabilities" |
-| Manual edit of `package.json` (`fixed/`) | 24 | `reports/npm-audit-after.txt` |
+| `npm audit fix` | 0 | `reports/fix-experiments/npm-audit-fix.txt`: package.json and lockfile unchanged, still 24 |
+| `npm audit fix` after changing only the `express` and `lodash` pins to caret ranges | 12 | `reports/fix-experiments/npm-audit-fix-carets.txt`: 12 vulnerabilities remain (1 low, 2 moderate, 2 high, 7 critical) |
+| `npm audit fix --force` | 24 | `reports/fix-experiments/npm-audit-fix-force.txt`: "found 0 vulnerabilities" |
+| Manual edit of `package.json` (`fixed/`) | 24 | `reports/after/npm-audit.txt` |
 
 Why plain `npm audit fix` does nothing: every fix needs a version outside the range in `package.json`, and `npm audit fix` only stays inside the range. For 12 packages the range is the problem: `express` (`4.15.0`) and `lodash` (`4.17.10`) are exact pins. For the other 12 the fix is a new major of `mongoose`, `jsonwebtoken` or `mocha`, which no caret range on the old major can reach. Changing the two pins to carets would let plain `npm audit fix` clear 12 packages and leave 12, 7 of them critical (see the carets row above).
 
-By type of change, from `fixAvailable` in `npm-audit-before.json`:
+By type of change, from `fixAvailable` in `reports/before/npm-audit.json`:
 
 - 12 packages are fixed by a bump inside the same major line: `express` (4.15.0 to 4.22.3) fixes 11 packages (express, cookie, debug, fresh, mime, ms, path-to-regexp, proxy-addr, qs, send, serve-static), and `lodash` (4.17.10 to 4.18.1) fixes itself. Both need the exact pin changed.
 - 12 packages need a semver-major bump of a direct dependency: `mongoose` 4 to 9 fixes 7 (mongoose, bson, mongodb, mongodb-core, async, mpath, mquery), `jsonwebtoken` 8 to 9 fixes 1, and `mocha` 5 to 12 fixes 4 (mocha, minimist, mkdirp, diff).
@@ -160,14 +160,4 @@ Things to check at every step:
 
 ## 10. Files
 
-| File | What it is |
-|---|---|
-| `vulnerable-input/package.json` | The task input, whitespace reconstructed |
-| `vulnerable-input/package-lock.json` | Generated, `--package-lock-only --ignore-scripts` |
-| `fixed/package.json`, `fixed/package-lock.json` | Proposed fix and its lockfile |
-| `reports/npm-audit-*.txt`, `*.json`, `*.meta.txt` | Raw `npm audit` and `npm audit --json`, with date, npm and node versions |
-| `reports/trivy-*.json`, `*.txt`, `*.meta.txt` | Raw trivy output |
-| `reports/npm-audit-fix-applied.txt`, `npm-audit-fix-force-applied.txt`, `npm-audit-fix-carets-applied.txt` | `npm audit fix` runs on scratch copies |
-| `reports/epss-before.json`, `epss-before.meta.txt` | Raw FIRST EPSS response, used for the `epss` columns of the generated reports |
-| `reports/vulnerabilities-before.*`, `vulnerabilities-after.*` | Output of `audit_report.py` (JSON and CSV), with a `meta` block in the JSON |
-| `extras/` | Checks beyond the task: scanner comparison, EPSS, API probes, the `overrides` experiment. See [extras/README.md](extras/README.md) |
+See [README.md, section 8](README.md#8-files) for the map, and [reports/README.md](reports/README.md) for what each saved file is for.

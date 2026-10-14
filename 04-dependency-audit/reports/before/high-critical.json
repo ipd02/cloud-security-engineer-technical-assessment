@@ -1,33 +1,33 @@
 {
   "meta": {
     "tool": "audit_report.py",
-    "generated_at": "2026-10-14T15:37:36Z",
-    "input": "npm-audit-before.json",
+    "generated_at": "2026-10-14T18:31:08Z",
+    "input": "npm-audit.json",
     "audit_report_version": 2,
-    "epss_source": "file:epss-before.json",
+    "epss_source": "file:epss.json",
     "epss_date": "2026-10-14",
     "warnings": []
   },
   "summary": {
     "advisories_by_severity": {
       "info": 0,
-      "low": 6,
-      "moderate": 15,
+      "low": 0,
+      "moderate": 0,
       "high": 18,
       "critical": 7
     },
     "packages_by_severity": {
       "info": 0,
-      "low": 3,
-      "moderate": 3,
+      "low": 0,
+      "moderate": 0,
       "high": 8,
       "critical": 10
     },
-    "packages_total": 24,
-    "packages_fixable_without_major_bump": 12,
-    "packages_fixable_with_major_bump": 12,
+    "packages_total": 18,
+    "packages_fixable_without_major_bump": 9,
+    "packages_fixable_with_major_bump": 9,
     "packages_without_fix": 0,
-    "advisories_with_epss": 44
+    "advisories_with_epss": 23
   },
   "findings": [
     {
@@ -56,30 +56,6 @@
     },
     {
       "package": "bson",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "1.0.9"
-      ],
-      "advisory_id": "GHSA-4jwp-vfvf-657p",
-      "source_id": 1092294,
-      "cve": "CVE-2019-2391",
-      "title": "Deserialization of Untrusted Data in bson",
-      "cwe": "CWE-502",
-      "cvss_score": 5.4,
-      "epss": 0.00766,
-      "epss_percentile": 0.54474,
-      "vulnerable_range": "<1.1.4",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "mongoose",
-      "fix_version": "9.11.2",
-      "fix_semver_major": true,
-      "url": "https://github.com/advisories/GHSA-4jwp-vfvf-657p"
-    },
-    {
-      "package": "bson",
       "severity": "critical",
       "kind": "advisory",
       "direct": false,
@@ -101,30 +77,6 @@
       "fix_version": "9.11.2",
       "fix_semver_major": true,
       "url": "https://github.com/advisories/GHSA-v8w9-2789-6hhr"
-    },
-    {
-      "package": "cookie",
-      "severity": "low",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "0.3.1"
-      ],
-      "advisory_id": "GHSA-pxg6-pf52-xh8x",
-      "source_id": 1103907,
-      "cve": "CVE-2024-47764",
-      "title": "cookie accepts cookie name, path, and domain with out of bounds characters",
-      "cwe": "CWE-74",
-      "cvss_score": 0,
-      "epss": 0.00744,
-      "epss_percentile": 0.53728,
-      "vulnerable_range": "<0.7.0",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "express",
-      "fix_version": "4.22.3",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-pxg6-pf52-xh8x"
     },
     {
       "package": "debug",
@@ -152,30 +104,6 @@
     },
     {
       "package": "debug",
-      "severity": "low",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "2.6.1"
-      ],
-      "advisory_id": "GHSA-gxpj-cx7g-858c",
-      "source_id": 1096795,
-      "cve": "CVE-2017-16137",
-      "title": "Regular Expression Denial of Service in debug",
-      "cwe": "CWE-400",
-      "cvss_score": 3.7,
-      "epss": 0.02832,
-      "epss_percentile": 0.86361,
-      "vulnerable_range": "<2.6.9",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "express",
-      "fix_version": "4.22.3",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-gxpj-cx7g-858c"
-    },
-    {
-      "package": "debug",
       "severity": "high",
       "kind": "transitive",
       "direct": false,
@@ -197,78 +125,6 @@
       "fix_version": "4.22.3",
       "fix_semver_major": false,
       "url": ""
-    },
-    {
-      "package": "diff",
-      "severity": "low",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "3.5.0"
-      ],
-      "advisory_id": "GHSA-73rr-hh4g-fpgx",
-      "source_id": 1112703,
-      "cve": "CVE-2026-24001",
-      "title": "jsdiff has a Denial of Service vulnerability in parsePatch and applyPatch",
-      "cwe": "CWE-400, CWE-1333",
-      "cvss_score": 0,
-      "epss": 0.00625,
-      "epss_percentile": 0.48763,
-      "vulnerable_range": "<3.5.1",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "mocha",
-      "fix_version": "12.0.3",
-      "fix_semver_major": true,
-      "url": "https://github.com/advisories/GHSA-73rr-hh4g-fpgx"
-    },
-    {
-      "package": "express",
-      "severity": "low",
-      "kind": "advisory",
-      "direct": true,
-      "installed_versions": [
-        "4.15.0"
-      ],
-      "advisory_id": "GHSA-qw6h-vgh9-j6wx",
-      "source_id": 1100530,
-      "cve": "CVE-2024-43796",
-      "title": "express vulnerable to XSS via response.redirect()",
-      "cwe": "CWE-79",
-      "cvss_score": 5,
-      "epss": 0.00486,
-      "epss_percentile": 0.40324,
-      "vulnerable_range": "<4.20.0",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "express",
-      "fix_version": "4.22.3",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-qw6h-vgh9-j6wx"
-    },
-    {
-      "package": "express",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": true,
-      "installed_versions": [
-        "4.15.0"
-      ],
-      "advisory_id": "GHSA-rv95-896h-c2vc",
-      "source_id": 1111636,
-      "cve": "CVE-2024-29041",
-      "title": "Express.js Open Redirect in malformed URLs",
-      "cwe": "CWE-601, CWE-1286",
-      "cvss_score": 6.1,
-      "epss": 0.00786,
-      "epss_percentile": 0.55121,
-      "vulnerable_range": "<4.19.2",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "express",
-      "fix_version": "4.22.3",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-rv95-896h-c2vc"
     },
     {
       "package": "express",
@@ -341,54 +197,6 @@
       "fix_version": "9.0.3",
       "fix_semver_major": true,
       "url": "https://github.com/advisories/GHSA-8cf7-32gw-wr33"
-    },
-    {
-      "package": "jsonwebtoken",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": true,
-      "installed_versions": [
-        "8.1.0"
-      ],
-      "advisory_id": "GHSA-hjrf-2m68-5959",
-      "source_id": 1097694,
-      "cve": "CVE-2022-23541",
-      "title": "jsonwebtoken's insecure implementation of key retrieval function could lead to Forgeable Public/Private Tokens from RSA to HMAC",
-      "cwe": "CWE-287, CWE-1259",
-      "cvss_score": 5,
-      "epss": 0.00774,
-      "epss_percentile": 0.54749,
-      "vulnerable_range": "<=8.5.1",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "jsonwebtoken",
-      "fix_version": "9.0.3",
-      "fix_semver_major": true,
-      "url": "https://github.com/advisories/GHSA-hjrf-2m68-5959"
-    },
-    {
-      "package": "jsonwebtoken",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": true,
-      "installed_versions": [
-        "8.1.0"
-      ],
-      "advisory_id": "GHSA-qwph-4952-7xr6",
-      "source_id": 1102458,
-      "cve": "CVE-2022-23540",
-      "title": "jsonwebtoken vulnerable to signature validation bypass due to insecure default algorithm in jwt.verify()",
-      "cwe": "CWE-287, CWE-327, CWE-347",
-      "cvss_score": 6.4,
-      "epss": 0.00551,
-      "epss_percentile": 0.44739,
-      "vulnerable_range": "<9.0.0",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "jsonwebtoken",
-      "fix_version": "9.0.3",
-      "fix_semver_major": true,
-      "url": "https://github.com/advisories/GHSA-qwph-4952-7xr6"
     },
     {
       "package": "lodash",
@@ -488,54 +296,6 @@
     },
     {
       "package": "lodash",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": true,
-      "installed_versions": [
-        "4.17.10"
-      ],
-      "advisory_id": "GHSA-29mw-wpgm-hmr9",
-      "source_id": 1108258,
-      "cve": "CVE-2020-28500",
-      "title": "Regular Expression Denial of Service (ReDoS) in lodash",
-      "cwe": "CWE-400, CWE-1333",
-      "cvss_score": 5.3,
-      "epss": 0.07336,
-      "epss_percentile": 0.94306,
-      "vulnerable_range": ">=4.0.0 <4.17.21",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "lodash",
-      "fix_version": "4.18.1",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-29mw-wpgm-hmr9"
-    },
-    {
-      "package": "lodash",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": true,
-      "installed_versions": [
-        "4.17.10"
-      ],
-      "advisory_id": "GHSA-x5rq-j2xg-h7qm",
-      "source_id": 1108261,
-      "cve": "CVE-2019-1010266",
-      "title": "Regular Expression Denial of Service (ReDoS) in lodash",
-      "cwe": "CWE-400",
-      "cvss_score": 6.5,
-      "epss": 0.03162,
-      "epss_percentile": 0.87742,
-      "vulnerable_range": ">=4.7.0 <4.17.11",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "lodash",
-      "fix_version": "4.18.1",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-x5rq-j2xg-h7qm"
-    },
-    {
-      "package": "lodash",
       "severity": "high",
       "kind": "advisory",
       "direct": true,
@@ -557,54 +317,6 @@
       "fix_version": "4.18.1",
       "fix_semver_major": false,
       "url": "https://github.com/advisories/GHSA-r5fr-rjxr-66jc"
-    },
-    {
-      "package": "lodash",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": true,
-      "installed_versions": [
-        "4.17.10"
-      ],
-      "advisory_id": "GHSA-f23m-r3pf-42rh",
-      "source_id": 1115810,
-      "cve": "CVE-2026-2950",
-      "title": "lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`",
-      "cwe": "CWE-1321",
-      "cvss_score": 6.5,
-      "epss": 0.00377,
-      "epss_percentile": 0.30002,
-      "vulnerable_range": "<=4.17.23",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "lodash",
-      "fix_version": "4.18.1",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-f23m-r3pf-42rh"
-    },
-    {
-      "package": "lodash",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": true,
-      "installed_versions": [
-        "4.17.10"
-      ],
-      "advisory_id": "GHSA-xxjr-mmjv-4gpg",
-      "source_id": 1120370,
-      "cve": "CVE-2025-13465",
-      "title": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions",
-      "cwe": "CWE-1321",
-      "cvss_score": 6.5,
-      "epss": 0.0185,
-      "epss_percentile": 0.78681,
-      "vulnerable_range": ">=4.0.0 <=4.17.22",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "lodash",
-      "fix_version": "4.18.1",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-xxjr-mmjv-4gpg"
     },
     {
       "package": "mime",
@@ -629,30 +341,6 @@
       "fix_version": "4.22.3",
       "fix_semver_major": false,
       "url": "https://github.com/advisories/GHSA-wrvr-8mpx-r7pp"
-    },
-    {
-      "package": "minimist",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "0.0.8"
-      ],
-      "advisory_id": "GHSA-vh95-rmgr-6w4m",
-      "source_id": 1096466,
-      "cve": "CVE-2020-7598",
-      "title": "Prototype Pollution in minimist",
-      "cwe": "CWE-1321",
-      "cvss_score": 5.6,
-      "epss": 0.01931,
-      "epss_percentile": 0.7961,
-      "vulnerable_range": "<0.2.1",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "mocha",
-      "fix_version": "12.0.3",
-      "fix_semver_major": true,
-      "url": "https://github.com/advisories/GHSA-vh95-rmgr-6w4m"
     },
     {
       "package": "minimist",
@@ -944,30 +632,6 @@
     },
     {
       "package": "mongoose",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": true,
-      "installed_versions": [
-        "4.13.21"
-      ],
-      "advisory_id": "GHSA-664h-wqgq-64gw",
-      "source_id": 1139506,
-      "cve": "CVE-2026-73562",
-      "title": "Mongoose: Prototype pollution in mongoose update casting via __proto__-prefixed dotted path (Schema._getSchema/path getter)",
-      "cwe": "CWE-1321",
-      "cvss_score": 6.5,
-      "epss": 0.00503,
-      "epss_percentile": 0.41502,
-      "vulnerable_range": "<6.13.10",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "mongoose",
-      "fix_version": "9.11.2",
-      "fix_semver_major": true,
-      "url": "https://github.com/advisories/GHSA-664h-wqgq-64gw"
-    },
-    {
-      "package": "mongoose",
       "severity": "critical",
       "kind": "transitive",
       "direct": true,
@@ -989,78 +653,6 @@
       "fix_version": "9.11.2",
       "fix_semver_major": true,
       "url": ""
-    },
-    {
-      "package": "mpath",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "0.5.1"
-      ],
-      "advisory_id": "GHSA-p92x-r36w-9395",
-      "source_id": 1095075,
-      "cve": "CVE-2021-23438",
-      "title": "Type confusion in mpath",
-      "cwe": "CWE-843",
-      "cvss_score": 5.6,
-      "epss": 0.01723,
-      "epss_percentile": 0.77049,
-      "vulnerable_range": "<0.8.4",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "mongoose",
-      "fix_version": "9.11.2",
-      "fix_semver_major": true,
-      "url": "https://github.com/advisories/GHSA-p92x-r36w-9395"
-    },
-    {
-      "package": "mquery",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "2.3.3"
-      ],
-      "advisory_id": "GHSA-45q2-34rf-mr94",
-      "source_id": 1086439,
-      "cve": "CVE-2020-35149",
-      "title": "Code Injection in mquery",
-      "cwe": "CWE-94",
-      "cvss_score": 5.3,
-      "epss": 0.01041,
-      "epss_percentile": 0.63297,
-      "vulnerable_range": "<3.2.3",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "mongoose",
-      "fix_version": "9.11.2",
-      "fix_semver_major": true,
-      "url": "https://github.com/advisories/GHSA-45q2-34rf-mr94"
-    },
-    {
-      "package": "ms",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "0.7.2"
-      ],
-      "advisory_id": "GHSA-w9mr-4mfr-499f",
-      "source_id": 1109573,
-      "cve": "CVE-2017-20162",
-      "title": "Vercel ms Inefficient Regular Expression Complexity vulnerability",
-      "cwe": "CWE-1333",
-      "cvss_score": 5.3,
-      "epss": 0.00989,
-      "epss_percentile": 0.61719,
-      "vulnerable_range": "<2.0.0",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "express",
-      "fix_version": "4.22.3",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-w9mr-4mfr-499f"
     },
     {
       "package": "path-to-regexp",
@@ -1207,78 +799,6 @@
       "url": "https://github.com/advisories/GHSA-hrpp-h998-j3pp"
     },
     {
-      "package": "qs",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "6.3.1"
-      ],
-      "advisory_id": "GHSA-6rw7-vpxm-498p",
-      "source_id": 1113719,
-      "cve": "CVE-2025-15284",
-      "title": "qs's arrayLimit bypass in its bracket notation allows DoS via memory exhaustion",
-      "cwe": "CWE-20",
-      "cvss_score": 3.7,
-      "epss": 0.0045,
-      "epss_percentile": 0.37491,
-      "vulnerable_range": "<6.14.1",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "express",
-      "fix_version": "4.22.3",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-6rw7-vpxm-498p"
-    },
-    {
-      "package": "qs",
-      "severity": "moderate",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "6.3.1"
-      ],
-      "advisory_id": "GHSA-4mjr-xmp4-gh2g",
-      "source_id": 1158507,
-      "cve": "CVE-2026-82417",
-      "title": "qs: Denial of Service via Attacker Controlled isBuffer",
-      "cwe": "CWE-248, CWE-703",
-      "cvss_score": 5.3,
-      "epss": 0.00418,
-      "epss_percentile": 0.345,
-      "vulnerable_range": ">=2.2.5 <6.16.0",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "express",
-      "fix_version": "4.22.3",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-4mjr-xmp4-gh2g"
-    },
-    {
-      "package": "send",
-      "severity": "low",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "0.15.0"
-      ],
-      "advisory_id": "GHSA-m6fv-jmcg-4jfg",
-      "source_id": 1109556,
-      "cve": "CVE-2024-43799",
-      "title": "send vulnerable to template injection that can lead to XSS",
-      "cwe": "CWE-79",
-      "cvss_score": 5,
-      "epss": 0.00541,
-      "epss_percentile": 0.44174,
-      "vulnerable_range": "<0.19.0",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "express",
-      "fix_version": "4.22.3",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-m6fv-jmcg-4jfg"
-    },
-    {
       "package": "send",
       "severity": "high",
       "kind": "transitive",
@@ -1296,54 +816,6 @@
       "epss_percentile": "",
       "vulnerable_range": "<=0.18.0",
       "via": "debug, fresh, mime, ms",
-      "fix_available": true,
-      "fix_package": "express",
-      "fix_version": "4.22.3",
-      "fix_semver_major": false,
-      "url": ""
-    },
-    {
-      "package": "serve-static",
-      "severity": "low",
-      "kind": "advisory",
-      "direct": false,
-      "installed_versions": [
-        "1.12.0"
-      ],
-      "advisory_id": "GHSA-cm22-4g7w-348p",
-      "source_id": 1100528,
-      "cve": "CVE-2024-43800",
-      "title": "serve-static vulnerable to template injection that can lead to XSS",
-      "cwe": "CWE-79",
-      "cvss_score": 5,
-      "epss": 0.00631,
-      "epss_percentile": 0.49036,
-      "vulnerable_range": "<1.16.0",
-      "via": "",
-      "fix_available": true,
-      "fix_package": "express",
-      "fix_version": "4.22.3",
-      "fix_semver_major": false,
-      "url": "https://github.com/advisories/GHSA-cm22-4g7w-348p"
-    },
-    {
-      "package": "serve-static",
-      "severity": "low",
-      "kind": "transitive",
-      "direct": false,
-      "installed_versions": [
-        "1.12.0"
-      ],
-      "advisory_id": "",
-      "source_id": "",
-      "cve": "",
-      "title": "",
-      "cwe": "",
-      "cvss_score": "",
-      "epss": "",
-      "epss_percentile": "",
-      "vulnerable_range": "<=1.16.0",
-      "via": "send",
       "fix_available": true,
       "fix_package": "express",
       "fix_version": "4.22.3",
