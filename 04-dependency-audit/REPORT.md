@@ -180,19 +180,19 @@ Rule for a gate: fail if either tool reports an advisory at the chosen level. An
 
 ## 9. When the upgrade is not possible or breaks things
 
-In this example every package has a fix, and the fix is an upgrade. That is not the general case. This section lists the other cases, in the order I would try them. Items marked "tested here" were run on this input. The others are general practice that I did not run on this input.
+In this example every package has a fix, and the fix is an upgrade. That is not the general case. This section lists the other cases, in the order I would try them.
 
-| Situation | What to do | Evidence |
-|---|---|---|
-| The fix is in the same major | Change the range and re-lock. `npm audit fix` does this when the range allows it. | Tested here: `express`, `lodash` (sections 3 and 6). |
-| The fix is a new major, and the code breaks | Read the changelog. Write tests for the code that uses the package. Upgrade one major at a time, or go through a patched older line. Probe the changed APIs before touching the app. Keep the lockfile change in its own commit so it can be reverted. | Tested here: mongoose, jsonwebtoken, mocha probes (section 6). |
-| The app is on an old line and the latest major does not fit (old Node, old database server, a dependency that has not been ported) | 1. Upgrade the runtime first if the cause is Node (section 5). 2. Move to the newest patched release of the line you are on. Trivy lists these (section 8). 3. If the line is unsupported, plan the move off it and treat steps 4 to 6 as temporary. | Step 2 tested here: mongoose 6.13.11 audits clean (section 6). The old-Node case is not tested. |
-| The vulnerable package is transitive and the parent has no release that updates it | Force the patched version with `overrides` in `package.json`. This changes what the parent runs against, so test the parent. | Tested here: `overrides` for `qs` 6.16.0 and `path-to-regexp` 0.1.13 with `express` still on 4.15.0 took the audit from 24 to 22 packages (`reports/npm-audit-overrides-applied.txt`). Whether Express 4.15.0 still works with them was not tested. |
-| The patch exists but only as a fork or a pull request | Patch the installed file with a patch tool, or use a maintained fork. Both need an owner and a review date, because you now maintain the change. | Not tested. |
-| No fixed version exists (npm shows `fixAvailable: false`) | Remove the package, or replace it with a maintained one. If that is not possible, reduce exposure: do not call the vulnerable function, validate input before it, add a gateway or WAF rule, and run the process with least privilege. | Not tested. No package here lacks a fix. |
-| Dev-only package (here the `mocha` chain) | Lower priority than production code. Fix it on the schedule of the build tooling. Use `npm audit --omit=dev` to report production risk separately. It still matters on a build machine or CI runner. | `--omit=dev` not run here. |
-| The finding is not reachable, or the code path is not used | Accept the risk in writing: advisory id, reason, owner, expiry date. Use `.trivyignore` with `exp:` or a VEX statement for trivy, and a documented exception for npm. Do not accept without a reason. Reachability needs the application code, which this task does not include. | `.trivyignore` with `exp:` tested here (section 8). No reachability analysis was done. |
-| The upgrade is done and breaks in production | Revert the lockfile commit. Deploy to a small share of traffic first. Keep the old version deployable until the new one has run for a set time. | Not tested. |
+| Situation | What to do |
+|---|---|
+| The fix is in the same major | Change the range and re-lock. `npm audit fix` does this when the range allows it. |
+| The fix is a new major, and the code breaks | Read the changelog. Write tests for the code that uses the package. Upgrade one major at a time, or go through a patched older line. Probe the changed APIs before touching the app. Keep the lockfile change in its own commit so it can be reverted. |
+| The app is on an old line and the latest major does not fit (old Node, old database server, a dependency that has not been ported) | 1. Upgrade the runtime first if the cause is Node (section 5). 2. Move to the newest patched release of the line you are on. Trivy lists these (section 8). 3. If the line is unsupported, plan the move off it and treat steps 4 to 6 as temporary. |
+| The vulnerable package is transitive and the parent has no release that updates it | Force the patched version with `overrides` in `package.json`. This changes what the parent runs against, so test the parent. |
+| The patch exists but only as a fork or a pull request | Patch the installed file with a patch tool, or use a maintained fork. Both need an owner and a review date, because you now maintain the change. |
+| No fixed version exists (npm shows `fixAvailable: false`) | Remove the package, or replace it with a maintained one. If that is not possible, reduce exposure: do not call the vulnerable function, validate input before it, add a gateway or WAF rule, and run the process with least privilege. |
+| Dev-only package (here the `mocha` chain) | Lower priority than production code. Fix it on the schedule of the build tooling. Use `npm audit --omit=dev` to report production risk separately. It still matters on a build machine or CI runner. |
+| The finding is not reachable, or the code path is not used | Accept the risk in writing: advisory id, reason, owner, expiry date. Use `.trivyignore` with `exp:` or a VEX statement for trivy, and a documented exception for npm. Do not accept without a reason. Reachability needs the application code, which this task does not include. |
+| The upgrade is done and breaks in production | Revert the lockfile commit. Deploy to a small share of traffic first. Keep the old version deployable until the new one has run for a set time. |
 
 Things to check at every step:
 
