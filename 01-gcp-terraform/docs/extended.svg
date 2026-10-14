@@ -8,8 +8,8 @@
 <marker id="argray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/></marker>
 </defs>
 <rect width="1700" height="990" fill="#f4f6fa"/>
-<text x="40" y="58" font-size="32" font-weight="800" fill="#0f172a" text-anchor="start" >Secure web stack on GCP</text>
-<text x="40" y="88" font-size="15.5" font-weight="400" fill="#475569" text-anchor="start" >How a visitor, an admin and each firewall rule travel through the module. Colours show which control enforces each step.</text>
+<text x="40" y="58" font-size="30" font-weight="800" fill="#0f172a" text-anchor="start" >Extended version: the brief plus labelled security additions</text>
+<text x="40" y="88" font-size="15.5" font-weight="400" fill="#475569" text-anchor="start" >Items tagged + added go beyond the brief. Everything untagged is in the base version too. Colours show what enforces each step.</text>
 <text x="1000" y="46" font-size="12.5" font-weight="700" fill="#64748b" text-anchor="start" >Enforced by</text>
 <rect x="1000.0" y="61" width="117.0" height="26" rx="13" fill="#dbe8ff" stroke="#3b82f6" stroke-width="1.2"/>
 <text x="1058.5" y="79" font-size="12.5" font-weight="700" fill="#1d4ed8" text-anchor="middle" >Load balancer</text>
@@ -30,7 +30,7 @@
 <text x="125" y="712" font-size="12" font-weight="400" fill="#64748b" text-anchor="middle" >(trusted_ssh_cidrs)</text>
 <rect x="300" y="140" width="350" height="432" rx="18" fill="#eaf1ff" stroke="#5b8def" stroke-width="2"/>
 <text x="322" y="170" font-size="16" font-weight="800" fill="#1e3a8a" text-anchor="start" >Google edge, outside the VPC</text>
-<text x="322" y="190" font-size="13" font-weight="400" fill="#3b5aa8" text-anchor="start" >Global external Application Load Balancer</text>
+<text x="322" y="190" font-size="13" font-weight="400" fill="#3b5aa8" text-anchor="start" >Global HTTP load balancer (HTTPS on 443)</text>
 <rect x="318" y="206" width="314" height="78" rx="12" fill="#ffffff" stroke="#3b82f6" stroke-width="1.6" filter="url(#sh)"/>
 <rect x="318" y="206" width="6" height="78" rx="3" fill="#3b82f6"/>
 <text x="336" y="232" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start" >Forwarding rule</text>
@@ -43,40 +43,44 @@
 <text x="336" y="360" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >Google-managed or supplied certificate</text>
 <rect x="318" y="382" width="314" height="78" rx="12" fill="#ffffff" stroke="#3b82f6" stroke-width="1.6" filter="url(#sh)"/>
 <rect x="318" y="382" width="6" height="78" rx="3" fill="#3b82f6"/>
-<text x="336" y="408" font-size="14.5" font-weight="700" fill="#0f172a" text-anchor="start" >Cloud Armor (extra, beyond the brief)</text>
+<text x="336" y="408" font-size="14.5" font-weight="700" fill="#0f172a" text-anchor="start" >Cloud Armor</text>
 <text x="336" y="430" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >SQLi, XSS, LFI, RCE and CVE rules</text>
 <text x="336" y="448" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >rate limit 300 requests per minute per IP</text>
 <rect x="318" y="470" width="314" height="78" rx="12" fill="#ffffff" stroke="#3b82f6" stroke-width="1.6" filter="url(#sh)"/>
 <rect x="318" y="470" width="6" height="78" rx="3" fill="#3b82f6"/>
 <text x="336" y="496" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start" >URL map, backend service</text>
 <text x="336" y="518" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >health check on port 80</text>
-<text x="336" y="536" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >request logs, sample rate 1.0</text>
+<text x="336" y="536" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >+ request and health check logs</text>
 <text x="322" y="598" font-size="12.5" font-weight="400" fill="#64748b" text-anchor="start" >A global load balancer is a Google edge service, so it</text>
 <text x="322" y="616" font-size="12.5" font-weight="400" fill="#64748b" text-anchor="start" >cannot sit in a subnet. The public subnet holds the</text>
 <text x="322" y="634" font-size="12.5" font-weight="400" fill="#64748b" text-anchor="start" >bastion instead.</text>
+<rect x="555.8" y="298" width="62.199999999999996" height="20" rx="10" fill="#334155"/>
+<text x="586.9" y="312" font-size="11.5" font-weight="700" fill="#ffffff" text-anchor="middle" >+ added</text>
+<rect x="555.8" y="386" width="62.199999999999996" height="20" rx="10" fill="#334155"/>
+<text x="586.9" y="400" font-size="11.5" font-weight="700" fill="#ffffff" text-anchor="middle" >+ added</text>
 <rect x="700" y="120" width="810" height="616" rx="20" fill="#ffffff" stroke="#475569" stroke-width="2.2" stroke-dasharray="9 6"/>
 <text x="722" y="150" font-size="17" font-weight="800" fill="#0f172a" text-anchor="start" >Custom VPC</text>
-<text x="842" y="150" font-size="13" font-weight="400" fill="#64748b" text-anchor="start" >no default subnets or firewall rules, deny-all ingress and egress at priority 65000</text>
+<text x="842" y="150" font-size="13" font-weight="400" fill="#64748b" text-anchor="start" >custom mode, no default subnets or firewall rules.  + deny-all ingress and egress at priority 65000</text>
 <rect x="728" y="172" width="754" height="262" rx="16" fill="#effaf3" stroke="#22a05a" stroke-width="2"/>
 <text x="748" y="200" font-size="15" font-weight="800" fill="#14532d" text-anchor="start" >Private subnet 10.10.1.0/24</text>
 <rect x="748" y="214" width="336" height="200" rx="12" fill="#ffffff" stroke="#22a05a" stroke-width="1.6" filter="url(#sh)"/>
 <rect x="748" y="214" width="6" height="200" rx="3" fill="#22a05a"/>
-<text x="766" y="240" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start" >Web instance</text>
+<text x="766" y="240" font-size="15" font-weight="700" fill="#0f172a" text-anchor="start" >Compute Engine instance</text>
 <text x="766" y="262" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >e2-small, Debian 13, no external IP</text>
-<text x="766" y="280" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >Shielded VM, OS Login, no IP forwarding</text>
-<text x="766" y="298" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >service account: logWriter, metricWriter</text>
-<text x="766" y="316" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >boot disk: Google-managed key or your CMEK key</text>
-<text x="766" y="334" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >serves a test page on port 80</text>
+<text x="766" y="280" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >service account: logWriter, metricWriter</text>
+<text x="766" y="298" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >serves a test page on port 80</text>
+<text x="766" y="316" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >+ Shielded VM, OS Login, no IP forwarding</text>
+<text x="766" y="334" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >+ boot disk key: Google-managed or your CMEK</text>
 <rect x="1108" y="212" width="350" height="180" rx="12" fill="#ffffff" stroke="#22a05a" stroke-width="1.6" filter="url(#sh)"/>
 <rect x="1108" y="212" width="6" height="180" rx="3" fill="#22a05a"/>
-<text x="1126" y="238" font-size="14.5" font-weight="700" fill="#0f172a" text-anchor="start" >Firewall rules on the web instance</text>
+<text x="1126" y="238" font-size="14.5" font-weight="700" fill="#0f172a" text-anchor="start" >Firewall rules on the instance</text>
 <text x="1126" y="258" font-size="12" font-weight="400" fill="#64748b" text-anchor="start" >(target is its service account, not a network tag)</text>
 <text x="1126" y="282" font-size="12.5" font-weight="400" fill="#334155" text-anchor="start" >allow tcp/80 from 130.211.0.0/22 and</text>
 <text x="1126" y="300" font-size="12.5" font-weight="400" fill="#334155" text-anchor="start" >     35.191.0.0/16 (the load balancer)</text>
-<text x="1126" y="318" font-size="12.5" font-weight="400" fill="#334155" text-anchor="start" >allow tcp/22 from the bastion account only</text>
-<text x="1126" y="336" font-size="12.5" font-weight="400" fill="#334155" text-anchor="start" >allow tcp/22 from trusted ranges that</text>
-<text x="1126" y="354" font-size="12.5" font-weight="400" fill="#334155" text-anchor="start" >     reach the VPC privately (VPN, peering)</text>
-<text x="1126" y="372" font-size="12.5" font-weight="400" fill="#334155" text-anchor="start" >allow egress tcp/80, tcp/443 through NAT</text>
+<text x="1126" y="318" font-size="12.5" font-weight="400" fill="#334155" text-anchor="start" >allow tcp/22 from trusted ranges that</text>
+<text x="1126" y="336" font-size="12.5" font-weight="400" fill="#334155" text-anchor="start" >     reach the VPC privately (VPN, peering)</text>
+<text x="1126" y="354" font-size="12.5" font-weight="400" fill="#334155" text-anchor="start" >+ allow tcp/22 from the bastion account only</text>
+<text x="1126" y="372" font-size="12.5" font-weight="400" fill="#334155" text-anchor="start" >+ allow egress tcp/80, tcp/443 through NAT</text>
 <rect x="728" y="486" width="396" height="214" rx="16" fill="#fff7ec" stroke="#f59e0b" stroke-width="2"/>
 <text x="748" y="514" font-size="15" font-weight="800" fill="#7c2d12" text-anchor="start" >Public subnet 10.10.0.0/24</text>
 <rect x="748" y="528" width="356" height="156" rx="12" fill="#ffffff" stroke="#f59e0b" stroke-width="1.6" filter="url(#sh)"/>
@@ -95,6 +99,10 @@
 <text x="1170" y="604" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >egress allowed: tcp/80 and tcp/443</text>
 <text x="1170" y="624" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >NAT logs on, every connection</text>
 <text x="1170" y="644" font-size="13" font-weight="400" fill="#334155" text-anchor="start" >Private Google Access on both subnets</text>
+<rect x="1407.8" y="492" width="62.199999999999996" height="20" rx="10" fill="#334155"/>
+<text x="1438.9" y="506" font-size="11.5" font-weight="700" fill="#ffffff" text-anchor="middle" >+ added</text>
+<rect x="1027.8" y="534" width="62.199999999999996" height="20" rx="10" fill="#334155"/>
+<text x="1058.9" y="548" font-size="11.5" font-weight="700" fill="#ffffff" text-anchor="middle" >+ added</text>
 <rect x="1545" y="540" width="130" height="110" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6" filter="url(#sh)"/>
 <text x="1610" y="578" font-size="16" font-weight="700" fill="#0f172a" text-anchor="middle" >Internet</text>
 <text x="1610" y="600" font-size="12.5" font-weight="400" fill="#64748b" text-anchor="middle" >package updates,</text>
@@ -117,16 +125,15 @@
 <path d="M1482,600 L1543,600" fill="none" stroke="#94a3b8" stroke-width="3.2" stroke-linejoin="round" marker-end="url(#argray)"/>
 <rect x="40" y="770" width="520" height="180" rx="12" fill="#ffffff" stroke="#8b5cf6" stroke-width="1.6" filter="url(#sh)"/>
 <rect x="40" y="770" width="6" height="180" rx="3" fill="#8b5cf6"/>
-<text x="58" y="796" font-size="16" font-weight="700" fill="#0f172a" text-anchor="start" >IAM, least privilege</text>
-<text x="58" y="818" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >No roles/editor or roles/owner, guarded by a test</text>
-<text x="58" y="839" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >and a custom policy</text>
-<text x="58" y="860" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >Web account: logging.logWriter, monitoring.metricWriter</text>
-<text x="58" y="881" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >Bastion account: no roles at all</text>
-<text x="58" y="902" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >SSH logins: roles/compute.osLogin (no sudo), granted</text>
-<text x="58" y="923" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >per instance, never project-wide</text>
+<text x="58" y="796" font-size="16" font-weight="700" fill="#0f172a" text-anchor="start" >IAM, least privilege (the bonus)</text>
+<text x="58" y="818" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >No roles/editor or roles/owner, guarded by a test and a policy</text>
+<text x="58" y="839" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >Instance account: logging.logWriter, monitoring.metricWriter</text>
+<text x="58" y="860" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >+ Bastion account: no roles at all</text>
+<text x="58" y="881" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >+ SSH logins: roles/compute.osLogin (no sudo), granted</text>
+<text x="58" y="902" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >+ per instance, never project-wide</text>
 <rect x="590" y="770" width="520" height="180" rx="12" fill="#ffffff" stroke="#f59e0b" stroke-width="1.6" filter="url(#sh)"/>
 <rect x="590" y="770" width="6" height="180" rx="3" fill="#f59e0b"/>
-<text x="608" y="796" font-size="16" font-weight="700" fill="#0f172a" text-anchor="start" >Logging and detection</text>
+<text x="608" y="796" font-size="16" font-weight="700" fill="#0f172a" text-anchor="start" >Logging and detection (all added)</text>
 <text x="608" y="818" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >VPC flow logs on both subnets</text>
 <text x="608" y="839" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >Firewall logs on every rule, allow and deny</text>
 <text x="608" y="860" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >Cloud NAT logs and load balancer logs</text>
@@ -135,9 +142,11 @@
 <rect x="1140" y="770" width="520" height="180" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6" filter="url(#sh)"/>
 <rect x="1140" y="770" width="6" height="180" rx="3" fill="#94a3b8"/>
 <text x="1158" y="796" font-size="16" font-weight="700" fill="#0f172a" text-anchor="start" >Checked offline and live</text>
-<text x="1158" y="818" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >48 terraform tests, 98 Checkov checks, 3 custom policies</text>
+<text x="1158" y="818" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >48 terraform tests, 98 Checkov checks (1 skip), 3 custom policies</text>
 <text x="1158" y="839" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >Live apply and destroy on 2026-10-13: HTTPS 200,</text>
 <text x="1158" y="860" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >WAF 403, SSH through the bastion, bastion refuses</text>
 <text x="1158" y="881" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >other sources</text>
 <text x="1158" y="902" font-size="13.5" font-weight="400" fill="#334155" text-anchor="start" >Not verified live: TLS 1.1, IAP, CMEK, managed cert</text>
+<rect x="1488.4" y="28" width="187.6" height="20" rx="10" fill="#334155"/>
+<text x="1582.2" y="42" font-size="11.5" font-weight="700" fill="#ffffff" text-anchor="middle" >+ added = beyond the brief</text>
 </svg>
