@@ -57,7 +57,7 @@ func (s *Scanner) Scan(ctx context.Context) ([]model.NSG, error) {
 	for pager.More() {
 		page, err := pager.NextPage(ctx)
 		if err != nil {
-			return out, fmt.Errorf("list network security groups: %w", err)
+			return out, fmt.Errorf("list network security groups: %w", brief(err))
 		}
 		for _, nsg := range page.Value {
 			if n, ok := convert(nsg, s.IncludeIPv6); ok {
@@ -120,4 +120,26 @@ func enumStr[T ~string](v *T) string {
 		return ""
 	}
 	return string(*v)
+}
+
+// briefError replaces the SDK's long error text, which holds the request URL,
+// the response headers and the whole response body, with the status and code.
+type briefError struct {
+	msg string
+	err error
+}
+
+func (e *briefError) Error() string { return e.msg }
+func (e *briefError) Unwrap() error { return e.err }
+
+func brief(err error) error {
+	var re *azcore.ResponseError
+	if !errors.As(err, &re) {
+		return err
+	}
+	msg := fmt.Sprintf("HTTP %d", re.StatusCode)
+	if re.ErrorCode != "" {
+		msg += " " + re.ErrorCode
+	}
+	return &briefError{msg: msg, err: err}
 }

@@ -47,6 +47,7 @@ type options struct {
 	gcpPolicies bool
 	gcpQuota    string
 	azureSub    string
+	azureAll    bool
 	showVersion bool
 }
 
@@ -73,7 +74,8 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.StringVar(&o.gcpFolder, "gcp-folder", "", "GCP folder number, scans every project under it")
 	fs.StringVar(&o.gcpQuota, "gcp-quota-project", "", "GCP project billed for API calls, needed for --gcp-org and --gcp-folder with user credentials")
 	fs.BoolVar(&o.gcpPolicies, "gcp-policies", true, "also read GCP network and hierarchical firewall policies")
-	fs.StringVar(&o.azureSub, "azure-subscription", "", "Azure subscription id")
+	fs.StringVar(&o.azureSub, "azure-subscription", "", "Azure subscription ids, comma separated")
+	fs.BoolVar(&o.azureAll, "azure-all-subscriptions", false, "also scan every enabled Azure subscription the credential can read")
 	fs.BoolVar(&o.showVersion, "version", false, "print the version and exit")
 	if err := fs.Parse(args); err != nil {
 		return o, err
@@ -251,7 +253,7 @@ func scanAzure(ctx context.Context, o options) ([]model.NSG, error) {
 		s := &azurescan.Scanner{Client: mock.AzureClient(), IncludeIPv6: o.includeIPv6}
 		return s.Scan(ctx)
 	}
-	s, err := azurescan.New(o.azureSub, o.includeIPv6)
+	s, err := azurescan.NewMulti(splitList(o.azureSub), o.azureAll, o.includeIPv6)
 	if err != nil {
 		return nil, err
 	}

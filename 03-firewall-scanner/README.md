@@ -46,7 +46,10 @@ fwscan --fail-on-findings --output report.json --gcp-project my-project --azure-
 | `--gcp-project` | none | GCP project ids, comma separated. Reads the Compute API directly, in real time. |
 | `--gcp-quota-project` | none | GCP project that is billed for the API calls. User credentials need it for `--gcp-org` and `--gcp-folder`, and the Cloud Asset API must be enabled there. The caller needs `serviceusage.services.use` on it. |
 | `--gcp-policies` | on | Also read GCP network and hierarchical firewall policies. Turn it off to need fewer permissions. |
-| `--azure-subscription` | none | Azure subscription id. Required for `azure`. |
+| `--azure-subscription` | none | Azure subscription ids, comma separated. |
+| `--azure-all-subscriptions` | off | Also scan every enabled subscription the credential can read. This is the Azure tenant scope. |
+
+For `azure` one of `--azure-subscription` or `--azure-all-subscriptions` is required, and both can be combined.
 
 For `gcp` one of `--gcp-org`, `--gcp-folder` or `--gcp-project` is required. `--gcp-org` and `--gcp-folder` exclude each other. A project can be combined with either.
 | `--version` | | Print the version. |
@@ -116,7 +119,7 @@ Things to know:
 - GCP: regional network firewall policies come from the project-wide list. Hierarchical policies are read for the organization or folder and its subfolders. A folder you pass with `--gcp-folder` is not checked for policies of its parents.
 - AWS: temporary credentials issued by the global STS endpoint are rejected in opt-in regions. With `--aws-regions all` that region fails with `AuthFailure`, the other regions still report, and the exit code is 2. Use a regional STS endpoint (`AWS_STS_REGIONAL_ENDPOINTS=regional`) or long-lived role credentials.
 - AWS: without `--aws-org` it scans the account of the credentials. With `--aws-org` it scans the active accounts of the organization, and accounts that are suspended or closing are skipped. A role that cannot be assumed in one account is reported in `errors`, and the other accounts still report. Only the `aws` partition is supported. It reads security groups only, not network ACLs or AWS Network Firewall.
-- Azure: it scans one subscription. It reads NSGs only, not Azure Firewall, application security groups or Virtual Network Manager security admin rules.
+- Azure: it scans the subscriptions you name, or every enabled subscription the credential can read. Management groups are not walked. It reads NSGs only, not Azure Firewall, application security groups or Virtual Network Manager security admin rules.
 - AWS: it does not check whether the group is attached to anything. Only IPv4 and (optionally) IPv6 ranges are checked. Prefix lists and referenced security groups are not expanded.
 - Several protocol and port entries in one rule produce several findings, one each.
 
@@ -131,7 +134,7 @@ The tool never changes anything. Give it a read-only identity.
 | GCP, project scope, `--gcp-policies=false` | `compute.firewalls.list` on each project | A custom role with this one permission is the tightest option. `roles/compute.networkViewer` also works and is broader. `roles/compute.securityAdmin` is too broad. |
 | GCP, project scope, default | add `compute.firewallPolicies.list` on each project | Network firewall policies. Not in `roles/compute.networkViewer`. |
 | GCP, org or folder scope | `cloudasset.assets.searchAllResources` on the scope, `compute.firewallPolicies.list` on the organization, on each folder and on each project | The Cloud Asset API must be enabled in the project the credentials bill against. `roles/cloudasset.viewer` includes the first one and is broad. Use a custom role. |
-| Azure | `Microsoft.Network/networkSecurityGroups/read` | Built-in `Reader` on the subscription covers this. A custom role with that one action is tighter. `Network Contributor` is too broad. |
+| Azure | `Microsoft.Network/networkSecurityGroups/read` on each subscription | Built-in `Reader` on the subscription covers this. A custom role with that one action is tighter. `Network Contributor` is too broad. `--azure-all-subscriptions` lists the subscriptions where the identity holds a role, so it needs no extra permission. |
 
 ## Layout
 

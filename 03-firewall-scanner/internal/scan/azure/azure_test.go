@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	azfake "github.com/Azure/azure-sdk-for-go/sdk/azcore/fake"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
@@ -161,5 +162,24 @@ func TestScanHonoursContext(t *testing.T) {
 	cancel()
 	if _, err := s.Scan(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v; want context.Canceled", err)
+	}
+}
+
+// A denied call is reported as the status and the Azure error code, without the
+// request URL, the response body or the caller's identity.
+func TestScanErrorIsBrief(t *testing.T) {
+	var srv fake.SecurityGroupsServer
+	srv.NewListAllPager = func(*armnetwork.SecurityGroupsClientListAllOptions) azfake.PagerResponder[armnetwork.SecurityGroupsClientListAllResponse] {
+		var r azfake.PagerResponder[armnetwork.SecurityGroupsClientListAllResponse]
+		r.AddResponseError(http.StatusForbidden, "AuthorizationFailed")
+		return r
+	}
+	_, err := scannerFor(t, srv).Scan(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "HTTP 403 AuthorizationFailed") || strings.Contains(err.Error(), "\n") {
+		t.Fatalf("err = %v", err)
+	}
+	var re *azcore.ResponseError
+	if !errors.As(err, &re) {
+		t.Fatal("the SDK error must stay in the chain")
 	}
 }
