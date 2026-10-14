@@ -16,10 +16,9 @@ tf-fmt: ## Part 1: format Terraform files
 	terraform fmt -recursive $(TF_DIR)
 
 # -lockfile=readonly fails if a provider constraint and its lock file disagree.
-# Examples have no committed lock file, so they init without it.
 tf-init: ## Part 1: init without a backend (no credentials)
 	for m in $(TF_MODS); do terraform -chdir=$$m init -backend=false -input=false -lockfile=readonly || exit 1; done
-	for e in $(TF_EXAMPLES); do terraform -chdir=$$e init -backend=false -input=false || exit 1; done
+	for e in $(TF_EXAMPLES); do terraform -chdir=$$e init -backend=false -input=false -lockfile=readonly || exit 1; done
 
 tf-lint: tf-init ## Part 1: fmt check, validate (modules and examples) and tflint
 	terraform fmt -check -recursive $(TF_DIR)
