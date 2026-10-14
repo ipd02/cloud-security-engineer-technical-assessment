@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
-"""Find risky IAM users from two read-only AWS exports.
+"""Find risky IAM users and roles from two read-only AWS exports.
 
 Inputs (produce them with the AWS CLI, then run this script offline):
 
   aws iam generate-credential-report
   aws iam get-credential-report --query Content --output text | base64 -d > report.csv
-  aws iam get-account-authorization-details --filter User Group LocalManagedPolicy \
+  aws iam get-account-authorization-details --filter User Role Group LocalManagedPolicy \
       --output json > authz.json
 
-Rules, highest severity first:
+Rules, highest severity first. Policy rules apply to users and roles, whether
+the policy is inline, attached, or inherited from a group:
 
   critical  an Allow statement with Action "*" on Resource "*"
-            (inline, attached managed policy, or inherited from a group)
+  critical  the AWS managed policy AdministratorAccess is attached
   critical  the root account has an active access key
-  high      the user has AdministratorAccess attached
+  high      an Allow statement with Action "iam:*" on Resource "*"
+  high      the AWS managed policy IAMFullAccess is attached
   high      console password enabled and no MFA
   high      the root account has no MFA device
+  medium    an Allow statement with another "service:*" action on Resource "*"
   medium    active access key older than --max-key-age days
   medium    active access key never used, or unused for --unused-days
   low       console password unused for --unused-days
@@ -25,12 +28,15 @@ you disable or delete it. The credential report lags: a key used a few
 minutes ago can still show no last use.
 
 Limits:
-  - Only IAM users and the root account are checked, not roles.
-  - Only the exact action "*" counts. "iam:*" and other service wildcards
-    are not flagged.
-  - Conditions and Deny statements are not evaluated, so a policy that
-    another statement cancels is still reported.
-  - Only the managed policy named AdministratorAccess counts as admin.
+  - Policies are read as written. Conditions, Deny statements, permission
+    boundaries and SCPs are not evaluated, so a policy that something else
+    cancels is still reported, and a limit that applies elsewhere is not
+    seen. To get the effective permissions of one principal, use the IAM
+    policy simulator or IAM Access Analyzer.
+  - Wildcards inside an action name, such as "s3:Get*" or "iam:Put*", are
+    not flagged.
+  - Only AdministratorAccess and IAMFullAccess are recognised by name.
+    Service-linked roles are skipped.
   - Input must be the AWS CLI v2 output, which merges paginated results.
 
 Exit code is 1 when a finding at or above --fail-on exists, 2 when an
@@ -45,7 +51,10 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import unquote
 
 SEVERITIES = ["low", "medium", "high", "critical"]
-ADMIN_POLICY_NAME = "AdministratorAccess"
+MANAGED_POLICY_SEVERITY = {
+    "AdministratorAccess": ("critical", "grants full administrator access"),
+    "IAMFullAccess": ("high", "grants full IAM access, which can be used to grant any permission"),
+}
 ROOT_USER = "<root_account>"
 REQUIRED_COLUMNS = {
     "user", "password_enabled", "password_last_used", "mfa_active",
@@ -85,15 +94,21 @@ def load_document(doc):
     return doc or {}
 
 
-def has_wildcard_admin(doc):
+def wildcard_findings(doc):
+    """Yield (severity, text) for Allow statements that grant a wildcard on all resources."""
     for stmt in as_list(load_document(doc).get("Statement")):
         if stmt.get("Effect") != "Allow" or "NotAction" in stmt:
             continue
-        actions = as_list(stmt.get("Action"))
-        resources = as_list(stmt.get("Resource"))
-        if ("*" in actions or "*:*" in actions) and "*" in resources:
-            return True
-    return False
+        if "*" not in as_list(stmt.get("Resource")):
+            continue
+        for action in as_list(stmt.get("Action")):
+            action = action.lower()
+            if action in ("*", "*:*"):
+                yield "critical", "Action * on Resource *"
+            elif action == "iam:*":
+                yield "high", "Action iam:* on Resource *, which can grant any permission"
+            elif action.endswith(":*"):
+                yield "medium", f"Action {action} on Resource *"
 
 
 def default_version_document(policy):
@@ -103,12 +118,20 @@ def default_version_document(policy):
     return None
 
 
-def policy_findings_for_user(user, groups, managed):
-    """Yield (severity, message) for the policies that apply to one user."""
+def aws_managed_policy(arn):
+    """Return the name if the ARN is an AWS managed policy we rate, else None."""
+    for name in MANAGED_POLICY_SEVERITY:
+        if arn.endswith(f":iam::aws:policy/{name}"):
+            return name
+    return None
+
+
+def policy_findings(entity, inline_key, groups, managed):
+    """Yield (severity, message) for the policies that apply to one user or role."""
     sources = [(f"inline policy {p['PolicyName']}", p["PolicyDocument"])
-               for p in user.get("UserPolicyList", [])]
-    attached = list(user.get("AttachedManagedPolicies", []))
-    for group_name in user.get("GroupList", []):
+               for p in entity.get(inline_key, [])]
+    attached = list(entity.get("AttachedManagedPolicies", []))
+    for group_name in entity.get("GroupList", []):
         group = groups.get(group_name, {})
         sources += [(f"group {group_name} inline policy {p['PolicyName']}", p["PolicyDocument"])
                     for p in group.get("GroupPolicyList", [])]
@@ -116,14 +139,16 @@ def policy_findings_for_user(user, groups, managed):
     for att in attached:
         label = f"group {att['via']} attached policy {att['PolicyName']}" if "via" in att \
             else f"attached policy {att['PolicyName']}"
-        if att["PolicyName"] == ADMIN_POLICY_NAME:
-            yield "high", f"{label} grants full administrator access"
+        rated = aws_managed_policy(att["PolicyArn"])
+        if rated:
+            severity, text = MANAGED_POLICY_SEVERITY[rated]
+            yield severity, f"{label} {text}"
         doc = default_version_document(managed.get(att["PolicyArn"], {}))
         if doc is not None:
             sources.append((label, doc))
     for label, doc in sources:
-        if has_wildcard_admin(doc):
-            yield "critical", f"{label} allows Action * on Resource *"
+        for severity, text in wildcard_findings(doc):
+            yield severity, f"{label} allows {text}"
 
 
 def credential_findings(row, now, max_key_age, unused_days):
@@ -183,29 +208,36 @@ def read_authorization_details(path):
 
 def analyse(report_rows, authz, now, max_key_age=90, unused_days=90):
     users = {u["UserName"]: u for u in authz.get("UserDetailList", [])}
+    roles = {r["RoleName"]: r for r in authz.get("RoleDetailList", [])
+             if not r.get("Path", "").startswith("/aws-service-role/")}
     groups = {g["GroupName"]: g for g in authz.get("GroupDetailList", [])}
     managed = {p["Arn"]: p for p in authz.get("Policies", [])}
-    results = []
-    names = [r["user"] for r in report_rows if r["user"] != ROOT_USER]
-    names += [n for n in users if n not in names]
     rows = {r["user"]: r for r in report_rows}
-    findings = {ROOT_USER: list(root_findings(rows[ROOT_USER]))} if ROOT_USER in rows else {}
+    names = [n for n in rows if n != ROOT_USER]
+    names += [n for n in users if n not in names]
+    findings = {}
+    if ROOT_USER in rows:
+        findings[("root", ROOT_USER)] = list(root_findings(rows[ROOT_USER]))
     for name in names:
         found = []
         if name in rows:
             found += credential_findings(rows[name], now, max_key_age, unused_days)
         if name in users:
-            found += policy_findings_for_user(users[name], groups, managed)
-        findings[name] = found
-    for name, found in findings.items():
+            found += policy_findings(users[name], "UserPolicyList", groups, managed)
+        findings[("user", name)] = found
+    for name, role in roles.items():
+        findings[("role", name)] = list(policy_findings(role, "RolePolicyList", groups, managed))
+    results = []
+    for (kind, name), found in findings.items():
         if found:
             found.sort(key=lambda f: -SEVERITIES.index(f[0]))
             results.append({
-                "user": name,
+                "name": name,
+                "kind": kind,
                 "top_severity": found[0][0],
                 "findings": [{"severity": s, "detail": d} for s, d in found],
             })
-    results.sort(key=lambda r: (-SEVERITIES.index(r["top_severity"]), r["user"]))
+    results.sort(key=lambda r: (-SEVERITIES.index(r["top_severity"]), r["name"]))
     return results
 
 
@@ -235,10 +267,10 @@ def main(argv=None):
         print()
     else:
         for result in results:
-            print(f"{result['user']}  [{result['top_severity']}]")
+            print(f"{result['name']} ({result['kind']})  [{result['top_severity']}]")
             for finding in result["findings"]:
                 print(f"  {finding['severity']:<8} {finding['detail']}")
-        print(f"{len(results)} user(s) with findings")
+        print(f"{len(results)} principal(s) with findings")
     threshold = SEVERITIES.index(args.fail_on)
     return 1 if any(SEVERITIES.index(r["top_severity"]) >= threshold for r in results) else 0
 

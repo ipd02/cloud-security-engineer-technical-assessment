@@ -25,7 +25,7 @@ def run():
     with open(HERE / "fixtures/credential-report.csv", newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     authz = json.loads((HERE / "fixtures/authorization-details.json").read_text(encoding="utf-8"))
-    return {r["user"]: r for r in tool.analyse(rows, authz, NOW)}
+    return {r["name"]: r for r in tool.analyse(rows, authz, NOW)}
 
 
 class AnalyseTest(unittest.TestCase):
@@ -38,7 +38,7 @@ class AnalyseTest(unittest.TestCase):
 
     def test_admin_inherited_from_group(self):
         result = run()["group-admin-user"]
-        self.assertEqual(result["top_severity"], "high")
+        self.assertEqual(result["top_severity"], "critical")
         self.assertIn("group admins", result["findings"][0]["detail"])
 
     def test_console_user_without_mfa(self):
@@ -54,16 +54,27 @@ class AnalyseTest(unittest.TestCase):
         with open(HERE / "fixtures/credential-report.csv", newline="", encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))
         authz = json.loads((HERE / "fixtures/authorization-details.json").read_text(encoding="utf-8"))
-        names = [r["user"] for r in tool.analyse(rows, authz, NOW)]
+        names = [r["name"] for r in tool.analyse(rows, authz, NOW)]
         self.assertEqual(names[0], "UnrestrictedUser")
 
     def test_wildcard_detection_edge_cases(self):
-        allow_all = {"Statement": {"Effect": "Allow", "Action": ["*"], "Resource": ["*"]}}
-        deny_all = {"Statement": [{"Effect": "Deny", "Action": "*", "Resource": "*"}]}
-        scoped = {"Statement": [{"Effect": "Allow", "Action": "*", "Resource": "arn:aws:s3:::b"}]}
-        self.assertTrue(tool.has_wildcard_admin(allow_all))
-        self.assertFalse(tool.has_wildcard_admin(deny_all))
-        self.assertFalse(tool.has_wildcard_admin(scoped))
+        def severities(*statements):
+            return [sev for sev, _ in tool.wildcard_findings({"Statement": list(statements)})]
+
+        def allow(action, resource="*", effect="Allow"):
+            return {"Effect": effect, "Action": action, "Resource": resource}
+
+        self.assertEqual(severities(allow(["*"])), ["critical"])
+        self.assertEqual(severities(allow("*:*")), ["critical"])
+        self.assertEqual(severities(allow("iam:*")), ["high"])
+        self.assertEqual(severities(allow("IAM:*")), ["high"])
+        self.assertEqual(severities(allow("ec2:*")), ["medium"])
+        self.assertEqual(severities(allow(["iam:*", "ec2:*"])), ["high", "medium"])
+        self.assertEqual(severities(allow("*", effect="Deny")), [])
+        self.assertEqual(severities(allow("*", resource="arn:aws:s3:::b")), [])
+        self.assertEqual(severities(allow("s3:Get*")), [])
+        self.assertEqual(severities({"Effect": "Allow", "NotAction": "s3:*", "Resource": "*"}), [])
+        self.assertEqual(list(tool.wildcard_findings({"Statement": allow("*")}))[0][0], "critical")
 
     def test_exit_code_follows_fail_on(self):
         args = ["--credential-report", str(HERE / "fixtures/credential-report.csv"),
@@ -71,6 +82,32 @@ class AnalyseTest(unittest.TestCase):
                 "--now", "2026-10-14T00:00:00+00:00", "--format", "json"]
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(tool.main(args + ["--fail-on", "critical"]), 1)
+
+
+class RoleTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        with open(HERE / "fixtures/credential-report.csv", newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        authz = json.loads((HERE / "fixtures/authorization-details.json").read_text(encoding="utf-8"))
+        cls.roles = {r["name"]: r for r in tool.analyse(rows, authz, NOW) if r["kind"] == "role"}
+
+    def test_inline_wildcard_on_a_role_is_critical(self):
+        self.assertEqual(self.roles["ci-deployer"]["top_severity"], "critical")
+
+    def test_administrator_access_on_a_role_is_critical(self):
+        self.assertEqual(self.roles["ops-admin"]["top_severity"], "critical")
+
+    def test_iam_wildcard_is_high_and_other_service_wildcard_is_medium(self):
+        severities = [f["severity"] for f in self.roles["iam-manager"]["findings"]]
+        self.assertEqual(severities, ["high", "medium"])
+
+    def test_iam_full_access_is_high(self):
+        self.assertEqual(self.roles["iam-full"]["top_severity"], "high")
+
+    def test_service_linked_scoped_and_lookalike_roles_are_not_reported(self):
+        for name in ("AWSServiceRoleForExample", "read-only", "lookalike"):
+            self.assertNotIn(name, self.roles)
 
 
 class InputHandlingTest(unittest.TestCase):
@@ -138,7 +175,7 @@ class RootAccountTest(unittest.TestCase):
 
     def analyse_root(self, row):
         results = tool.analyse([row], {"UserDetailList": []}, NOW)
-        return {r["user"]: r for r in results}.get("<root_account>")
+        return {r["name"]: r for r in results}.get("<root_account>")
 
     def test_clean_root_is_not_reported(self):
         self.assertIsNone(self.analyse_root(self.root_row()))
