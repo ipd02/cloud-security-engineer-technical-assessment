@@ -12,16 +12,29 @@ Rules, highest severity first:
 
   critical  an Allow statement with Action "*" on Resource "*"
             (inline, attached managed policy, or inherited from a group)
+  critical  the root account has an active access key
   high      the user has AdministratorAccess attached
   high      console password enabled and no MFA
+  high      the root account has no MFA device
   medium    active access key older than --max-key-age days
   medium    active access key never used, or unused for --unused-days
   low       console password unused for --unused-days
 
 A finding is a lead, not a verdict. Check what uses the identity before
-you disable or delete it.
+you disable or delete it. The credential report lags: a key used a few
+minutes ago can still show no last use.
 
-Exit code is 1 when a finding at or above --fail-on exists, otherwise 0.
+Limits:
+  - Only IAM users and the root account are checked, not roles.
+  - Only the exact action "*" counts. "iam:*" and other service wildcards
+    are not flagged.
+  - Conditions and Deny statements are not evaluated, so a policy that
+    another statement cancels is still reported.
+  - Only the managed policy named AdministratorAccess counts as admin.
+  - Input must be the AWS CLI v2 output, which merges paginated results.
+
+Exit code is 1 when a finding at or above --fail-on exists, 2 when an
+input file is missing or malformed, otherwise 0.
 """
 
 import argparse
@@ -33,13 +46,30 @@ from urllib.parse import unquote
 
 SEVERITIES = ["low", "medium", "high", "critical"]
 ADMIN_POLICY_NAME = "AdministratorAccess"
+ROOT_USER = "<root_account>"
+REQUIRED_COLUMNS = {
+    "user", "password_enabled", "password_last_used", "mfa_active",
+    "access_key_1_active", "access_key_1_last_rotated", "access_key_1_last_used_date",
+    "access_key_2_active", "access_key_2_last_rotated", "access_key_2_last_used_date",
+}
+
+
+class InputError(Exception):
+    """An input file or value that the script cannot use."""
 
 
 def parse_time(value):
-    """Return an aware datetime, or None for the report's N/A markers."""
+    """Return an aware datetime, or None for the report's N/A markers.
+
+    A time without an offset is read as UTC.
+    """
     if not value or value in ("N/A", "no_information", "not_supported"):
         return None
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise InputError(f"unreadable time value: {value}") from exc
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
 def as_list(value):
@@ -117,20 +147,57 @@ def credential_findings(row, now, max_key_age, unused_days):
             yield "medium", f"access key {n} unused since {used.date()}"
 
 
+def root_findings(row):
+    if "true" in (row["access_key_1_active"], row["access_key_2_active"]):
+        yield "critical", "root account has an active access key"
+    if row["mfa_active"] != "true":
+        yield "high", "root account has no MFA device"
+
+
+def read_report(path):
+    try:
+        with open(path, newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            rows = list(reader)
+            columns = set(reader.fieldnames or [])
+    except (OSError, UnicodeDecodeError) as exc:
+        raise InputError(f"cannot read {path}: {exc}") from exc
+    missing = sorted(REQUIRED_COLUMNS - columns)
+    if missing:
+        raise InputError(f"{path} is not a credential report, missing columns: {', '.join(missing)}")
+    return rows
+
+
+def read_authorization_details(path):
+    try:
+        with open(path, encoding="utf-8") as handle:
+            authz = json.load(handle)
+    except (OSError, UnicodeDecodeError) as exc:
+        raise InputError(f"cannot read {path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise InputError(f"{path} is not valid JSON: {exc}") from exc
+    if not isinstance(authz, dict) or not isinstance(authz.get("UserDetailList"), list):
+        raise InputError(f"{path} is not get-account-authorization-details output: no UserDetailList")
+    return authz
+
+
 def analyse(report_rows, authz, now, max_key_age=90, unused_days=90):
     users = {u["UserName"]: u for u in authz.get("UserDetailList", [])}
     groups = {g["GroupName"]: g for g in authz.get("GroupDetailList", [])}
     managed = {p["Arn"]: p for p in authz.get("Policies", [])}
     results = []
-    names = [r["user"] for r in report_rows if r["user"] != "<root_account>"]
+    names = [r["user"] for r in report_rows if r["user"] != ROOT_USER]
     names += [n for n in users if n not in names]
     rows = {r["user"]: r for r in report_rows}
+    findings = {ROOT_USER: list(root_findings(rows[ROOT_USER]))} if ROOT_USER in rows else {}
     for name in names:
         found = []
         if name in rows:
             found += credential_findings(rows[name], now, max_key_age, unused_days)
         if name in users:
             found += policy_findings_for_user(users[name], groups, managed)
+        findings[name] = found
+    for name, found in findings.items():
         if found:
             found.sort(key=lambda f: -SEVERITIES.index(f[0]))
             results.append({
@@ -153,13 +220,16 @@ def main(argv=None):
     parser.add_argument("--fail-on", choices=SEVERITIES, default="high")
     args = parser.parse_args(argv)
 
-    now = parse_time(args.now) if args.now else datetime.now(timezone.utc)
-    with open(args.credential_report, newline="", encoding="utf-8") as handle:
-        rows = list(csv.DictReader(handle))
-    with open(args.authorization_details, encoding="utf-8") as handle:
-        authz = json.load(handle)
-
-    results = analyse(rows, authz, now, args.max_key_age, args.unused_days)
+    try:
+        now = parse_time(args.now) if args.now else datetime.now(timezone.utc)
+        if now is None:
+            raise InputError(f"unreadable time value: {args.now}")
+        rows = read_report(args.credential_report)
+        authz = read_authorization_details(args.authorization_details)
+        results = analyse(rows, authz, now, args.max_key_age, args.unused_days)
+    except InputError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     if args.format == "json":
         json.dump(results, sys.stdout, indent=2)
         print()

@@ -8,6 +8,7 @@ import csv
 import io
 import json
 import sys
+import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -70,6 +71,91 @@ class AnalyseTest(unittest.TestCase):
                 "--now", "2026-10-14T00:00:00+00:00", "--format", "json"]
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(tool.main(args + ["--fail-on", "critical"]), 1)
+
+
+class InputHandlingTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.report = str(HERE / "fixtures/credential-report.csv")
+        self.authz = str(HERE / "fixtures/authorization-details.json")
+
+    def write(self, name, text):
+        path = Path(self.tmp.name) / name
+        path.write_text(text, encoding="utf-8")
+        return str(path)
+
+    def run_main(self, report=None, authz=None, extra=()):
+        args = ["--credential-report", report or self.report,
+                "--authorization-details", authz or self.authz, *extra]
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = tool.main(args)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_time_without_offset_is_read_as_utc(self):
+        code, _, err = self.run_main(extra=["--now", "2026-10-14"])
+        self.assertEqual((code, err), (1, ""))
+
+    def test_unreadable_now_value_exits_2(self):
+        code, _, err = self.run_main(extra=["--now", "yesterday"])
+        self.assertEqual(code, 2)
+        self.assertIn("unreadable time value", err)
+
+    def test_missing_file_exits_2_without_traceback(self):
+        code, _, err = self.run_main(report=str(Path(self.tmp.name) / "nope.csv"))
+        self.assertEqual(code, 2)
+        self.assertTrue(err.startswith("error: cannot read"))
+
+    def test_malformed_json_exits_2(self):
+        code, _, err = self.run_main(authz=self.write("bad.json", "{"))
+        self.assertEqual(code, 2)
+        self.assertIn("not valid JSON", err)
+
+    def test_json_of_the_wrong_shape_exits_2(self):
+        code, _, err = self.run_main(authz=self.write("other.json", '{"Roles": []}'))
+        self.assertEqual(code, 2)
+        self.assertIn("no UserDetailList", err)
+
+    def test_csv_with_missing_columns_exits_2(self):
+        code, _, err = self.run_main(report=self.write("bad.csv", "user,arn\nbob,x\n"))
+        self.assertEqual(code, 2)
+        self.assertIn("missing columns", err)
+        self.assertIn("password_enabled", err)
+
+    def test_bad_date_in_report_exits_2(self):
+        text = Path(self.report).read_text(encoding="utf-8").replace("2023-03-01T00:00:00+00:00", "not-a-date")
+        code, _, err = self.run_main(report=self.write("dates.csv", text))
+        self.assertEqual(code, 2)
+        self.assertIn("unreadable time value", err)
+
+
+class RootAccountTest(unittest.TestCase):
+    def root_row(self, **changes):
+        with open(HERE / "fixtures/credential-report.csv", newline="", encoding="utf-8") as handle:
+            row = next(r for r in csv.DictReader(handle) if r["user"] == "<root_account>")
+        return {**row, **changes}
+
+    def analyse_root(self, row):
+        results = tool.analyse([row], {"UserDetailList": []}, NOW)
+        return {r["user"]: r for r in results}.get("<root_account>")
+
+    def test_clean_root_is_not_reported(self):
+        self.assertIsNone(self.analyse_root(self.root_row()))
+
+    def test_active_root_access_key_is_critical(self):
+        result = self.analyse_root(self.root_row(access_key_1_active="true"))
+        self.assertEqual(result["top_severity"], "critical")
+        self.assertIn("active access key", result["findings"][0]["detail"])
+
+    def test_second_root_access_key_is_critical(self):
+        result = self.analyse_root(self.root_row(access_key_2_active="true"))
+        self.assertEqual(result["top_severity"], "critical")
+
+    def test_root_without_mfa_is_high(self):
+        result = self.analyse_root(self.root_row(mfa_active="false"))
+        self.assertEqual(result["top_severity"], "high")
+        self.assertIn("no MFA", result["findings"][0]["detail"])
 
 
 if __name__ == "__main__":
