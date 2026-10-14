@@ -1,0 +1,23 @@
+{
+  "advisories": {
+    "118": {
+      "id": 118,
+      "module_name": "oldpkg",
+      "severity": "high",
+      "title": "Old advisory",
+      "url": "https://nodesecurity.io/advisories/118",
+      "vulnerable_versions": "<1.2.0",
+      "patched_versions": ">=1.2.0",
+      "cves": ["CVE-2016-0001"],
+      "cwe": "CWE-400",
+      "findings": [{"version": "1.0.0", "paths": ["oldpkg"]}]
+    },
+    "119": {
+      "id": 119,
+      "module_name": "unpatched",
+      "severity": "medium",
+      "patched_versions": "<0.0.0",
+      "findings": []
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "tool": "audit_report.py",
+    "generated_at": "2026-10-14T18:31:09Z",
+    "input": "npm-audit.json",
+    "audit_report_version": 2,
+    "epss_source": "",
+    "epss_date": "",
+    "warnings": []
+  },
+  "summary": {
+    "advisories_by_severity": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "packages_by_severity": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "packages_total": 0,
+    "packages_fixable_without_major_bump": 0,
+    "packages_fixable_with_major_bump": 0,
+    "packages_without_fix": 0
+  },
+  "findings": []
+}

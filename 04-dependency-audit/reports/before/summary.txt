@@ -1,0 +1,12 @@
+Minimum severity shown: info
+Vulnerable packages: 24
+  critical  packages  10   advisories   7
+  high      packages   8   advisories  18
+  moderate  packages   3   advisories  15
+  low       packages   3   advisories   6
+  info      packages   0   advisories   0
+Advisories are counted once per package and advisory.
+Fixable without a major bump: 12
+Fixable only with a major bump: 12
+No fix available: 0
+Advisories with an EPSS score: 44

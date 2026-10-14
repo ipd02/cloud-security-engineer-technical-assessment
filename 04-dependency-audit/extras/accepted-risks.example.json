@@ -1,0 +1,18 @@
+{
+  "accepted": [
+    {
+      "advisory": "GHSA-p8p7-x288-28g6",
+      "package": "request",
+      "version": "2.88.2",
+      "reason": "request is deprecated and has no patched version. Replacement is planned.",
+      "controls": [
+        "Outbound traffic from the service is limited to an allowlist of hosts at the egress proxy",
+        "The URL passed to request is built from configuration, never from user input",
+        "The service account has no access to the cloud metadata service beyond its own identity"
+      ],
+      "owner": "payments-team",
+      "accepted_on": "2026-10-14",
+      "expires": "2027-01-14"
+    }
+  ]
+}

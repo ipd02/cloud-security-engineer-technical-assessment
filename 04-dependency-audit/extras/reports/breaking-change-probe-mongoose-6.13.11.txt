@@ -1,0 +1,20 @@
+# date_utc: 2026-10-14T15:36:05Z
+# node: v26.10.0
+# cmd: node breaking-change-probe.js (mongoose 6.13.11 with jsonwebtoken 9.0.3, scratch install with --ignore-scripts)
+verify HS256 default => OK number
+verify with alg none token => THROWS JsonWebTokenError: jwt signature is required
+sign RSA 1024 key => THROWS Error: secretOrPrivateKey has a minimum key size of 2048 bits for RS256
+sign RSA 2048 key => OK eyJhbGciOiJSUzI1NiIsInR5cCI6Ik
+verify with public key but HS256 token (alg confusion) => THROWS JsonWebTokenError: invalid algorithm
+sign EC key with RS256 (key type check) => THROWS Error: "alg" parameter for "ec" key type must be one of: ES256, ES384, ES512.
+sign RSA 1024 key with allowInsecureKeySizes => OK eyJhbGciOiJSUzI1NiIsInR5cCI6Ik
+sign with no secret => THROWS Error: secretOrPrivateKey must have a value
+sign expiresIn "1x" => THROWS Error: "expiresIn" should be a number of seconds or string representing a timespan eg: "1d", "20h", 60
+sign payload string + expiresIn => THROWS Error: invalid expiresIn option for string payload
+mongoose 6.13.11
+Model.find with callback => OK object
+Model.findOne with callback => OK object
+Model.count() => OK object
+Model.update() => OK object
+Model.remove() => OK object
+doc.save with callback => not rejected (no database, so the save is only queued)

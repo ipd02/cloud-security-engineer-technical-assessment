@@ -1,0 +1,4 @@
+date_utc: 2026-10-14T17:14:44Z
+package.json: written for this tool (old pins chosen to give: several advisories on one package, direct and transitive packages, a dev dependency, advisories with no fix)
+audit-npm6.json: npx npm@6.14.18 install --package-lock-only --ignore-scripts, then npm audit --json (node v26.10.0)
+audit-npm11.json: npm 11.19.1 install --package-lock-only --ignore-scripts, then npm audit --json

@@ -1,0 +1,10 @@
+# date_utc: 2026-10-14T18:32:40Z
+# cmd: python3 extras/compare_scanners.py reports/before/npm-audit.json reports/before/trivy.json
+# python: Python 3.12.1
+npm audit advisories: 46
+trivy findings with a GHSA id: 45
+in both: 45
+severity differs (npm vs trivy):
+only in npm audit:
+  ghsa-h8hf-x3f4-xwgp mongoose critical
+only in trivy:

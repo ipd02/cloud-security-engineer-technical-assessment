@@ -1,0 +1,14 @@
+# date_utc: 2026-10-13T18:33:06Z
+# npm: 11.19.1
+# node: v26.10.0
+# cmd: npm audit fix --package-lock-only --ignore-scripts (scratch copy of vulnerable-input/)
+qs's arrayLimit bypass in its bracket notation allows DoS via memory exhaustion - https://github.com/advisories/GHSA-6rw7-vpxm-498p
+qs: Denial of Service via Attacker Controlled isBuffer - https://github.com/advisories/GHSA-4mjr-xmp4-gh2g
+fix available via `npm audit fix --force`
+Will install express@4.22.3, which is outside the stated dependency range
+node_modules/express/node_modules/qs
+24 vulnerabilities (3 low, 3 moderate, 8 high, 10 critical)
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+package.json unchanged
+lockfile unchanged

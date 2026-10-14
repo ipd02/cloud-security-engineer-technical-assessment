@@ -1,0 +1,18 @@
+# date_utc: 2026-10-13T18:33:15Z
+# npm: 11.19.1
+# node: v26.10.0
+# cmd: npm audit fix --force --package-lock-only --ignore-scripts (scratch copy of vulnerable-input/)
+npm warn using --force Recommended protections disabled.
+npm warn audit Updating express to 4.22.3, which is outside your stated dependency range.
+npm warn audit Updating jsonwebtoken to 9.0.3, which is a SemVer major change.
+npm warn audit Updating lodash to 4.18.1, which is outside your stated dependency range.
+npm warn audit Updating mongoose to 9.11.2, which is a SemVer major change.
+npm warn audit Updating mocha to 12.0.3, which is a SemVer major change.
+up to date, audited 129 packages in 5s
+28 packages are looking for funding
+  run `npm fund` for details
+found 0 vulnerabilities
+--- resulting package.json
+{"name":"vulnerable-node-app","version":"1.0.0","dependencies":{"body-parser":"^1.19.0","dotenv":"^8.2.0","express":"^4.22.3","jsonwebtoken":"^9.0.3","lodash":"^4.18.1","mongoose":"^9.11.2"},"devDependencies":{"mocha":"^12.0.3"}}
+--- npm audit after
+found 0 vulnerabilities
