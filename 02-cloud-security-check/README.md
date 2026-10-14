@@ -10,7 +10,7 @@ This part reviews the task's CloudFormation template and Dockerfile. It answers 
 | `cloudformation/hardened.yaml` | The improved template |
 | `docker/Dockerfile.original` | The task Dockerfile, unchanged |
 | `docker/Dockerfile.hardened` | The improved Dockerfile |
-| `docker/app.py`, `docker/.dockerignore` | A small web service for the image to run, and a file that keeps everything else out of the build |
+| `docker/app.py`, `docker/.dockerignore` | A small demo web service for the image to run (the task gives no app code), and a file that keeps everything else out of the build |
 | `tests/assert-originals-fail.sh` | Checks that the scanners reject the original files and accept the improved ones |
 | `scripts/find_risky_iam_users.py` | Reads two AWS exports and lists risky users, roles and root account settings |
 | `tests/test_find_risky_iam_users.py` and `tests/fixtures/` | Unit tests for that script, with made-up data |
@@ -136,9 +136,9 @@ The issues are listed in the order they appear in the Dockerfile. Severity uses 
 
 | # | In `Dockerfile.original` | Why it matters | Severity | Fix in `Dockerfile.hardened` |
 | --- | --- | --- | --- | --- |
-| 1 | `FROM ubuntu:18.04` | Ubuntu 18.04 no longer gets standard security updates. The tag can also change, so two builds can differ. | High | `python:3.13-slim-trixie`, pinned by digest so every build uses the same image. |
+| 1 | `FROM ubuntu:18.04` | Ubuntu 18.04 no longer gets standard security updates. The tag can also change, so two builds can differ. | High | A base that still gets security updates. This Dockerfile uses `python:3.13-slim-trixie`, because the app is Python, pinned by digest so every build uses the same image. `ubuntu:24.04` would also work. See "What the real app changes". |
 | 2 | `USER root` | A bug in the app gives root inside the container. | High | A numeric user (`10001`) with no shell and no home folder. |
-| 3 | Installs `curl`, `vim`, `dnsutils`, `python3-pip` | Each extra program adds vulnerabilities and gives an attacker more tools. The app needs none of them. | Medium | Nothing is installed. pip is removed. The health check uses Python. |
+| 3 | Installs `curl`, `vim`, `dnsutils`, `python3-pip` | Each extra program adds vulnerabilities and gives an attacker more tools. The app needs none of them. | Medium | The demo app needs none of them, so nothing is installed and pip is removed. The health check uses Python. The real app may need one of them (see below). |
 | 4 | `apt-get install` with no `--no-install-recommends`, no cleanup and no pinned versions | A larger image that keeps the package lists. | Low | There is no apt step left. |
 | 5 | `ENV DB_PASSWORD=...` and `ENV API_KEY=...` | Anyone who can pull the image can read these values with `docker inspect` or `docker history`. They stay in the image even if a later step removes them. | Critical | No secrets in the image. They are given when the container starts (see below). |
 | 6 | `COPY . /app` with no `.dockerignore` | Copies everything in the folder into the image, including `.git`, `.env` files and keys. | High | `.dockerignore` excludes everything except `app.py`, and `COPY` names that one file. |
@@ -148,6 +148,26 @@ The issues are listed in the order they appear in the Dockerfile. Severity uses 
 | 10 | No `HEALTHCHECK` | Docker cannot tell a stuck container from a healthy one. | Low | A `HEALTHCHECK` that calls `/healthz` with Python. |
 
 The app has no build step, so the improved Dockerfile needs only one stage.
+
+### What the real app changes
+
+The task gives the Dockerfile but not the app. The only clue is `CMD python3 app.py`, so the app is written in Python. The improved Dockerfile therefore runs a small demo app. The fixes above are right for the Dockerfile itself, but a full check needs the real app, to answer these questions:
+
+- **Does it run on a newer Python?** Ubuntu 18.04 ships Python 3.6. Some code written for it breaks on 3.13, because some modules were removed and some behavior changed. Run the app's tests on the new version.
+- **Does it use any of the removed tools?** If it calls `curl`, `dig` or similar, add back only that package, with `--no-install-recommends` and an `apt` cleanup in the same step. Do not add back `vim`.
+- **Does it install Python packages?** The task has no `requirements.txt`. If there is one, install it in a first build stage, pin the versions, and copy only the result into the final image.
+- **Does it depend on anything specific to Ubuntu?** If so, use `ubuntu:24.04` as the base, install `python3` in one `apt` step, and keep the non-root user and the other fixes.
+- **Do the scanners still pass?** Build the image with the real app and run the same checks as in "What was checked".
+
+### If an older Python version has to stay
+
+Use these steps, in this order:
+
+1. **Upgrade the app first.** This is the real fix. An old Python version gets no security fixes, whatever the base image is. Check which versions still get fixes on python.org, and move to one of them.
+2. **If the upgrade is not possible yet, pin and shrink the risk.** Use the official image for that exact version, pinned by digest. Keep everything else in this Dockerfile: non-root user, read-only files, no secrets, no extra tools.
+3. **Limit what the container can reach.** Run it with a read-only filesystem and no extra capabilities (see "Run flags"). Allow only the network connections it needs.
+4. **Scan on a schedule and set a deadline.** Run `trivy image` regularly, because the findings will not be fixed. Write down who owns the upgrade and by when.
+5. **If the old Ubuntu release itself must stay,** Ubuntu offers paid extended security updates for 18.04 (Ubuntu Pro). That keeps the system packages patched. It does not patch the app's own libraries.
 
 ### Secrets when the container starts
 
@@ -198,7 +218,7 @@ See `PREVENTION.md`. It follows a change through four phases (development, pull 
 
 ## What was checked
 
-Everything below was run while building this part. The scanners and Docker ran on a Mac. The AWS tests ran in a test AWS account on 2026-10-14, and everything created for them was deleted afterwards.
+Everything below was run while building this part. The image checks apply to the demo app, not to the task's real app. The scanners and Docker ran on a Mac. The AWS tests ran in a test AWS account on 2026-10-14, and everything created for them was deleted afterwards.
 
 ### Scanners and image
 
