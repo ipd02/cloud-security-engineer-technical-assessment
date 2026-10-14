@@ -1,217 +1,196 @@
-# Part 3: multi-cloud firewall scanner
+# Part 3: fwscan, a multi-cloud firewall scanner
 
-## What it is
+`fwscan` is a read-only Go command line tool. It checks the firewall rules of AWS, GCP and Azure and reports every inbound rule that is open to the whole internet (`0.0.0.0/0`), for any protocol and any port.
 
-`fwscan` is a read-only command line tool written in Go. It checks the network firewall rules of AWS, GCP and Azure and reports every rule that lets the whole internet in.
+To try it without credentials: `make fwscan-mock` from the repository root.
 
-### What it does
+## Overview
 
-- Logs in to each cloud with the credentials you already have (the SDKs' default credential chains).
+**What it does**
+
+- Uses the credentials you already have, through each SDK's default credential chain.
 - Finds what those credentials can see: organizations, accounts, projects, subscriptions and regions.
-- Reads the firewall rules: AWS security groups, GCP firewall rules and firewall policies, Azure network security groups (NSGs).
-- Reports every inbound allow rule whose source is `0.0.0.0/0`, whatever its protocol or port.
+- Reads the firewall rules: AWS security groups, GCP firewall rules and policies, Azure network security groups (NSGs).
+- Reports every inbound allow rule whose source is `0.0.0.0/0`.
 - Never changes anything. It only lists and describes.
 
-### What you get
+**What you get**
 
-- A JSON report in the shape of the task's example, with one list per cloud and an `errors` list.
-- Exit codes you can use in a pipeline: 0 clean, 1 findings, 2 incomplete.
-- A mock mode that runs without any credentials.
+- A JSON report in the shape of the task's example.
+- An exit code for pipelines: 0 clean, 1 findings, 2 scan incomplete.
+- A mock mode that needs no credentials.
 
-### What the task asks, and where it is covered
+**Where the task is covered**
 
-| Task requirement | Covered by |
+| Task requirement | Where |
 | --- | --- |
-| Authenticate with AWS, GCP and Azure | Default credential chains. See [Run it](#run-it) and each cloud section. |
-| Fetch all firewall and security group rules | Pagination, all regions, and discovery of accounts, projects and subscriptions. See [Default scope](#default-scope). |
-| Detect `0.0.0.0/0` inbound for any protocol and port | See [What counts as insecure](#what-counts-as-insecure). |
-| Output the findings as JSON | See [Output](#output). |
-| AWS: Go SDK, list EC2 security groups | [AWS](#aws): `ec2.DescribeSecurityGroups` with the SDK for Go v2. |
-| GCP: Go SDK, list firewall rules, `sourceRanges` | [GCP](#gcp): the Compute `FirewallsClient`. |
-| Azure: Go SDK, list NSGs, "Any" source | [Azure](#azure): the `armnetwork` NSG client. |
+| Authenticate with AWS, GCP and Azure | The Credentials part of [AWS](#aws), [GCP](#gcp) and [Azure](#azure) |
+| Fetch all firewall rules | [What is scanned by default](#what-is-scanned-by-default) |
+| Detect `0.0.0.0/0` for any protocol and port | [What counts as a finding](#what-counts-as-a-finding) |
+| Output JSON | [Output](#output) |
+| AWS: Go SDK, EC2 security groups | [AWS](#aws) |
+| GCP: Go SDK, firewall rules, `sourceRanges` | [GCP](#gcp) |
+| Azure: Go SDK, NSGs, "Any" source | [Azure](#azure) |
 
 ## How it works
 
-### The flow
+1. **Log in.** Each provider builds its client from the SDK's default credential chain. The tool takes no credentials as flags.
+2. **Find the scope.** With no scope flag, each cloud scans everything its credentials can see. Flags narrow it.
+3. **Read the rules.** Each cloud client follows every page of results.
+4. **Check each rule.** Pure functions in `internal/detect` decide whether a rule is open. They use no SDK types and no network.
+5. **Write the report.** Findings are sorted and printed as JSON. If a provider fails, the error goes into `errors` and the other providers still report.
 
-1. **Authenticate.** Each provider builds its client from the default credential chain of its SDK. The tool takes no credentials as flags.
-2. **Discover the scope.** With no scope flag, each cloud scans everything its credentials can see. Flags narrow it.
-3. **Fetch the rules.** The cloud clients sit behind small interfaces and follow every page of results.
-4. **Detect.** Pure functions in `internal/detect` decide whether a rule is open, with no SDK types and no network.
-5. **Report.** The findings are sorted and written as JSON. A failure in one provider is recorded in `errors` and does not hide the others.
-
-### What counts as insecure
+### What counts as a finding
 
 "Any protocol and any port" means every inbound allow rule whose source is the whole internet is reported, whatever its protocol or port. The task's own example lists `tcp/8080` and `udp/123`.
 
-For all three clouds a finding needs these things:
+A rule is reported when all of these are true:
 
-- The rule is inbound (ingress).
-- The rule allows traffic. Deny rules are ignored.
-- The rule is enabled.
-- The source is the literal `0.0.0.0/0`. Several ranges that together cover the internet, such as `0.0.0.0/1` and `128.0.0.0/1`, are not reported. This follows the task, which names `0.0.0.0/0`.
-- A rule with several protocol and port entries produces one finding per entry.
-- IPv6 `::/0` is not part of the task. It is reported only with `--include-ipv6`, and shows as `::/0` in the `source` field.
+- It is inbound.
+- It allows traffic. Deny rules are ignored.
+- It is enabled.
+- Its source is the literal `0.0.0.0/0`. Ranges that only add up to the whole internet, such as `0.0.0.0/1` plus `128.0.0.0/1`, are not reported.
 
-Each cloud adds its own details, described below.
+A rule with several protocol and port entries gives one finding per entry. IPv6 `::/0` is not part of the task, so it is reported only with `--include-ipv6`.
 
-### Design choices
+### Design
 
-- **Detection is pure.** `internal/detect` takes plain values and returns findings. The cloud adapters convert SDK types into those values.
-- **Everything is replaceable in tests.** Each adapter talks to a small interface, so tests use fake clients. `--mock` runs the real adapters against fake clients that return SDK types, so it exercises the same code as a real scan.
-- **Partial results are kept.** A provider, region, account, project or subscription that fails is listed in `errors`, and what was found before the failure stays in the output. An incomplete scan exits 2, so it is never mistaken for a clean one.
-- **Providers run concurrently** with `errgroup`. Inside a provider, AWS regions, AWS accounts and Azure subscriptions are scanned in parallel, at most 8 at once. GCP projects are scanned one after another. The context carries the `--timeout`.
-- **Rule priority is not evaluated.** The tool reports rules that are open. It does not work out whether a higher-priority deny rule blocks the traffic, so it can over-report. Each cloud section says where this applies.
+- Detection is separate from the cloud code, so it is easy to test.
+- Every cloud client sits behind a small interface. Tests use fake clients, and `--mock` runs the real code against fake clients.
+- If something fails halfway, what was found before the failure stays in the output, and the exit code is 2. An incomplete scan is never shown as clean.
+- Providers run at the same time. Inside a provider, AWS regions, AWS accounts and Azure subscriptions run in parallel, at most 8 at once. GCP projects run one after another.
+- Rule priority is not evaluated, so a deny rule that would block an open rule is not taken into account. The tool can over-report.
 
-### Layout
+### Code layout
 
 ```
 cmd/fwscan/            flags, concurrency, exit codes
-internal/model/        report types (JSON shape)
-internal/detect/       pure functions: is this rule open to the world
-internal/scan/aws/     EC2 adapter behind a small interface, paginator, multi-region, organization accounts
-internal/scan/gcp/     compute and Cloud Asset clients behind small interfaces (VPC rules, policies, org scope)
-internal/scan/azure/   armnetwork SecurityGroupsClient pager behind an interface
+internal/detect/       is this rule open to the world (pure functions)
+internal/scan/aws/     EC2, Organizations and STS
+internal/scan/gcp/     Compute, Cloud Asset and Resource Manager
+internal/scan/azure/   NSG and subscription clients
+internal/model/        report types (the JSON shape)
 internal/report/       JSON writer
-internal/mock/         fixture clients for --mock (they return SDK types, so the real adapters run)
+internal/mock/         fake clients for --mock
 ```
 
-Go 1.26.0 is the minimum, set by the SDK dependencies. All versions are in `go.mod`.
+Go 1.26.0 is the minimum. All dependency versions are in `go.mod`.
 
-## Default scope
+## What is scanned by default
 
 With no scope flag, each cloud scans everything its credentials can see:
 
 | Cloud | Default | Flags that narrow it |
 | --- | --- | --- |
-| AWS | The organization when the caller can list its accounts, else the caller's account. All enabled regions. | `--aws-scope`, `--aws-regions` |
-| GCP | Every organization the caller can see, or, when there is none, every project the caller can see. | `--gcp-org`, `--gcp-folder`, `--gcp-project` |
+| AWS | The organization if the caller can list its accounts, otherwise the caller's account. All enabled regions. | `--aws-scope`, `--aws-regions` |
+| GCP | Every organization the caller can see, or if there is none, every project the caller can see. | `--gcp-org`, `--gcp-folder`, `--gcp-project` |
 | Azure | Every enabled subscription the credential can read. | `--azure-subscription` |
 
 ## AWS
 
-**What it reads.** EC2 `DescribeSecurityGroups` with the SDK for Go v2 paginator, and `DescribeRegions` for `--aws-regions all`. For organizations it also uses Organizations `ListAccounts` and STS `AssumeRole`.
+**Credentials.** The default AWS chain: environment variables, shared config, SSO or `aws login`, and roles. If no region is configured, `us-east-1` is used for credential handling.
 
-**Authentication.** The default AWS credential chain: environment, shared config, SSO or `aws login`, and roles. Without a configured region the tool falls back to `us-east-1` for credential handling.
+**What is scanned.** Security groups, through EC2 `DescribeSecurityGroups` (SDK for Go v2, paginated).
 
-**Scope.**
+- Regions: `all` enabled regions by default (from `DescribeRegions`), or the ones you list.
+- `--aws-scope auto` (default): the organization if the caller can list its accounts, otherwise the caller's account. `org` requires an organization. `account` scans only the caller's account.
+- The caller's own account is scanned with the caller's credentials. Other active accounts are reached by assuming the role `--aws-role-name` (default `fwscan-reader`). The role must exist in each account and trust the caller.
+- Suspended and closing accounts are skipped. If a role cannot be assumed in one account, the error is listed and the other accounts still report.
 
-- `--aws-scope auto` (the default) scans the organization when the caller can list its accounts, and the caller's own account otherwise. `org` requires the organization. `account` scans only the caller's account.
-- The caller's own account is scanned with the caller's credentials. Every other active account is reached by assuming the role named by `--aws-role-name` (default `fwscan-reader`). The role must exist in each account and trust the caller.
-- Suspended and closing accounts are skipped. A role that cannot be assumed in one account is listed in `errors`, and the other accounts still report.
-- Regions default to `all`, which means every enabled region.
-- Findings carry the account id and the region.
+**What is reported.** Each `IpRanges[].CidrIp` equal to `0.0.0.0/0` in a group's inbound rules. The report shows the protocol (`-1` becomes `all`; protocols 1, 6, 17 and 58 become `icmp`, `tcp`, `udp`, `icmpv6`) and the port or port range. A tcp or udp range of 0-65535 is shown as `all`. For ICMP the numbers are type and code. With `--include-ipv6`, `Ipv6Ranges` equal to `::/0` count too. Egress rules are never reported.
 
-**What counts.** Each `IpPermissions[].IpRanges[].CidrIp` equal to `0.0.0.0/0`. Protocol `-1` is reported as protocol `all`, port `all`. Numeric protocols 1, 6, 17 and 58 are shown as `icmp`, `tcp`, `udp` and `icmpv6`. A tcp or udp range of 0-65535 is shown as `all`. For ICMP the numbers are type and code, and `-1` is `all`. With `--include-ipv6`, `Ipv6Ranges` equal to `::/0` count too. Only ingress rules are read. The default egress rule every group has is never reported.
-
-**Things to know.**
+**Limits.**
 
 - It does not check whether a group is attached to anything.
 - Prefix lists and referenced security groups are not expanded.
-- It reads security groups only, not network ACLs or AWS Network Firewall.
+- Network ACLs and AWS Network Firewall are not read.
 - Only the `aws` partition is supported.
-- Temporary credentials issued by the global STS endpoint are rejected in opt-in regions. With `--aws-regions all` such a region fails with `AuthFailure`, the other regions still report, and the exit code is 2. Use a regional STS endpoint (`AWS_STS_REGIONAL_ENDPOINTS=regional`) or long-lived role credentials.
-- The tool warns on stderr when it runs as the AWS root user.
+- Temporary credentials from the global STS endpoint are rejected in opt-in regions. With `--aws-regions all` that region fails, the others still report, and the exit code is 2. Use a regional STS endpoint (`AWS_STS_REGIONAL_ENDPOINTS=regional`) or long-lived role credentials.
 
-**Permissions.**
+The tool prints a warning on stderr when it runs as the AWS root user.
 
-| Case | Needed | Notes |
-| --- | --- | --- |
-| One account | `ec2:DescribeSecurityGroups`, plus `ec2:DescribeRegions` for `--aws-regions all` | Allow only these two actions on `*`. The Describe actions do not support resource-level scoping. |
-| Organization | The caller needs `organizations:ListAccounts` and `sts:AssumeRole` on the role in each other account. The role in each account holds the two EC2 actions. | The role must trust the caller. The root user cannot assume roles. Without `organizations:ListAccounts`, `--aws-scope auto` scans the caller's account only. |
+**Permissions needed.**
+
+| Case | Permissions |
+| --- | --- |
+| One account | `ec2:DescribeSecurityGroups`, plus `ec2:DescribeRegions` for `--aws-regions all`. Both can only be granted on `*`. |
+| Organization | The caller needs `organizations:ListAccounts` and `sts:AssumeRole` on the role in each other account. The role holds the two EC2 permissions and must trust the caller. The root user cannot assume roles. Without `organizations:ListAccounts`, `auto` scans the caller's account only. |
 
 ## GCP
 
-**What it reads.**
+**Credentials.** Application Default Credentials. With user credentials, organization and folder scans need a quota project: pass `--gcp-quota-project`, or run `gcloud auth application-default set-quota-project`. The Cloud Asset API must be enabled in that project.
 
-- VPC firewall rules: the Compute `FirewallsClient`.
-- Network firewall policies: the Compute `NetworkFirewallPoliciesClient` (global and regional, from the aggregated list).
-- Hierarchical firewall policies of organizations and folders: the Compute `FirewallPoliciesClient`.
-- For organization and folder scope, Cloud Asset Inventory `SearchAllResources`. To find organizations and projects, Resource Manager search.
+**What is scanned.** VPC firewall rules (Compute `FirewallsClient`), and with `--gcp-policies` (on by default) network firewall policies and hierarchical policies of organizations and folders.
 
-**Authentication.** Application Default Credentials. With user credentials, organization and folder scans need a quota project: pass `--gcp-quota-project`, or run `gcloud auth application-default set-quota-project`. The Cloud Asset API must be enabled in that project.
-
-**Scope.**
-
-- With no scope flag, every organization the caller can see is scanned. When there is none, every project the caller can see is scanned.
-- `--gcp-org` and `--gcp-folder` exclude each other. They read VPC firewall rules from the Cloud Asset Inventory index and cover every project below. A GCP project can be combined with either, and a project inside a scanned scope is reported once.
-- `--gcp-project` takes a comma separated list and reads the Compute API directly, in real time. Projects are scanned one after another.
+- No scope flag: every organization the caller can see, otherwise every project the caller can see.
+- `--gcp-org` and `--gcp-folder` (not both) cover every project below, using Cloud Asset Inventory. A project you name that lies inside is reported once.
+- `--gcp-project` takes a list and reads the Compute API directly, in real time.
 - A project whose Compute API is off is skipped without an error.
-- `--gcp-policies` (on by default) adds network and hierarchical policies. Turn it off to need fewer permissions.
-- Findings carry the project. Policy findings also carry a `type`.
 
-**What counts.**
+**What is reported.**
 
-- VPC firewall rules: direction `INGRESS` (an empty direction counts as ingress), not `disabled`, `allowed` entries present, `sourceRanges` contains `0.0.0.0/0`. An `allowed` entry with no `ports` means all ports. Each port or range in `ports` is one finding. Deny rules and egress rules are ignored.
-- Policy rules (network and hierarchical policies): direction `INGRESS`, not disabled, action `allow`, `srcIpRanges` contains `0.0.0.0/0`. Each `layer4Configs` entry is read like an `allowed` entry. The finding has a `type` and the rule priority as `rule_id`.
+- VPC firewall rules: ingress (an empty direction counts as ingress), not disabled, with `sourceRanges` containing `0.0.0.0/0`. An `allowed` entry without `ports` means all ports. Each port or range is one finding.
+- Policy rules: ingress, not disabled, action `allow`, `srcIpRanges` containing `0.0.0.0/0`. Policy findings carry a `type` and the rule priority as `rule_id`.
 
-**Things to know.**
+**Limits.**
 
-- It does not evaluate rule priority or the order between VPC rules and policies. A rule shadowed by a higher-priority deny is still reported.
-- It ignores target tags and target service accounts, and does not check whether any instance uses a rule.
-- Only `sourceRanges` and `srcIpRanges` are read. A rule that has only source tags or source service accounts is not reported. A rule with both a source range of `0.0.0.0/0` and source tags is reported, because GCP treats them as alternatives.
-- Policies: `allow` is the only action reported. `goto_next` and `deny` are not, and neither is an allow that goes through a security profile group. Source address groups, FQDNs, region codes and secure tags in a policy rule are not read. A policy that is not attached to anything is still reported.
-- Hierarchical policies are read for the organization or folder and its subfolders. A folder you pass with `--gcp-folder` is not checked for policies of its parents.
-- The Cloud Asset index lags behind real changes. In a test, a rule created seconds earlier was missing from the first run and present about 30 seconds later. `--gcp-project` has no such delay.
+- Priority and the order between VPC rules and policies are not evaluated. A rule shadowed by a higher-priority deny is still reported.
+- Target tags and target service accounts are ignored, and it does not check whether any instance uses a rule.
+- Only `sourceRanges` and `srcIpRanges` are read. A rule with only source tags or source service accounts is not reported. A rule with `0.0.0.0/0` and source tags is reported, because GCP treats them as alternatives.
+- In policies, only `allow` is reported. Rules with `goto_next`, `deny`, or an allow through a security profile group are not. Address groups, FQDNs, region codes and secure tags are not read. A policy attached to nothing is still reported.
+- Hierarchical policies are read for the organization or folder and its subfolders, not for the parents of a folder you pass.
+- The Cloud Asset index lags behind real changes. In a test, a rule created seconds earlier showed up about 30 seconds later. `--gcp-project` has no delay.
 
-**Permissions.**
+**Permissions needed.**
 
-| Case | Needed | Notes |
-| --- | --- | --- |
-| Project scope, `--gcp-policies=false` | `compute.firewalls.list` on each project | A custom role with this one permission is the tightest option. `roles/compute.networkViewer` also works and is broader. `roles/compute.securityAdmin` is too broad. |
-| Project scope, default | add `compute.firewallPolicies.list` on each project | Network firewall policies. Not in `roles/compute.networkViewer`. |
-| No scope flag | `resourcemanager.organizations.get` to find organizations, and `resourcemanager.projects.get` to find projects | Without them nothing is found and the tool asks for a scope flag. |
-| Organization or folder scope | `cloudasset.assets.searchAllResources` on the scope, and `compute.firewallPolicies.list` on the organization, on each folder and on each project | The caller needs `serviceusage.services.use` on the quota project. `roles/cloudasset.viewer` includes the first permission and is broad. Use a custom role. |
+| Case | Permissions |
+| --- | --- |
+| Project scope, `--gcp-policies=false` | `compute.firewalls.list` on each project. A custom role with this one permission is the tightest. `roles/compute.networkViewer` also works and is broader. |
+| Project scope, default | Add `compute.firewallPolicies.list` on each project. It is not in `roles/compute.networkViewer`. |
+| No scope flag | `resourcemanager.organizations.get` to find organizations and `resourcemanager.projects.get` to find projects. Without them the tool asks for a scope flag. |
+| Organization or folder scope | `cloudasset.assets.searchAllResources` on the scope, and `compute.firewallPolicies.list` on the organization, each folder and each project. The caller also needs `serviceusage.services.use` on the quota project. Use a custom role, because `roles/cloudasset.viewer` is broad. |
 
 ## Azure
 
-**What it reads.** The `armnetwork` `SecurityGroupsClient` pager over all NSGs of a subscription, and the `armsubscriptions` client to list subscriptions.
+**Credentials.** `DefaultAzureCredential`: environment variables for a service principal, workload identity, managed identity, and the Azure CLI login.
 
-**Authentication.** `DefaultAzureCredential`: environment variables for a service principal, workload identity, managed identity, and the Azure CLI login.
+**What is scanned.** NSGs, through the `armnetwork` pager, in every region of each subscription.
 
-**Scope.**
-
-- With no subscription named, every enabled subscription the credential can read is scanned. This is the Azure tenant scope.
-- `--azure-subscription` takes a comma separated list. `--azure-all-subscriptions` adds all readable subscriptions to the ones you name.
-- Subscriptions are scanned in parallel, at most 8 at once. A failing subscription is listed in `errors` and the others still report.
-- NSGs in every region of a subscription are listed together.
+- No subscription named: every enabled subscription the credential can read (the tenant).
+- `--azure-subscription` takes a list. `--azure-all-subscriptions` adds all readable subscriptions to it.
+- Subscriptions run in parallel, at most 8 at once. A failing subscription is listed in `errors` and the others still report.
 - Management groups are not walked.
 
-**What counts.** Direction `Inbound`, access `Allow`, custom `securityRules` only. The source is `*`, `Any`, `Internet` or `0.0.0.0/0`, in `sourceAddressPrefix` or in any entry of `sourceAddressPrefixes` (case-insensitive). Ports come from `destinationPortRange` and each entry of `destinationPortRanges`. The source is reported as written, so a rule with `*` shows `"source": "*"`. Azure's built-in default rules are skipped.
+**What is reported.** Custom `securityRules` that are `Inbound` and `Allow`, with a source of `*`, `Any`, `Internet` or `0.0.0.0/0` (case-insensitive), in `sourceAddressPrefix` or in any entry of `sourceAddressPrefixes`. Ports come from `destinationPortRange` and each entry of `destinationPortRanges`. The source is shown as written, so a rule with `*` shows `"source": "*"`. Azure's built-in default rules are skipped.
 
-**Things to know.**
+**Limits.**
 
-- `Internet` is a service tag for public address space, not literally `0.0.0.0/0`. It is treated as open to the internet on purpose, as the task intends.
-- Rule priority is not evaluated, so a higher-priority deny rule that would block the traffic is not considered. It does not model the association of an NSG with subnets or NICs either. Both can cause over-reporting.
-- It reads NSGs only, not Azure Firewall, application security groups or Virtual Network Manager security admin rules.
+- `Internet` is a service tag for public address space, not literally `0.0.0.0/0`. It is treated as open on purpose, as the task intends.
+- Priority and the association of an NSG with subnets or NICs are not evaluated, so a rule blocked by a higher-priority deny is still reported.
+- Azure Firewall, application security groups and Virtual Network Manager security admin rules are not read.
 - Azure refuses a rule whose source prefixes overlap, so `0.0.0.0/0` cannot share a list with other CIDRs.
 
-**Permissions.**
+**Permissions needed.** `Microsoft.Network/networkSecurityGroups/read` on each subscription. Built-in `Reader` covers it, and a custom role with that one action is tighter. `Network Contributor` is too broad. Listing all subscriptions needs no extra permission, because it returns the ones where the identity holds a role.
 
-| Case | Needed | Notes |
-| --- | --- | --- |
-| Any | `Microsoft.Network/networkSecurityGroups/read` on each subscription | Built-in `Reader` on the subscription covers this. A custom role with that one action is tighter. `Network Contributor` is too broad. |
-| All subscriptions | no extra permission | `--azure-all-subscriptions` lists the subscriptions where the identity holds a role. |
+## Running it
 
-## Run it
-
-No credentials are needed for the mock run:
+### Try it without credentials
 
 ```sh
-make fwscan-mock                         # from the repo root
+make fwscan-mock                         # from the repository root
 # or
 cd 03-firewall-scanner && go run ./cmd/fwscan --mock
 ```
 
-Build, test and lint from the repo root:
+Build, test and lint from the repository root:
 
 ```sh
-make fwscan-build     # builds 03-firewall-scanner/bin/fwscan, version from git via -ldflags
+make fwscan-build     # builds 03-firewall-scanner/bin/fwscan, with the version from git
 make fwscan-test      # go test -race ./...
 make fwscan-lint      # golangci-lint with the root .golangci.yml
 ```
 
-Real scans use the default credential chain of each cloud:
+### Scan real clouds
 
 ```sh
 fwscan                                                  # everything the credentials can see, in all three clouds
@@ -224,40 +203,23 @@ fwscan --fail-on-findings --output report.json --gcp-project my-project --azure-
 
 ### Flags
 
-General:
-
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--providers` | `aws,gcp,azure` | Providers to scan, comma separated. |
 | `--mock` | off | Use built-in fixtures. No credentials, no network. |
 | `--output` | `-` | Output file, or `-` for stdout. A new file is created with mode 0600. An existing file is overwritten and keeps its mode. |
-| `--fail-on-findings` | off | Exit 1 when at least one insecure rule is found. |
+| `--fail-on-findings` | off | Exit 1 when at least one rule is reported. |
 | `--timeout` | `60s` | Overall scan timeout. |
-| `--include-ipv6` | off | Also report `::/0` sources (an extension). |
+| `--include-ipv6` | off | Also report `::/0` sources. |
 | `--version` | | Print the version. |
-
-AWS:
-
-| Flag | Default | Meaning |
-| --- | --- | --- |
-| `--aws-regions` | `all` | Comma separated regions, or `all` (every enabled region, read with `DescribeRegions`). |
-| `--aws-scope` | `auto` | `auto`, `org` or `account`, as described in the AWS section. |
+| `--aws-regions` | `all` | Regions, comma separated, or `all` enabled regions. |
+| `--aws-scope` | `auto` | `auto`, `org` or `account`. |
 | `--aws-role-name` | `fwscan-reader` | Role assumed in the other accounts of an organization. |
-
-GCP:
-
-| Flag | Default | Meaning |
-| --- | --- | --- |
-| `--gcp-org` | none | Organization number. Scans every project under it through Cloud Asset Inventory. |
-| `--gcp-folder` | none | Folder number. Same as `--gcp-org` for one folder and its subfolders. |
-| `--gcp-project` | none | Project ids, comma separated. Reads the Compute API directly. |
-| `--gcp-quota-project` | none | Project that is billed for the API calls. User credentials need it for `--gcp-org` and `--gcp-folder`. |
+| `--gcp-org` | none | Organization number. Scans every project under it. |
+| `--gcp-folder` | none | Folder number. Scans every project under it. |
+| `--gcp-project` | none | Project ids, comma separated. |
+| `--gcp-quota-project` | none | Project billed for the API calls. User credentials need it for `--gcp-org` and `--gcp-folder`. |
 | `--gcp-policies` | on | Also read network and hierarchical firewall policies. |
-
-Azure:
-
-| Flag | Default | Meaning |
-| --- | --- | --- |
 | `--azure-subscription` | none | Subscription ids, comma separated. |
 | `--azure-all-subscriptions` | on when no subscription is named | Also scan every enabled subscription the credential can read. |
 
@@ -265,33 +227,23 @@ Azure:
 
 | Code | Meaning |
 | --- | --- |
-| 0 | Scan finished. No findings, or `--fail-on-findings` is off. |
-| 1 | `--fail-on-findings` is set and findings exist. |
-| 2 | Operational error: bad flags, unwritable output, or at least one provider failed or was incomplete. |
+| 0 | The scan finished. There are no findings, or `--fail-on-findings` is off. |
+| 1 | `--fail-on-findings` is set and there are findings. |
+| 2 | Bad flags, an unwritable output file, or at least one provider failed or was incomplete. |
 
-If findings exist and a provider also failed, the exit code is 2. An incomplete scan is not a clean result, so 2 wins.
+If there are findings and a provider also failed, the exit code is 2. An incomplete scan is not a clean result.
 
-### Running in CI
+### Using it in CI
 
 - Name the providers with `--providers`. A provider without credentials makes the run exit 2.
-- Use `--fail-on-findings` to gate on findings, and a larger `--timeout` for big organizations. A scan that is cut short exits 2.
-- Prefer keyless credentials: OIDC to an AWS role, workload identity federation for GCP, a federated credential for an Azure app. The default credential chains accept them.
-- Give the identity only the permissions in the cloud sections. The AWS role in each account should trust the scanner's own role, not the whole account.
-- The output names accounts, projects, resources and open ports. Write it to a file (`--output`) and keep it as a protected artifact.
+- Use `--fail-on-findings` to fail the job on findings, and a larger `--timeout` for big organizations.
+- Prefer keyless credentials: OIDC to an AWS role, workload identity federation for GCP, a federated credential for an Azure app.
+- Give the identity only the permissions listed in the cloud sections. The AWS role in each account should trust the scanner's own role, not the whole account.
+- The output names accounts, projects, resources and open ports. Write it to a file with `--output` and keep it as a protected artifact.
 
 ## Output
 
-The JSON follows the example in the task. The example is not valid JSON as printed, so this uses the clearly intended shape. Differences and additions:
-
-- `port` is always a string: `"8080"`, `"1000-2000"`, `"all"` (AWS, GCP) or `"*"` (Azure).
-- Only resources with at least one insecure rule are listed.
-- Extra fields, all additive: `region` (AWS), `account` (AWS), `project` (GCP), `location` (Azure), `rule_id` (Azure rule name, or the priority of a GCP policy rule), `type` (GCP, only for policy rules: `network_firewall_policy` or `hierarchical_firewall_policy`), and a top-level `errors` list.
-- For a GCP policy rule, `network` lists the networks the policy is attached to, or the folder or organization for a hierarchical policy. `project` is empty for a hierarchical policy.
-- `errors` is always present. A provider that fails does not hide the other providers. Partial results from a provider that failed halfway are kept, and the error is listed.
-- A provider that was not selected is omitted. A selected provider with no findings has an empty list.
-- Output is sorted (region, id, name, then protocol, port, source), so runs can be diffed.
-
-Example (`fwscan --mock`, trimmed to one provider):
+The task's example is not valid JSON as printed, so this uses the clearly intended shape. This is the output of `fwscan --mock`. The tool prints each rule over several lines. Here each rule is on one line to keep it short.
 
 ```json
 {
@@ -308,22 +260,61 @@ Example (`fwscan --mock`, trimmed to one provider):
       }
     ]
   },
+  "gcp": {
+    "firewall_rules": [
+      {
+        "name": "allow-all",
+        "network": "default",
+        "project": "example-project",
+        "insecure_rules": [
+          { "protocol": "icmp", "port": "all", "source": "0.0.0.0/0" }
+        ]
+      }
+    ]
+  },
+  "azure": {
+    "nsgs": [
+      {
+        "id": "/subscriptions/xxxx/resourceGroups/my-rg/providers/Microsoft.Network/networkSecurityGroups/my-nsg",
+        "name": "open-nsg",
+        "location": "westeurope",
+        "insecure_rules": [
+          { "protocol": "*", "port": "*", "source": "0.0.0.0/0", "rule_id": "allow-any" }
+        ]
+      }
+    ]
+  },
   "errors": []
 }
 ```
 
-## Verified how
+Notes on the fields:
 
-Every claim in this README about live behaviour comes from runs on 2026-10-14 against real test environments. Each run compared the findings with an expected set built from the cloud's own CLI output.
+- `port` is always a string: `"8080"`, `"1000-2000"`, `"all"` (AWS and GCP) or `"*"` (Azure).
+- Only resources with at least one reported rule are listed.
+- Extra fields, not in the task's example: `region` and `account` (AWS), `project` (GCP), `location` (Azure), `rule_id` (the Azure rule name, or the priority of a GCP policy rule), `type` (GCP policy rules only: `network_firewall_policy` or `hierarchical_firewall_policy`) and the top-level `errors`.
+- For a GCP policy rule, `network` lists the networks the policy is attached to, or the folder or organization for a hierarchical policy.
+- `errors` is always present. It lists each provider, region, account, project or subscription that failed, and what was found before the failure is kept.
+- A provider you did not select is left out. A selected provider with no findings has an empty list.
+- The output is sorted, so two runs can be compared with a diff.
 
-| Provider | Unit tests | Live runs |
+## How it was tested
+
+All live runs were on 2026-10-14 against real test environments. Each run's findings were compared with an expected set built from the cloud's own CLI output.
+
+**Unit tests** (`make fwscan-test`, with the race detector):
+
+- Detection: tcp, udp, icmp, `-1`, port ranges, several CIDRs where one is open, IPv6, disabled, egress and deny rules, policy rules, and Azure `*`, `Any` and `Internet`.
+- Adapters with fake clients: pagination, filtering, sorting, partial failures, errors on a later page, organizations, subscriptions and scope discovery. The real GCP clients also run against local test servers for page tokens, a 403, a slow server and a timeout.
+- The mock output is checked against a golden file (`cmd/fwscan/testdata/mock.golden.json`).
+- Exit codes, the timeout, and one failing provider not hiding the others, using fake scanners.
+
+**Live runs**
+
+| Cloud | Environment | Runs |
 | --- | --- | --- |
-| AWS | A fake EC2 client: pagination over three pages, filtering, sorting, multi-region, `all` regions, partial failure, error on a later page, IPv6 flag. A fake Organizations client: account pages, suspended accounts, the caller's own account, scope fallback, partial failure. | One account that is the management account of an AWS Organization, with 18 test security groups in two regions. Scans with `--aws-regions` (one, two and `all`), `--include-ipv6`, `--aws-scope auto`, `org` and `account`. Run with the account's credentials and as a role that holds only `ec2:DescribeSecurityGroups` and `ec2:DescribeRegions` (checked with the IAM policy simulator). |
-| GCP | Fake listers, a fake asset searcher and a fake discoverer for the scope logic. The real SDK clients against local `httptest` servers for page tokens, an HTTP 403, a slow server and a timeout, and for the Cloud Asset, network policy and hierarchical policy requests. | A test organization with two projects and one folder: 22 test VPC firewall rules next to the default ones, a network firewall policy, an organization policy and a folder policy. Scans by project list, folder, organization and by discovery with no flag. Run as the project owner and as a service account whose custom role holds `compute.firewalls.list`, `compute.firewallPolicies.list` and `cloudasset.assets.searchAllResources`. |
-| Azure | The SDK's own fake server (`armnetwork/fake`): two pages, address prefix lists, port range lists, error on the second page. A fake subscription list: paging, disabled subscriptions, de-duplication, partial failure. | A free subscription with 4 NSGs in two regions and 20 rules, run through the Azure CLI login and as a service principal whose custom role holds only `Microsoft.Network/networkSecurityGroups/read`. Scans with `--azure-subscription` and `--azure-all-subscriptions`. |
-
-- The detection logic has table-driven tests for tcp, udp, icmp, `-1`, port ranges, multiple CIDRs where one is open, IPv6, disabled GCP rules, egress rules, deny rules, policy rules, and Azure `*`, `Any` and `Internet`.
-- The JSON output has a golden-file test (`cmd/fwscan/testdata/mock.golden.json`).
-- The exit codes, the timeout and the isolation of one failing provider from the others are covered by tests that inject fake scanners.
+| AWS | One account that is the management account of an AWS Organization, with 18 test security groups in two regions | Scans with one region, two regions and `all`, with `--include-ipv6`, and with `--aws-scope` `auto`, `org` and `account`. Run with the account's credentials, and as a role that holds only the two EC2 permissions (checked with the IAM policy simulator). |
+| GCP | A test organization with two projects and one folder: 22 test VPC rules next to the default ones, a network policy, an organization policy and a folder policy | Scans by project list, folder, organization, and by discovery with no flag. Run as the project owner, and as a service account whose custom role holds `compute.firewalls.list`, `compute.firewallPolicies.list` and `cloudasset.assets.searchAllResources`. |
+| Azure | A free subscription with 4 NSGs in two regions and 20 rules | Scans with `--azure-subscription` and `--azure-all-subscriptions`. Run through the Azure CLI login, and as a service principal whose custom role holds only `Microsoft.Network/networkSecurityGroups/read`. |
 
 This is a take-home sample. It has not been hardened or load tested.
