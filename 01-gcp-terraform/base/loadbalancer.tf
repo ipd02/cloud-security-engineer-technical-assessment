@@ -1,6 +1,7 @@
 # Global external Application Load Balancer, HTTPS only. One forwarding rule
-# on 443 and no port-80 frontend. It is a Google edge service, so it is not in
-# the public subnet or any other subnet.
+# on 443 and no port-80 frontend. It is a Google-managed service, not a virtual
+# machine deployed inside your VPC, so it is not in the public subnet or any
+# other subnet.
 
 resource "google_compute_global_address" "lb" {
   project      = var.project_id

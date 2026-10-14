@@ -101,30 +101,57 @@ run "internet_reaches_only_port_443_on_the_load_balancer" {
 
   assert {
     condition = alltrue([
-      for r in [google_compute_firewall.allow_lb_http, google_compute_firewall.allow_ssh_trusted] :
+      for r in [google_compute_firewall.allow_lb_http, google_compute_firewall.allow_ssh_trusted_bastion] :
       !contains(r.source_ranges, "0.0.0.0/0") && !contains(r.source_ranges, "::/0")
     ])
     error_message = "No allow rule may take traffic from the whole internet."
   }
 }
 
-# Bullet 4b: only SSH (22) from a trusted range (not 0.0.0.0/0) to the instance.
-run "ssh_only_from_the_trusted_range_to_the_instance" {
+# Bullet 4b: only SSH (22) from a trusted range (not 0.0.0.0/0) to the
+# instance. The instance has no external IP, so the path is trusted range ->
+# bastion in the public subnet -> instance.
+run "ssh_reaches_the_instance_only_from_the_trusted_range_through_the_bastion" {
   command = apply
 
   assert {
-    condition     = google_compute_firewall.allow_ssh_trusted.direction == "INGRESS" && google_compute_firewall.allow_ssh_trusted.source_ranges == toset(["203.0.113.0/24"])
-    error_message = "SSH is allowed only from var.trusted_ssh_cidrs."
+    condition     = google_compute_instance.bastion.network_interface[0].subnetwork == google_compute_subnetwork.public.id
+    error_message = "The bastion must sit in the public subnet."
   }
 
   assert {
-    condition     = [for a in google_compute_firewall.allow_ssh_trusted.allow : a.protocol] == ["tcp"] && flatten([for a in google_compute_firewall.allow_ssh_trusted.allow : tolist(a.ports)]) == ["22"]
-    error_message = "SSH rule must allow exactly tcp/22."
+    condition     = length(google_compute_instance.bastion.network_interface[0].access_config) == 1 && length(google_compute_instance.web.network_interface[0].access_config) == 0
+    error_message = "Only the bastion has an external IP. The instance has none."
   }
 
   assert {
-    condition     = google_compute_firewall.allow_ssh_trusted.target_service_accounts == toset([google_service_account.web.email])
-    error_message = "SSH rule must target the web instance only."
+    condition     = google_compute_firewall.allow_ssh_trusted_bastion.direction == "INGRESS" && google_compute_firewall.allow_ssh_trusted_bastion.source_ranges == toset(["203.0.113.0/24"])
+    error_message = "The bastion takes SSH only from the trusted range."
+  }
+
+  assert {
+    condition     = [for a in google_compute_firewall.allow_ssh_trusted_bastion.allow : a.protocol] == ["tcp"] && flatten([for a in google_compute_firewall.allow_ssh_trusted_bastion.allow : tolist(a.ports)]) == ["22"]
+    error_message = "The trusted-range rule must allow exactly tcp/22."
+  }
+
+  assert {
+    condition     = google_compute_firewall.allow_ssh_trusted_bastion.target_service_accounts == toset([google_service_account.bastion.email])
+    error_message = "The trusted-range rule must target the bastion only."
+  }
+
+  assert {
+    condition     = google_compute_firewall.allow_ssh_bastion_to_web.source_service_accounts == toset([google_service_account.bastion.email]) && google_compute_firewall.allow_ssh_bastion_to_web.target_service_accounts == toset([google_service_account.web.email]) && try(length(google_compute_firewall.allow_ssh_bastion_to_web.source_ranges) == 0, true)
+    error_message = "Only the bastion may SSH to the instance, and the rule must not take any source range."
+  }
+
+  assert {
+    condition     = [for a in google_compute_firewall.allow_ssh_bastion_to_web.allow : a.protocol] == ["tcp"] && flatten([for a in google_compute_firewall.allow_ssh_bastion_to_web.allow : tolist(a.ports)]) == ["22"]
+    error_message = "The bastion-to-instance rule must allow exactly tcp/22."
+  }
+
+  assert {
+    condition     = google_compute_instance.bastion.service_account[0].email == google_service_account.bastion.email && google_compute_instance.bastion.service_account[0].email != google_service_account.web.email
+    error_message = "The bastion has its own service account."
   }
 }
 
@@ -167,4 +194,8 @@ run "iam_has_no_basic_roles" {
     error_message = "Roles go to the dedicated service account only."
   }
 
+  assert {
+    condition     = length([for m in google_project_iam_member.web : m if m.member == "serviceAccount:${google_service_account.bastion.email}"]) == 0
+    error_message = "The bastion service account holds no project roles."
+  }
 }

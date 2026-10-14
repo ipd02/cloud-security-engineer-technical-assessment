@@ -25,16 +25,32 @@ resource "google_compute_firewall" "allow_lb_http" {
 }
 
 # "Allow only SSH (22) from a trusted IP range (not 0.0.0.0/0) to the Compute
-# Engine instance." The instance has no external IP, so these ranges must
-# reach the VPC privately (VPN, Interconnect, peering). See the README.
-resource "google_compute_firewall" "allow_ssh_trusted" {
+# Engine instance." The instance has no external IP, so the path is two rules:
+# trusted range to the bastion, then bastion to the instance.
+resource "google_compute_firewall" "allow_ssh_trusted_bastion" {
   project                 = var.project_id
-  name                    = "${var.name}-allow-ssh-trusted"
+  name                    = "${var.name}-allow-ssh-bastion-in"
   network                 = google_compute_network.vpc.name
-  description             = "tcp/22 from the trusted ranges to the instance only."
+  description             = "tcp/22 from the trusted ranges to the bastion only."
   direction               = "INGRESS"
   priority                = 1000
   source_ranges           = var.trusted_ssh_cidrs
+  target_service_accounts = [google_service_account.bastion.email]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+}
+
+resource "google_compute_firewall" "allow_ssh_bastion_to_web" {
+  project                 = var.project_id
+  name                    = "${var.name}-allow-ssh-bastion-to-web"
+  network                 = google_compute_network.vpc.name
+  description             = "tcp/22 from the bastion to the Compute Engine instance only."
+  direction               = "INGRESS"
+  priority                = 1000
+  source_service_accounts = [google_service_account.bastion.email]
   target_service_accounts = [google_service_account.web.email]
 
   allow {

@@ -32,3 +32,13 @@ output "private_subnet_id" {
   description = "Id of the private subnet."
   value       = google_compute_subnetwork.private.id
 }
+
+output "bastion_external_ip" {
+  description = "External IP of the SSH bastion."
+  value       = google_compute_instance.bastion.network_interface[0].access_config[0].nat_ip
+}
+
+output "bastion_service_account" {
+  description = "Email of the bastion service account. It holds no project roles."
+  value       = google_service_account.bastion.email
+}

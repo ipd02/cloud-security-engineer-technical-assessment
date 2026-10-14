@@ -7,9 +7,9 @@ resource "google_compute_network" "vpc" {
   depends_on = [terraform_data.validations]
 }
 
-# The brief asks for a public subnet. A global external Application Load
-# Balancer is a Google edge service and does not live in any subnet, so
-# nothing runs here. See the README.
+# The brief asks for a public subnet. The SSH bastion lives here. The global
+# external Application Load Balancer does not: it is a Google-managed service,
+# not a virtual machine deployed inside your VPC, so it has no subnet.
 resource "google_compute_subnetwork" "public" {
   #checkov:skip=CKV_GCP_26:Not in the brief. Added by the extended module, see ../README.md. VPC flow logs.
   #checkov:skip=CKV_GCP_74:Not in the brief. Added by the extended module, see ../README.md. Private Google Access.
