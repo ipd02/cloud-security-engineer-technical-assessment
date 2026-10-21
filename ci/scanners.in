@@ -1,4 +1,4 @@
 # Top-level CI tools. ci/scanners.txt is generated from this file:
 #   pip-compile --generate-hashes --allow-unsafe --strip-extras --no-annotate -o scanners.txt scanners.in
-checkov==3.3.20
+checkov==3.3.29
 cfn-lint==1.57.2
