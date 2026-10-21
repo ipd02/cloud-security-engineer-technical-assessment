@@ -1,2 +1,2 @@
 # Top-level CI tool. ci/ruff.txt is generated from this file with the same pip-compile command.
-ruff==0.17.0
+ruff==0.17.1
