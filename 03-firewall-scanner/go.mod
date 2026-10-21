@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	cloud.google.com/go/asset v1.29.0
-	cloud.google.com/go/compute v1.72.0
+	cloud.google.com/go/compute v1.73.0
 	cloud.google.com/go/resourcemanager v1.17.0
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.3
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.1
